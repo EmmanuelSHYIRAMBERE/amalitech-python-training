@@ -3,7 +3,7 @@
 </div>
 <br/>
 
-#  Amalitech Python Training
+#  Amalitech Python Backend + AI App Development Training
 
 > A structured record of my Python development journey at **Amalitech** — covering core language fundamentals, object-oriented programming, software design patterns, and hands-on project labs.
 
@@ -15,7 +15,7 @@
 |---|---|
 | **Trainee** | Emmanuel SHYIRAMBERE|
 | **Program** | AmaliTech Apprenticeship Programme |
-| **Duration** | Marc → Sep 2026 |
+| **Duration** | Mar → Sep 2026 |
 | **Track** | Python Backend + AI App Development |
 
 ---
