@@ -1,10 +1,15 @@
-# 🐍 Amalitech Python Training
+<div align="center">
+  <img src="https://amalitech.com/wp-content/uploads/elementor/thumbs/cropped-Logo-AmaliTech-2024_AmaliTech-1-1-qwx787mrcfwkgtwtxyaig0bixrwoxjaylsrbwor7ek.png" alt="AmaliTech Logo" width="280"/>
+</div>
+<br/>
+
+#  Amalitech Python Training
 
 > A structured record of my Python development journey at **Amalitech** — covering core language fundamentals, object-oriented programming, software design patterns, and hands-on project labs.
 
 ---
 
-## 👤 About
+##  About
 
 | | |
 |---|---|
@@ -15,7 +20,7 @@
 
 ---
 
-## 🧠 Concepts Covered
+##  Concepts Covered
 
 ### Language Fundamentals
 - Core data types: `str`, `int`, `float`, `bool`, `list`, `dict`, `set`, `tuple`
@@ -46,7 +51,7 @@
 
 ---
 
-## 📬 Contact
+##  Contact
 
 **Trainee:** Emmanuel SHYIRAMBERE
 **LinkedIn:** [My Profile](https://www.linkedin.com/in/emashyirambere)
@@ -54,5 +59,5 @@
 ---
 
 <div align="center">
-  <sub>Built with 🐍 Python 3.11+ · Amalitec Training Program</sub>
+  <sub>Built with  Python 3.11+ · Amalitec Training Program</sub>
 </div>
