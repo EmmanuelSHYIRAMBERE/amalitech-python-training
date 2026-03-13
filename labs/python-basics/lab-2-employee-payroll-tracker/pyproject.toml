@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "employee-payroll-tracker"
+version = "0.1.0"
+description = "An Employee Payroll Tracker System"
+authors = ["EmmanuelSHYIRAMBERE <emashyirambere1@gmail.com>"]
+readme = "README.md"
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.10"
+colorama = "^0.4.6"
+tabulate = "^0.10.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
