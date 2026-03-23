@@ -37,6 +37,15 @@ def delete_task(task_id):
     tasks = [task for task in tasks if task["id"] != task_id]
     return {"message": "Task deleted"}
 
+@app.route("/summary", methods=["GET"])
+def get_summary():
+    completed = sum(1 for t in tasks if t["completed"])
+    pending = sum(1 for t in tasks if not t["completed"])
+
+    return {
+        "completed": completed,
+        "pending": pending
+    }
 
 if __name__ == "__main__":
     app.run(debug=True)
