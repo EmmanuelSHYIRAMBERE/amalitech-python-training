@@ -1,5 +1,9 @@
 import pytest
-from src.models.student import UndergraduateStudent, GraduateStudent, InternationalStudent
+from src.models.student import (
+    UndergraduateStudent,
+    GraduateStudent,
+)
+
 
 def test_undergraduate_student_creation():
     student = UndergraduateStudent("S001", "Test Student", "test@example.com", 2)
@@ -9,17 +13,20 @@ def test_undergraduate_student_creation():
     assert student.year == 2
     assert student.calculate_tuition() > 0
 
+
 def test_graduate_student_research_topic():
     student = GraduateStudent("S002", "Grad Student", "grad@example.com", "AI Research")
     assert student.research_topic == "AI Research"
     student.advisor = "Dr. Smith"
     assert student.advisor == "Dr. Smith"
 
+
 def test_student_enrollment():
     student = UndergraduateStudent("S003", "Enroll Test", "enroll@example.com", 1)
     assert student.enroll_course("CS101") == True
     assert student.enroll_course("CS101") == False  # Already enrolled
     assert len(student.get_enrolled_courses()) == 1
+
 
 def test_gpa_calculation():
     student = UndergraduateStudent("S004", "GPA Test", "gpa@example.com", 3)
