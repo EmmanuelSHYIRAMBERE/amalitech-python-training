@@ -31,8 +31,8 @@ This project demonstrates iterative development, testing, CI/CD pipelines, and b
 ### 1. Clone the repo
 
 ```bash
-git clone <YOUR_REPO_URL>
-cd todo-app-agile-devops
+git clone https://github.com/EmmanuelSHYIRAMBERE/amalitech-python-training.git
+cd projects/todo-app-agile-devops
 ```
 
 ### 2. Create virtual environment & install dependencies
