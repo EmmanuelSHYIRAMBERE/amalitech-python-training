@@ -31,6 +31,12 @@ def complete_task(task_id):
             return jsonify(task)
     return {"error": "Task not found"}, 404
 
+@app.route("/tasks/<int:task_id>", methods=["DELETE"])
+def delete_task(task_id):
+    global tasks
+    tasks = [task for task in tasks if task["id"] != task_id]
+    return {"message": "Task deleted"}
+
 
 if __name__ == "__main__":
     app.run(debug=True)
