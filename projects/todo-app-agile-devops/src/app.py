@@ -1,11 +1,14 @@
 from flask import Flask, request, jsonify
+import logging
 
+logging.basicConfig(level=logging.INFO)
 app = Flask(__name__)
 
 tasks = []
 
 @app.route("/")
 def home():
+    logging.info("Home endpoint accessed")
     return "To-Do App Running"
 
 @app.route("/tasks", methods=["POST"])
@@ -17,14 +20,17 @@ def create_task():
         "completed": False
     }
     tasks.append(task)
+    logging.info(f"Task created: {task}")
     return jsonify(task)
 
 @app.route("/tasks", methods=["GET"])
 def get_tasks():
+    logging.info("Fetching all tasks")
     return jsonify(tasks)
 
 @app.route("/tasks/<int:task_id>", methods=["PUT"])
 def complete_task(task_id):
+    logging.info(f"Completing task: {task_id}")
     for task in tasks:
         if task["id"] == task_id:
             task["completed"] = True
@@ -33,6 +39,7 @@ def complete_task(task_id):
 
 @app.route("/tasks/<int:task_id>", methods=["DELETE"])
 def delete_task(task_id):
+    logging.info(f"Deleting task: {task_id}")
     global tasks
     tasks = [task for task in tasks if task["id"] != task_id]
     return {"message": "Task deleted"}
