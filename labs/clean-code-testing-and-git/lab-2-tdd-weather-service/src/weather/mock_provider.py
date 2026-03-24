@@ -5,11 +5,21 @@ from weather.models import WeatherRequest, WeatherResponse
 from weather.provider import WeatherProvider
 
 _MOCK_DATA: dict[str, WeatherResponse] = {
-    "Accra": WeatherResponse(city="Accra", temperature_c=32.0, condition="Sunny", humidity_pct=60),
-    "Berlin": WeatherResponse(city="Berlin", temperature_c=14.0, condition="Cloudy", humidity_pct=72),
-    "Tokyo": WeatherResponse(city="Tokyo", temperature_c=22.0, condition="Partly Cloudy", humidity_pct=65),
-    "New York": WeatherResponse(city="New York", temperature_c=18.0, condition="Windy", humidity_pct=55),
-    "Lagos": WeatherResponse(city="Lagos", temperature_c=30.0, condition="Humid", humidity_pct=85),
+    "Accra": WeatherResponse(
+        city="Accra", temperature_c=32.0, condition="Sunny", humidity_pct=60
+    ),
+    "Berlin": WeatherResponse(
+        city="Berlin", temperature_c=14.0, condition="Cloudy", humidity_pct=72
+    ),
+    "Tokyo": WeatherResponse(
+        city="Tokyo", temperature_c=22.0, condition="Partly Cloudy", humidity_pct=65
+    ),
+    "New York": WeatherResponse(
+        city="New York", temperature_c=18.0, condition="Windy", humidity_pct=55
+    ),
+    "Lagos": WeatherResponse(
+        city="Lagos", temperature_c=30.0, condition="Humid", humidity_pct=85
+    ),
 }
 
 

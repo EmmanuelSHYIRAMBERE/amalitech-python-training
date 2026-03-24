@@ -10,7 +10,6 @@ from weather.mock_provider import MockWeatherProvider
 from weather.models import WeatherResponse
 from weather.service import WeatherService
 
-
 VALID_KEY = "valid-key-123"
 
 
@@ -43,7 +42,9 @@ def test_get_forecast_correct_temperature(service: WeatherService) -> None:
     ("Berlin", "Cloudy"),
     ("Lagos", "Humid"),
 ])
-def test_get_forecast_conditions(service: WeatherService, city: str, expected_condition: str) -> None:
+def test_get_forecast_conditions(
+    service: WeatherService, city: str, expected_condition: str
+) -> None:
     result = service.get_forecast(city)
     assert result.condition == expected_condition
 
@@ -74,7 +75,9 @@ def test_get_forecast_whitespace_city_raises(service: WeatherService) -> None:
 
 # --- Logging ---
 
-def test_get_forecast_logs_request(service: WeatherService, caplog: pytest.LogCaptureFixture) -> None:
+def test_get_forecast_logs_request(
+    service: WeatherService, caplog: pytest.LogCaptureFixture
+) -> None:
     with caplog.at_level(logging.INFO, logger="weather.service"):
         service.get_forecast("Accra")
     assert "Accra" in caplog.text

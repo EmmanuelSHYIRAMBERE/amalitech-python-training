@@ -58,5 +58,9 @@ class WeatherService:
             logger.warning("Forecast request failed: %s", exc)
             raise
 
-        logger.info("Forecast retrieved: city=%r temp=%.1f°C", response.city, response.temperature_c)
+        logger.info(
+            "Forecast retrieved: city=%r temp=%.1f°C",
+            response.city,
+            response.temperature_c,
+        )
         return response

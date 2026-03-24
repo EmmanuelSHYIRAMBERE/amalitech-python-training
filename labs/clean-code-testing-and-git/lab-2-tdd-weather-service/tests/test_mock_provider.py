@@ -6,7 +6,6 @@ from weather.exceptions import CityNotFoundError, InvalidAPIKeyError
 from weather.mock_provider import MockWeatherProvider
 from weather.models import WeatherRequest, WeatherResponse
 
-
 VALID_KEY = "valid-key-123"
 KNOWN_CITIES = ["Accra", "Berlin", "Tokyo", "New York", "Lagos"]
 
@@ -24,7 +23,9 @@ def test_provider_returns_weather_response(provider: MockWeatherProvider) -> Non
 
 
 @pytest.mark.parametrize("city", KNOWN_CITIES)
-def test_provider_knows_all_known_cities(provider: MockWeatherProvider, city: str) -> None:
+def test_provider_knows_all_known_cities(
+    provider: MockWeatherProvider, city: str
+) -> None:
     req = WeatherRequest(city=city, api_key=VALID_KEY)
     result = provider.fetch(req)
     assert result.city == city

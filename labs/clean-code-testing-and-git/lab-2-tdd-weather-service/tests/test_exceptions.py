@@ -2,7 +2,11 @@
 
 import pytest
 
-from weather.exceptions import CityNotFoundError, InvalidAPIKeyError, WeatherServiceError
+from weather.exceptions import (
+    CityNotFoundError,
+    InvalidAPIKeyError,
+    WeatherServiceError,
+)
 
 
 def test_invalid_api_key_error_is_weather_service_error() -> None:

@@ -23,5 +23,7 @@ def test_weather_response_stores_forecast() -> None:
 
 
 def test_weather_response_repr_contains_city() -> None:
-    resp = WeatherResponse(city="Accra", temperature_c=32.0, condition="Sunny", humidity_pct=60)
+    resp = WeatherResponse(
+        city="Accra", temperature_c=32.0, condition="Sunny", humidity_pct=60
+    )
     assert "Accra" in repr(resp)

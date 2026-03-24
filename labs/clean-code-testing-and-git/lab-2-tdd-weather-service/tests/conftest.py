@@ -21,6 +21,8 @@ def mock_provider(valid_api_key: str) -> MockWeatherProvider:
 
 
 @pytest.fixture
-def weather_service(mock_provider: MockWeatherProvider, valid_api_key: str) -> WeatherService:
+def weather_service(
+    mock_provider: MockWeatherProvider, valid_api_key: str
+) -> WeatherService:
     """Return a WeatherService backed by MockWeatherProvider."""
     return WeatherService(provider=mock_provider, api_key=valid_api_key)
