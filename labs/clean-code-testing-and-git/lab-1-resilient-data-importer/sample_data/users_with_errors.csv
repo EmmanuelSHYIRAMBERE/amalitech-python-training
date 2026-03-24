@@ -1,0 +1,7 @@
+user_id,name,email
+U006,Frank Ocean,frank@example.com
+U007,Grace Hopper,grace@example.com
+,Missing ID,missing@example.com
+U009,Bad Email,not-an-email
+U006,Frank Ocean,frank@example.com
+U010,Valid Again,valid@example.com
