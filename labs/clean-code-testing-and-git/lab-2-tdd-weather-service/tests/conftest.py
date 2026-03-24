@@ -1,7 +1,6 @@
 """Shared pytest fixtures for the weather service test suite."""
 
 import pytest
-
 from weather.mock_provider import MockWeatherProvider
 from weather.service import WeatherService
 

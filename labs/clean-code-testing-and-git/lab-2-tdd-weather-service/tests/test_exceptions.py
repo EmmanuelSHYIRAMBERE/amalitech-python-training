@@ -1,7 +1,6 @@
 """Tests for custom Weather service exceptions."""
 
 import pytest
-
 from weather.exceptions import (
     CityNotFoundError,
     InvalidAPIKeyError,

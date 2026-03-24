@@ -4,7 +4,6 @@ import logging
 
 import pytest
 from pytest_mock import MockerFixture
-
 from weather.exceptions import CityNotFoundError, InvalidAPIKeyError
 from weather.mock_provider import MockWeatherProvider
 from weather.models import WeatherResponse
@@ -22,6 +21,7 @@ def service() -> WeatherService:
 
 # --- Happy path ---
 
+
 def test_get_forecast_returns_weather_response(service: WeatherService) -> None:
     result = service.get_forecast("Accra")
     assert isinstance(result, WeatherResponse)
@@ -37,11 +37,14 @@ def test_get_forecast_correct_temperature(service: WeatherService) -> None:
     assert result.temperature_c == 22.0
 
 
-@pytest.mark.parametrize("city,expected_condition", [
-    ("Accra", "Sunny"),
-    ("Berlin", "Cloudy"),
-    ("Lagos", "Humid"),
-])
+@pytest.mark.parametrize(
+    "city,expected_condition",
+    [
+        ("Accra", "Sunny"),
+        ("Berlin", "Cloudy"),
+        ("Lagos", "Humid"),
+    ],
+)
 def test_get_forecast_conditions(
     service: WeatherService, city: str, expected_condition: str
 ) -> None:
@@ -50,6 +53,7 @@ def test_get_forecast_conditions(
 
 
 # --- Error handling ---
+
 
 def test_get_forecast_unknown_city_raises(service: WeatherService) -> None:
     with pytest.raises(CityNotFoundError):
@@ -75,6 +79,7 @@ def test_get_forecast_whitespace_city_raises(service: WeatherService) -> None:
 
 # --- Logging ---
 
+
 def test_get_forecast_logs_request(
     service: WeatherService, caplog: pytest.LogCaptureFixture
 ) -> None:
@@ -93,6 +98,7 @@ def test_get_forecast_logs_error_on_city_not_found(
 
 
 # --- Dependency injection / mocking ---
+
 
 def test_service_delegates_to_provider(mocker: MockerFixture) -> None:
     mock_provider = mocker.MagicMock()

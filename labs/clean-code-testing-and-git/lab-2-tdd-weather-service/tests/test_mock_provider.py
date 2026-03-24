@@ -1,7 +1,6 @@
 """Tests for the abstract WeatherProvider interface and MockWeatherProvider."""
 
 import pytest
-
 from weather.exceptions import CityNotFoundError, InvalidAPIKeyError
 from weather.mock_provider import MockWeatherProvider
 from weather.models import WeatherRequest, WeatherResponse
