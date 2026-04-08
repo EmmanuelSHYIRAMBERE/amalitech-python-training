@@ -1,0 +1,80 @@
+# ============================================================
+# Monorepo root — shared tooling configuration
+# Individual labs keep their own pyproject.toml for pytest /
+# coverage settings; this file governs formatting and linting
+# across the entire workspace.
+# ============================================================
+
+# ── Black ────────────────────────────────────────────────────
+[tool.black]
+line-length = 88
+target-version = ["py311"]
+exclude = '''
+/(
+    \.venv
+  | \.mypy_cache
+  | \.ruff_cache
+  | \.git
+  | __pycache__
+  | .*\.egg-info
+)/
+'''
+
+# ── Ruff ─────────────────────────────────────────────────────
+[tool.ruff]
+line-length = 88
+include = [
+  "labs/**/*.py",
+  "projects/**/*.py",
+  "exercises/**/*.py",
+]
+exclude = [
+  ".venv",
+  "__pycache__",
+  "*.egg-info",
+  ".mypy_cache",
+  ".ruff_cache",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+ignore = ["E501"]
+
+# ── Mypy ─────────────────────────────────────────────────────
+# explicit_package_bases prevents duplicate-module errors when
+# multiple labs share the same src/ layout in a monorepo.
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+explicit_package_bases = true
+
+# python-basics labs — relaxed (no strict, early-stage OOP work)
+[[tool.mypy.overrides]]
+module = [
+  "labs.python-basics.*",
+]
+strict = false
+
+# python-advanced labs — strict
+[[tool.mypy.overrides]]
+module = [
+  "labs.python-advanced.lab-1-grade-analytics.src.*",
+  "labs.python-advanced.lab-2-log-file-analyzer.src.*",
+]
+strict = true
+
+# clean-code labs — strict
+[[tool.mypy.overrides]]
+module = [
+  "labs.clean-code-testing-and-git.lab-1-resilient-data-importer.src.*",
+  "labs.clean-code-testing-and-git.lab-2-tdd-weather-service.src.*",
+]
+strict = true
+
+# database-fundamentals lab — relaxed (psycopg2 / redis / pymongo stubs absent)
+[[tool.mypy.overrides]]
+module = [
+  "labs.database-fundamentals.lab-1-e-commerce-analytics-data-pipeline.src.*",
+]
+strict = false
+ignore_missing_imports = true
