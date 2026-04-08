@@ -1,6 +1,7 @@
 psycopg2-binary>=2.9
 redis>=5.0
 pymongo>=4.7
-pytest
-pytest-cov
-mypy
+pytest>=8.0
+pytest-cov>=5.0
+pytest-mock>=3.14
+mypy>=1.10
