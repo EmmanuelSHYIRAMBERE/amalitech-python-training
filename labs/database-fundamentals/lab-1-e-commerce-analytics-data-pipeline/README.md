@@ -1,5 +1,7 @@
 # Lab 1 — E-Commerce Analytics Data Pipeline
 
+![CI](https://github.com/EmmanuelSHYIRAMBERE/amalitech-python-training/actions/workflows/db-fundamentals-lab1.yml/badge.svg)
+
 ## ER Diagram
 
 ```
@@ -61,10 +63,44 @@ lab-1-e-commerce-analytics-data-pipeline/
 │   ├── orders.py           # Transactional order creation
 │   ├── sessions.py         # MongoDB cart sessions
 │   └── analytics.py        # Window functions, CTEs, EXPLAIN ANALYZE
+├── tests/
+│   ├── conftest.py         # Shared fixtures (mocked DB, Redis, MongoDB)
+│   ├── test_customers.py   # add_customer, get_customer
+│   ├── test_products.py    # CRUD, Redis cache hit/miss, JSONB query
+│   ├── test_orders.py      # ACID transaction, stock validation, rollback
+│   ├── test_sessions.py    # MongoDB cart save/get/delete
+│   └── test_analytics.py  # Window function, CTE, EXPLAIN ANALYZE
 ├── main.py                 # Full pipeline demo
 ├── requirements.txt
 └── pyproject.toml
 ```
+
+## Testing
+
+All tests use `unittest.mock` — no running PostgreSQL, Redis, or MongoDB instance is needed.
+
+```bash
+pip install -r requirements.txt
+pytest --tb=short -q --cov=src --cov-report=term-missing
+```
+
+### Test Coverage
+
+| Module | Tests | Coverage |
+|---|---|---|
+| `customers.py` | 7 | 100% |
+| `products.py` | 11 | 100% |
+| `orders.py` | 9 | 100% |
+| `sessions.py` | 7 | 80% |
+| `analytics.py` | 12 | 100% |
+| **Total** | **46** | **91%** |
+
+### TDD Approach
+
+Each test file follows the Red → Green cycle:
+- **Red** — assert the contract (return type, SQL keywords, side-effects) before the implementation is wired
+- **Green** — patch `get_conn`, `_redis`, and `_sessions` with `unittest.mock` so tests run in isolation
+- No real database connections are made; fixtures in `conftest.py` provide reusable mock cursors, connections, and collections
 
 ## Running the Pipeline
 
