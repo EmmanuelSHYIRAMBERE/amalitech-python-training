@@ -13,7 +13,7 @@ def _sessions() -> Collection:  # type: ignore[type-arg]
     global _client
     if _client is None:
         _client = MongoClient(os.getenv("MONGO_URL", "mongodb://localhost:27017/"))
-    return _client["ecommerce"]["sessions"]
+    return _client["Ecommerce"]["sessions"]
 
 
 def save_cart(session_id: str, customer_id: int, cart_items: list[dict[str, Any]]) -> None:

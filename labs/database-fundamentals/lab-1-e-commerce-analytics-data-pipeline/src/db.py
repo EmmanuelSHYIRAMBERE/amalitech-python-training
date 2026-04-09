@@ -1,16 +1,15 @@
 """PostgreSQL connection pool (psycopg2 ThreadedConnectionPool)."""
 
 import os
+from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Generator
 
-import psycopg2
 from psycopg2 import pool
 from psycopg2.extensions import connection as PgConnection
 
 _DSN = os.getenv(
     "DATABASE_URL",
-    "postgresql://ecom_user:ecom_pass@localhost:5432/ecommerce",
+    "postgresql://postgres:admin321@localhost:5432/ecommerce",
 )
 
 _pool: pool.ThreadedConnectionPool | None = None

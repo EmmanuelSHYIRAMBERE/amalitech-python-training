@@ -9,7 +9,9 @@ def add_customer(name: str, email: str) -> int:
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO customers (name, email) VALUES (%s, %s) RETURNING customer_id",
+                """INSERT INTO customers (name, email) VALUES (%s, %s)
+                   ON CONFLICT (email) DO UPDATE SET name = EXCLUDED.name
+                   RETURNING customer_id""",
                 (name, email),
             )
             row = cur.fetchone()
