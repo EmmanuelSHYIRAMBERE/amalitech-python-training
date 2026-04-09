@@ -73,7 +73,9 @@ def get_top10_best_sellers() -> list[dict[str, Any]]:
                    LIMIT 10""")
             rows = cur.fetchall()
 
-    result: list[dict[str, Any]] = [{"product_id": r[0], "name": r[1], "units_sold": r[2]} for r in rows]
+    result: list[dict[str, Any]] = [
+        {"product_id": r[0], "name": r[1], "units_sold": r[2]} for r in rows
+    ]
     _redis.setex(_TOP10_KEY, _TOP10_TTL, json.dumps(result))
     return result
 
