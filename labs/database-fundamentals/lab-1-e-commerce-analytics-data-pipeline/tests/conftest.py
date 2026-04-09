@@ -1,14 +1,14 @@
 """Shared pytest fixtures — all external I/O is mocked."""
 
+from collections.abc import Generator
 from contextlib import contextmanager
-from decimal import Decimal
-from typing import Any, Generator
-from unittest.mock import MagicMock, patch
+from typing import Any
+from unittest.mock import MagicMock
 
 import pytest
 
-
 # ── Cursor / Connection helpers ───────────────────────────────────────────────
+
 
 def make_cursor(fetchone_val: Any = None, fetchall_val: list[Any] | None = None) -> MagicMock:
     cur = MagicMock()
@@ -33,6 +33,7 @@ def fake_get_conn(conn: MagicMock) -> Generator[MagicMock, None, None]:
 
 
 # ── Reusable fixtures ─────────────────────────────────────────────────────────
+
 
 @pytest.fixture
 def mock_cursor() -> MagicMock:

@@ -70,5 +70,7 @@ def get_customer_orders(customer_id: int) -> list[dict[str, Any]]:
         oid = r[0]
         if oid not in orders:
             orders[oid] = {"order_id": oid, "status": r[1], "created_at": r[2], "items": []}
-        orders[oid]["items"].append({"product_id": r[3], "quantity": r[4], "unit_price": float(r[5])})
+        orders[oid]["items"].append(
+            {"product_id": r[3], "quantity": r[4], "unit_price": float(r[5])}
+        )
     return list(orders.values())
