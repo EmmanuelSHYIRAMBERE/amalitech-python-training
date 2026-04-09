@@ -16,7 +16,8 @@ def add_customer(name: str, email: str) -> int:
             )
             row = cur.fetchone()
             conn.commit()
-            return row[0]  # type: ignore[index]
+            assert row is not None
+            return int(row[0])
 
 
 def get_customer(customer_id: int) -> dict[str, Any] | None:

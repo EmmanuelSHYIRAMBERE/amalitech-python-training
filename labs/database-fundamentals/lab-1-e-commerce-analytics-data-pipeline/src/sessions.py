@@ -25,7 +25,7 @@ def save_cart(session_id: str, customer_id: int, cart_items: list[dict[str, Any]
 
 
 def get_cart(session_id: str) -> dict[str, Any] | None:
-    return _sessions().find_one({"session_id": session_id}, {"_id": 0})  # type: ignore[return-value]
+    return _sessions().find_one({"session_id": session_id}, {"_id": 0})
 
 
 def delete_cart(session_id: str) -> None:

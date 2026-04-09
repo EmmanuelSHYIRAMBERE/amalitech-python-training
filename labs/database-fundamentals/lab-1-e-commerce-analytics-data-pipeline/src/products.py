@@ -30,7 +30,8 @@ def add_product(
             row = cur.fetchone()
             conn.commit()
             _redis.delete(_TOP10_KEY)  # invalidate cache
-            return row[0]  # type: ignore[index]
+            assert row is not None
+            return int(row[0])
 
 
 def get_product(product_id: int) -> dict[str, Any] | None:
@@ -58,7 +59,7 @@ def get_top10_best_sellers() -> list[dict[str, Any]]:
     cached = _redis.get(_TOP10_KEY)
     if cached:
         log.info("Cache HIT — returning top-10 from Redis (no DB query)")
-        return json.loads(cached)  # type: ignore[arg-type]
+        return json.loads(cached)  # type: ignore[arg-type, no-any-return]
 
     log.info("Cache MISS — querying database and caching result")
 
@@ -72,7 +73,7 @@ def get_top10_best_sellers() -> list[dict[str, Any]]:
                    LIMIT 10""")
             rows = cur.fetchall()
 
-    result = [{"product_id": r[0], "name": r[1], "units_sold": r[2]} for r in rows]
+    result: list[dict[str, Any]] = [{"product_id": r[0], "name": r[1], "units_sold": r[2]} for r in rows]
     _redis.setex(_TOP10_KEY, _TOP10_TTL, json.dumps(result))
     return result
 

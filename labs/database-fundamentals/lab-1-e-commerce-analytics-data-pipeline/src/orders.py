@@ -32,7 +32,7 @@ def create_order(customer_id: int, items: list[dict[str, Any]]) -> int:
                 "INSERT INTO orders (customer_id) VALUES (%s) RETURNING order_id",
                 (customer_id,),
             )
-            order_id: int = cur.fetchone()[0]  # type: ignore[index]
+            order_id: int = cur.fetchone()[0]
 
             # 3. Insert order items + decrement stock
             for item in items:
