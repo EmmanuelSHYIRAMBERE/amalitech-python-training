@@ -32,8 +32,11 @@ htmlcov/
 .pytest_cache/
 
 # Generated report files
-reports/report.json
-reports/*.json
+**/reports/report.json
+**/reports/*.json
+
+# Generated utility scripts
+gen_log.py
 
 # IDE / editor
 .vscode/
