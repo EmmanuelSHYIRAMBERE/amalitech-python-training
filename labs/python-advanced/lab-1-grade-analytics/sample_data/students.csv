@@ -1,0 +1,26 @@
+student_id,name,major,year,course_id,score,semester
+S001,Alice Mugisha,Computer Science,2,CS101,92,2024-S1
+S001,Alice Mugisha,Computer Science,2,CS102,88,2024-S1
+S001,Alice Mugisha,Computer Science,2,CS201,95,2024-S2
+S002,Bob Nkurunziza,Mathematics,3,MA101,75,2024-S1
+S002,Bob Nkurunziza,Mathematics,3,MA102,70,2024-S1
+S002,Bob Nkurunziza,Mathematics,3,MA201,78,2024-S2
+S003,Claire Uwase,Computer Science,1,CS101,85,2024-S1
+S003,Claire Uwase,Computer Science,1,CS102,82,2024-S1
+S004,David Habimana,Engineering,4,EN401,91,2024-S1
+S004,David Habimana,Engineering,4,EN402,89,2024-S1
+S004,David Habimana,Engineering,4,EN403,94,2024-S2
+S005,Eve Ishimwe,Mathematics,2,MA101,60,2024-S1
+S005,Eve Ishimwe,Mathematics,2,MA102,55,2024-S1
+S005,Eve Ishimwe,Mathematics,2,MA201,63,2024-S2
+S006,Frank Bizimana,Engineering,1,EN101,77,2024-S1
+S006,Frank Bizimana,Engineering,1,EN102,80,2024-S1
+S007,Grace Mukamana,Computer Science,3,CS301,98,2024-S1
+S007,Grace Mukamana,Computer Science,3,CS302,96,2024-S1
+S007,Grace Mukamana,Computer Science,3,CS303,99,2024-S2
+S008,Henry Niyomugabo,Mathematics,4,MA401,83,2024-S1
+S008,Henry Niyomugabo,Mathematics,4,MA402,87,2024-S2
+S009,Iris Uwineza,Engineering,2,EN201,72,2024-S1
+S009,Iris Uwineza,Engineering,2,EN202,68,2024-S1
+S010,James Ndayishimiye,Computer Science,4,CS401,90,2024-S1
+S010,James Ndayishimiye,Computer Science,4,CS402,93,2024-S2
