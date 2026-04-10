@@ -1,0 +1,60 @@
+name: CI — DB Fundamentals Lab 2
+
+on:
+  push:
+    branches:
+      - feat/db-fundamentals-lab2-social-media-backend
+      - develop
+    paths:
+      - "labs/database-fundamentals/lab-2-social-media-platform-data-backend/**"
+  pull_request:
+    branches:
+      - develop
+    paths:
+      - "labs/database-fundamentals/lab-2-social-media-platform-data-backend/**"
+
+defaults:
+  run:
+    working-directory: labs/database-fundamentals/lab-2-social-media-platform-data-backend
+
+jobs:
+  lint:
+    name: Lint & Format Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install linting tools
+        run: pip install ruff black
+      - name: Ruff lint
+        run: ruff check src/ tests/
+      - name: Black format check
+        run: black --check src/ tests/
+
+  type-check:
+    name: Type Check (mypy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install -r requirements.txt mypy
+      - name: mypy
+        run: mypy src/ --ignore-missing-imports
+
+  test:
+    name: Pytest & Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run tests with coverage
+        run: pytest --tb=short -q --cov=src --cov-report=term-missing --cov-fail-under=80

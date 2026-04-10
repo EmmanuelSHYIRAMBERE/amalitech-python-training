@@ -1,0 +1,49 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Distribution / packaging
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Type checker caches
+.mypy_cache/
+.dmypy.json
+
+# Pylance / Pyright cache
+.pylance/
+pyrightconfig.json
+
+# Linter caches
+.ruff_cache/
+
+# Test & coverage artefacts
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+
+# Generated report files
+**/reports/report.json
+**/reports/*.json
+
+# Generated utility scripts
+gen_log.py
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS artefacts
+.DS_Store
+Thumbs.db
