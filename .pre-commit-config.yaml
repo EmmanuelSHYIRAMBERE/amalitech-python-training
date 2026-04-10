@@ -1,0 +1,65 @@
+repos:
+  # ── General hooks ────────────────────────────────────────────────────────────
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-merge-conflict
+      - id: debug-statements
+
+  # ── Black — opinionated formatter ────────────────────────────────────────────
+  - repo: https://github.com/psf/black
+    rev: 24.4.2
+    hooks:
+      - id: black
+        files: ^(labs|projects|exercises)/
+
+  # ── Ruff — fast linter + import sorter ───────────────────────────────────────
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.4
+    hooks:
+      - id: ruff
+        files: ^(labs|projects|exercises)/
+        args: [--fix, --exit-non-zero-on-fix]
+
+  # ── Mypy — per-lab, scoped to avoid duplicate-module errors ──────────────────
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.10.0
+    hooks:
+      - id: mypy
+        name: mypy — python-basics
+        files: ^labs/python-basics/
+        args: [--ignore-missing-imports, --explicit-package-bases]
+
+      - id: mypy
+        name: mypy — python-advanced lab-1
+        files: ^labs/python-advanced/lab-1-grade-analytics/src/
+        args: [--strict, --ignore-missing-imports, --explicit-package-bases]
+
+      - id: mypy
+        name: mypy — python-advanced lab-2
+        files: ^labs/python-advanced/lab-2-log-file-analyzer/src/
+        args: [--strict, --ignore-missing-imports, --explicit-package-bases]
+
+      - id: mypy
+        name: mypy — resilient-data-importer
+        files: ^labs/clean-code-testing-and-git/lab-1-resilient-data-importer/src/
+        args: [--strict, --ignore-missing-imports, --explicit-package-bases]
+
+      - id: mypy
+        name: mypy — tdd-weather-service
+        files: ^labs/clean-code-testing-and-git/lab-2-tdd-weather-service/src/
+        args: [--strict, --ignore-missing-imports]
+
+      - id: mypy
+        name: mypy — ecommerce-pipeline
+        files: ^labs/database-fundamentals/lab-1-e-commerce-analytics-data-pipeline/src/
+        args: [--ignore-missing-imports, --explicit-package-bases]
+
+      - id: mypy
+        name: mypy — todo-app
+        files: ^projects/todo-app-agile-devops/src/
+        args: [--ignore-missing-imports]
