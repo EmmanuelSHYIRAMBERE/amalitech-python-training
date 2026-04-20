@@ -1,7 +1,6 @@
 from rest_framework import serializers
 
-from .models import URL
-from .models import generate_short_code
+from .models import URL, generate_short_code
 
 
 class URLCreateSerializer(serializers.ModelSerializer):
