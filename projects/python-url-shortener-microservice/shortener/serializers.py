@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from .models import URL
+from .models import generate_short_code
 
 
 class URLCreateSerializer(serializers.ModelSerializer):
@@ -9,7 +10,6 @@ class URLCreateSerializer(serializers.ModelSerializer):
         fields = ["original_url"]
 
     def create(self, validated_data):
-        from .models import generate_short_code
         return URL.objects.create(
             short_code=generate_short_code(),
             **validated_data,
