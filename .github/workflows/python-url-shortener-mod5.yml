@@ -1,0 +1,81 @@
+name: CI — Python URL Shortener Microservice (Mod 5)
+
+on:
+  push:
+    branches:
+      - feat/python-url-shortener-microservice-mod5
+      - develop
+    paths:
+      - "projects/python-url-shortener-microservice/**"
+  pull_request:
+    branches:
+      - develop
+    paths:
+      - "projects/python-url-shortener-microservice/**"
+
+defaults:
+  run:
+    working-directory: projects/python-url-shortener-microservice
+
+jobs:
+  lint:
+    name: Lint & Format Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install linting tools
+        run: pip install ruff black
+      - name: Ruff lint
+        run: ruff check config/ shortener/ api/
+      - name: Black format check
+        run: black --check config/ shortener/ api/
+
+  docker-build:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Docker image
+        run: docker build -t url-shortener:mod5 .
+
+  django-check:
+    name: Django System Check
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: urlshortener
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: admin321
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-retries 5
+    env:
+      SECRET_KEY: ci-test-secret-key
+      DEBUG: "True"
+      ALLOWED_HOSTS: localhost,127.0.0.1
+      DB_NAME: urlshortener
+      DB_USER: postgres
+      DB_PASSWORD: admin321
+      DB_HOST: localhost
+      DB_PORT: "5432"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Django system check
+        run: python manage.py check
+      - name: Run migrations
+        run: python manage.py migrate --noinput
+      - name: Generate OpenAPI schema
+        run: python manage.py spectacular --file schema.yml
