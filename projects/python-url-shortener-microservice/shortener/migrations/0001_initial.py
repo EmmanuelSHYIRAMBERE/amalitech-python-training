@@ -26,6 +26,7 @@ class Migration(migrations.Migration):
                     models.CharField(db_index=True, max_length=10, unique=True),
                 ),
                 ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
             ],
             options={"ordering": ["-created_at"]},
         ),

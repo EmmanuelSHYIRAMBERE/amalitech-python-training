@@ -29,9 +29,9 @@ jobs:
       - name: Install linting tools
         run: pip install ruff black
       - name: Ruff lint
-        run: ruff check config/ shortener/ api/
+        run: ruff check config/ shortener/ api/ core/
       - name: Black format check
-        run: black --check config/ shortener/ api/
+        run: black --check config/ shortener/ api/ core/
 
   docker-build:
     name: Docker Build

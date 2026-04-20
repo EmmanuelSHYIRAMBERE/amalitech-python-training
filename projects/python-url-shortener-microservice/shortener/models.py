@@ -3,6 +3,8 @@ import string
 
 from django.db import models
 
+from core.models import TimeStampedModel
+
 
 def generate_short_code(length: int = 6) -> str:
     chars = string.ascii_letters + string.digits
@@ -12,10 +14,9 @@ def generate_short_code(length: int = 6) -> str:
             return code
 
 
-class URL(models.Model):
+class URL(TimeStampedModel):
     original_url = models.URLField()
     short_code = models.CharField(max_length=10, unique=True, db_index=True)
-    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ["-created_at"]
