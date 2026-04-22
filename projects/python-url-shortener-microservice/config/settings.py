@@ -9,8 +9,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # ---------------------------------------------------------------------------
 try:
     SECRET_KEY: str = config("SECRET_KEY")
-except UndefinedValueError as exc:
-    raise RuntimeError("SECRET_KEY is not set. Add it to your .env file.") from exc
+except UndefinedValueError:
+    import os
+
+    if os.environ.get("CI"):
+        SECRET_KEY = "ci-dummy-secret-key-not-for-production"
+    else:
+        raise RuntimeError("SECRET_KEY is not set. Add it to your .env file.")
 
 try:
     DEBUG: bool = config("DEBUG", default=False, cast=bool)

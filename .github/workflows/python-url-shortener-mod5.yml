@@ -21,6 +21,10 @@ jobs:
   lint:
     name: Lint & Format Check
     runs-on: ubuntu-latest
+    env:
+      SECRET_KEY: ci-dummy-secret-key-not-for-production
+      DEBUG: "False"
+      CI: "true"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
