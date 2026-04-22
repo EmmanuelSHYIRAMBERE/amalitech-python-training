@@ -6,3 +6,17 @@ select = ["E", "F", "I"]
 
 [tool.ruff.lint.isort]
 known-third-party = ["django", "rest_framework", "drf_spectacular", "decouple"]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings"
+pythonpath = ["."]
+addopts = "-v --tb=short"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["shortener", "core", "api"]
+omit = ["*/migrations/*", "manage.py"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
