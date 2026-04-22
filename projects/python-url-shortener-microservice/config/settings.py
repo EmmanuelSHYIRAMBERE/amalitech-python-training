@@ -1,12 +1,19 @@
 from pathlib import Path
 
-from decouple import Csv, config
+from decouple import Csv, UndefinedValueError, config
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = config("SECRET_KEY")
-DEBUG = config("DEBUG", default=False, cast=bool)
-ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="localhost", cast=Csv())
+# ---------------------------------------------------------------------------
+# .env validation — fail fast with a clear message if required vars are absent
+# ---------------------------------------------------------------------------
+try:
+    SECRET_KEY: str = config("SECRET_KEY")
+except UndefinedValueError as exc:
+    raise RuntimeError("SECRET_KEY is not set. Add it to your .env file.") from exc
+
+DEBUG: bool = config("DEBUG", default=False, cast=bool)
+ALLOWED_HOSTS: list[str] = config("ALLOWED_HOSTS", default="localhost", cast=Csv())
 
 TEMPLATES = [
     {
@@ -55,4 +62,47 @@ SPECTACULAR_SETTINGS = {
     "TITLE": "URL Shortener API",
     "DESCRIPTION": "Enterprise-Grade URL Shortener Microservice — Module 5 MVP",
     "VERSION": "1.0.0",
+}
+
+# ---------------------------------------------------------------------------
+# Logging — structured logs to stdout + rotating file under logs/
+# ---------------------------------------------------------------------------
+LOG_LEVEL: str = config("LOG_LEVEL", default="INFO")
+LOG_DIR = BASE_DIR / "logs"
+LOG_DIR.mkdir(exist_ok=True)
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "{asctime} [{levelname}] {name}: {message}",
+            "style": "{",
+            "datefmt": "%Y-%m-%d %H:%M:%S",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+        "file": {
+            "class": "logging.handlers.TimedRotatingFileHandler",
+            "filename": str(LOG_DIR / "app.log"),
+            "when": "midnight",
+            "backupCount": 7,
+            "formatter": "verbose",
+            "encoding": "utf-8",
+        },
+    },
+    "root": {
+        "handlers": ["console", "file"],
+        "level": LOG_LEVEL,
+    },
+    "loggers": {
+        "shortener": {"handlers": ["console", "file"], "level": LOG_LEVEL, "propagate": False},
+        "core": {"handlers": ["console", "file"], "level": LOG_LEVEL, "propagate": False},
+        "django.request": {"handlers": ["console", "file"], "level": "WARNING", "propagate": False},
+        "django.db.backends": {"handlers": ["console"], "level": "WARNING", "propagate": False},
+    },
 }
