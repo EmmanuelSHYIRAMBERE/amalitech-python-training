@@ -81,7 +81,15 @@ def test_create_url_with_injected_generator(
 ) -> None:
     """Generator injected via Protocol DI must be called and its value used."""
     mock_gen = mocker.MagicMock(return_value="mocked1")
-    mocker.patch("shortener.serializers.default_generator", mock_gen)
+    # URLCreateSerializer accepts generator= at construction time (DI via Protocol).
+    # Patch the class so every instantiation by the view uses the mock generator.
+    original_init = URLCreateSerializer.__init__
+
+    def patched_init(self, *args, **kwargs):
+        kwargs.setdefault("generator", mock_gen)
+        original_init(self, *args, **kwargs)
+
+    mocker.patch.object(URLCreateSerializer, "__init__", patched_init)
     response = api_client.post("/api/v1/urls/", sample_url_data, format="json")
     assert response.status_code == status.HTTP_201_CREATED
     assert response.data["short_code"] == "mocked1"

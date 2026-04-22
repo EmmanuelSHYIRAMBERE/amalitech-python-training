@@ -12,7 +12,7 @@ from typing import Any
 from rest_framework import serializers
 from rest_framework.request import Request
 
-from .generators import BaseShortCodeGenerator, default_generator
+from .generators import default_generator
 from .models import URL
 from .protocols import ShortCodeGenerator
 from .validators import validate_url_scheme

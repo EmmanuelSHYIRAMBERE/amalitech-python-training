@@ -4,7 +4,7 @@ import string
 
 import pytest
 
-from shortener.generators import BaseShortCodeGenerator, SecureShortCodeGenerator, default_generator
+from shortener.generators import BaseShortCodeGenerator, default_generator
 from shortener.models import URL
 from shortener.protocols import ShortCodeGenerator
 from shortener.schemas import ShortenRequest, ShortenResult

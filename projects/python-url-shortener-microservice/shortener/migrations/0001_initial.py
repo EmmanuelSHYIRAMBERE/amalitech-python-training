@@ -20,7 +20,7 @@ class Migration(migrations.Migration):
                         verbose_name="ID",
                     ),
                 ),
-                ("original_url", models.URLField()),
+                ("original_url", models.URLField(max_length=2048)),
                 (
                     "short_code",
                     models.CharField(db_index=True, max_length=10, unique=True),
