@@ -27,7 +27,7 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install linting tools
-        run: pip install ruff black "mypy>=1.10,<1.15" "django-stubs[compatible-mypy]>=5.0" "djangorestframework-stubs[compatible-mypy]>=3.15"
+        run: pip install -r requirements.txt ruff black
       - name: Ruff lint
         run: ruff check config/ shortener/ api/ core/
       - name: Black format check
