@@ -12,7 +12,6 @@ TypedDicts provide a typed schema for JSON response dicts:
 from dataclasses import dataclass
 from typing import TypedDict
 
-
 # ---------------------------------------------------------------------------
 # Dataclasses — typed value objects (mirrors WeatherRequest / WeatherResponse)
 # ---------------------------------------------------------------------------

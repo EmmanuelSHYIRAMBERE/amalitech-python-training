@@ -29,7 +29,12 @@ class URLCreateSerializer(serializers.ModelSerializer[URL]):
                    Pass a custom generator in tests or alternative implementations.
     """
 
-    def __init__(self, *args: Any, generator: ShortCodeGenerator = default_generator, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        *args: Any,
+        generator: ShortCodeGenerator = default_generator,
+        **kwargs: Any,
+    ) -> None:
         super().__init__(*args, **kwargs)
         self._generator = generator
 
@@ -48,7 +53,11 @@ class URLCreateSerializer(serializers.ModelSerializer[URL]):
     def create(self, validated_data: dict[str, Any]) -> URL:
         short_code = self._generator(length=6)
         url = URL.objects.create(short_code=short_code, **validated_data)
-        logger.info("Created short_code=%r for original_url=%r", url.short_code, url.original_url)
+        logger.info(
+            "Created short_code=%r for original_url=%r",
+            url.short_code,
+            url.original_url,
+        )
         return url
 
 

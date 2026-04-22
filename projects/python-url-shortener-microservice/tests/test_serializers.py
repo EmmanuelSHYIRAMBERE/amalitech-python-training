@@ -6,7 +6,6 @@ from rest_framework.test import APIRequestFactory
 from shortener.models import URL
 from shortener.serializers import URLCreateSerializer, URLResponseSerializer
 
-
 # ---------------------------------------------------------------------------
 # URLCreateSerializer — validation
 # ---------------------------------------------------------------------------

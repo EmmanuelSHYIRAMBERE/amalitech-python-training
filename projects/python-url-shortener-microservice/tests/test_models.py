@@ -10,7 +10,6 @@ from shortener.protocols import ShortCodeGenerator
 from shortener.schemas import ShortenRequest, ShortenResult
 from shortener.validators import validate_short_code, validate_url_scheme
 
-
 # ---------------------------------------------------------------------------
 # SecureShortCodeGenerator
 # ---------------------------------------------------------------------------
@@ -92,7 +91,9 @@ def test_validate_short_code_accepts_valid(code: str) -> None:
     assert validate_short_code(code) is True
 
 
-@pytest.mark.parametrize("code", ["ab", "../admin", "<script>", "abc 123", "abc-123!", ""])
+@pytest.mark.parametrize(
+    "code", ["ab", "../admin", "<script>", "abc 123", "abc-123!", ""]
+)
 def test_validate_short_code_rejects_invalid(code: str) -> None:
     assert validate_short_code(code) is False
 
@@ -159,6 +160,7 @@ def test_url_updated_at_is_set_on_save(created_url: URL) -> None:
 @pytest.mark.django_db
 def test_url_short_code_is_unique() -> None:
     from django.db import IntegrityError
+
     URL.objects.create(original_url="https://first.com", short_code="unique1")
     with pytest.raises(IntegrityError):
         URL.objects.create(original_url="https://second.com", short_code="unique1")

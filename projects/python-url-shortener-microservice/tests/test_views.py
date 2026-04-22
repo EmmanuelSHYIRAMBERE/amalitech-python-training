@@ -4,10 +4,8 @@ import pytest
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from shortener.generators import SecureShortCodeGenerator
 from shortener.models import URL
 from shortener.serializers import URLCreateSerializer
-
 
 # ---------------------------------------------------------------------------
 # URLCreateView — POST /api/v1/urls/
