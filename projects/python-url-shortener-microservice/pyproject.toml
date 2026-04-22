@@ -10,7 +10,17 @@ known-third-party = ["django", "rest_framework", "drf_spectacular", "decouple"]
 [tool.mypy]
 python_version = "3.11"
 strict = true
+explicit_package_bases = true
+mypy_path = "projects/python-url-shortener-microservice"
 plugins = ["mypy_django_plugin.main", "mypy_drf_plugin.main"]
+
+[[tool.mypy.overrides]]
+module = ["decouple", "decouple.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["tests.*", "manage"]
+ignore_errors = true
 
 [tool.django-stubs]
 django_settings_module = "config.settings"

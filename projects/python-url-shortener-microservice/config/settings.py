@@ -12,7 +12,11 @@ try:
 except UndefinedValueError as exc:
     raise RuntimeError("SECRET_KEY is not set. Add it to your .env file.") from exc
 
-DEBUG: bool = config("DEBUG", default=False, cast=bool)
+try:
+    DEBUG: bool = config("DEBUG", default=False, cast=bool)
+except ValueError:
+    DEBUG = False
+
 ALLOWED_HOSTS: list[str] = config("ALLOWED_HOSTS", default="localhost", cast=Csv())
 
 TEMPLATES = [
@@ -100,9 +104,25 @@ LOGGING = {
         "level": LOG_LEVEL,
     },
     "loggers": {
-        "shortener": {"handlers": ["console", "file"], "level": LOG_LEVEL, "propagate": False},
-        "core": {"handlers": ["console", "file"], "level": LOG_LEVEL, "propagate": False},
-        "django.request": {"handlers": ["console", "file"], "level": "WARNING", "propagate": False},
-        "django.db.backends": {"handlers": ["console"], "level": "WARNING", "propagate": False},
+        "shortener": {
+            "handlers": ["console", "file"],
+            "level": LOG_LEVEL,
+            "propagate": False,
+        },
+        "core": {
+            "handlers": ["console", "file"],
+            "level": LOG_LEVEL,
+            "propagate": False,
+        },
+        "django.request": {
+            "handlers": ["console", "file"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+        "django.db.backends": {
+            "handlers": ["console"],
+            "level": "WARNING",
+            "propagate": False,
+        },
     },
 }
