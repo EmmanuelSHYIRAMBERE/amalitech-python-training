@@ -13,11 +13,11 @@
 
 ## About
 
-| | |
-|---|---|
-| **Trainee** | Emmanuel SHYIRAMBERE |
-| **Module** | Module 5 — Django REST Framework & Microservices |
-| **Stack** | Python 3.11 · Django 5.0 · DRF · PostgreSQL 15 · Docker |
+|             |                                                         |
+| ----------- | ------------------------------------------------------- |
+| **Trainee** | Emmanuel SHYIRAMBERE                                    |
+| **Module**  | Module 5 — Django REST Framework & Microservices        |
+| **Stack**   | Python 3.11 · Django 5.0 · DRF · PostgreSQL 15 · Docker |
 
 ---
 
@@ -90,17 +90,17 @@ cp .env.example .env
 
 Edit `.env` — required variables:
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `SECRET_KEY` | Django secret key | `django-insecure-...` |
-| `DEBUG` | Debug mode | `True` |
-| `ALLOWED_HOSTS` | Comma-separated hosts | `localhost,127.0.0.1` |
-| `DB_NAME` | PostgreSQL database name | `urlshortener` |
-| `DB_USER` | PostgreSQL user | `postgres` |
-| `DB_PASSWORD` | PostgreSQL password | `admin321` |
-| `DB_HOST` | DB host (`db` in Docker, `localhost` locally) | `localhost` |
-| `DB_PORT` | DB port (mapped port locally) | `5435` |
-| `LOG_LEVEL` | Logging level | `INFO` |
+| Variable        | Description                                   | Example               |
+| --------------- | --------------------------------------------- | --------------------- |
+| `SECRET_KEY`    | Django secret key                             | `django-insecure-...` |
+| `DEBUG`         | Debug mode                                    | `True`                |
+| `ALLOWED_HOSTS` | Comma-separated hosts                         | `localhost,127.0.0.1` |
+| `DB_NAME`       | PostgreSQL database name                      | `urlshortener`        |
+| `DB_USER`       | PostgreSQL user                               | `postgres`            |
+| `DB_PASSWORD`   | PostgreSQL password                           | `admin321`            |
+| `DB_HOST`       | DB host (`db` in Docker, `localhost` locally) | `localhost`           |
+| `DB_PORT`       | DB port (mapped port locally)                 | `5435`                |
+| `LOG_LEVEL`     | Logging level                                 | `INFO`                |
 
 > **Local vs Docker:** When running outside Docker set `DB_HOST=localhost` and `DB_PORT=5435`.
 > Inside Docker Compose the service name `db` and port `5432` are used automatically.
@@ -120,6 +120,7 @@ python -m venv .venv
 source .venv/bin/activate     # macOS / Linux
 
 pip install -r requirements.txt
+python manage.py makemigrations shortener
 python manage.py migrate --noinput
 python manage.py runserver
 ```
@@ -137,13 +138,13 @@ Hooks: **black** (formatting) · **ruff** (linting) · **mypy** (strict type che
 
 ## API Endpoints
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/v1/urls/` | Shorten a URL → returns `short_code` + `short_url` |
-| `GET` | `/<short_code>/` | Redirect to original URL (HTTP 302) |
-| `GET` | `/health/` | Health check — DB connectivity |
-| `GET` | `/api/docs/` | Swagger UI (drf-spectacular) |
-| `GET` | `/api/schema/` | OpenAPI schema (JSON) |
+| Method | Endpoint         | Description                                        |
+| ------ | ---------------- | -------------------------------------------------- |
+| `POST` | `/api/v1/urls/`  | Shorten a URL → returns `short_code` + `short_url` |
+| `GET`  | `/<short_code>/` | Redirect to original URL (HTTP 302)                |
+| `GET`  | `/health/`       | Health check — DB connectivity                     |
+| `GET`  | `/api/docs/`     | Swagger UI (drf-spectacular)                       |
+| `GET`  | `/api/schema/`   | OpenAPI schema (JSON)                              |
 
 ---
 
@@ -262,4 +263,4 @@ Configured in `pyproject.toml` with `strict = true` and `django-stubs` + `django
 
 ---
 
-*Python 3.11+ · Django 5.0 · DRF · PostgreSQL 15 · AmaliTech Training Program*
+_Python 3.11+ · Django 5.0 · DRF · PostgreSQL 15 · AmaliTech Training Program_
