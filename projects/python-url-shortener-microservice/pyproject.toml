@@ -7,6 +7,14 @@ select = ["E", "F", "I"]
 [tool.ruff.lint.isort]
 known-third-party = ["django", "rest_framework", "drf_spectacular", "decouple"]
 
+[tool.mypy]
+python_version = "3.11"
+strict = true
+plugins = ["mypy_django_plugin.main", "mypy_drf_plugin.main"]
+
+[tool.django-stubs]
+django_settings_module = "config.settings"
+
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "config.settings"
 pythonpath = ["."]
