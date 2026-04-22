@@ -263,4 +263,130 @@ Configured in `pyproject.toml` with `strict = true` and `django-stubs` + `django
 
 ---
 
+## Engineering Patterns
+
+### Abstract Base Classes (ABC)
+
+`BaseShortCodeGenerator` in `shortener/generators.py` defines the interface all generators must satisfy. `@abstractmethod` on `generate` prevents direct instantiation and forces subclasses to implement it. `SecureShortCodeGenerator` is the production implementation using `secrets.choice`.
+
+```python
+class BaseShortCodeGenerator(ABC):
+    @abstractmethod
+    def generate(self, length: int = 6) -> str: ...
+
+    def __call__(self, length: int = 6) -> str:
+        return self.generate(length)
+
+class SecureShortCodeGenerator(BaseShortCodeGenerator):
+    def generate(self, length: int = 6) -> str:
+        return "".join(secrets.choice(self._alphabet) for _ in range(length))
+```
+
+### Protocols (PEP 544 — Structural Subtyping)
+
+`ShortCodeGenerator` in `shortener/protocols.py` is a `@runtime_checkable` Protocol. Any callable with `(length: int = 6) -> str` satisfies it — no inheritance required. This is how `URLCreateSerializer` accepts a generator via dependency injection without being coupled to the ABC hierarchy.
+
+```python
+@runtime_checkable
+class ShortCodeGenerator(Protocol):
+    def __call__(self, length: int = 6) -> str: ...
+
+# A plain function satisfies the Protocol — no subclassing needed
+def my_gen(length: int = 6) -> str:
+    return "x" * length
+
+assert isinstance(my_gen, ShortCodeGenerator)  # True
+```
+
+### Regex Validators
+
+All patterns in `shortener/validators.py` are compiled once at module level as `re.Pattern[str]` constants — never inside functions. This avoids recompiling on every request.
+
+```python
+# Accepts 4–10 alphanumeric chars — rejects path traversal, XSS, URL-encoded payloads
+_SHORT_CODE_PATTERN: re.Pattern[str] = re.compile(r"^[a-zA-Z0-9]{4,10}$")
+
+# Enforces http/https — Django's URLField accepts ftp:// by design, so this adds the stricter check
+_URL_SCHEME_PATTERN: re.Pattern[str] = re.compile(
+    r"^https?://[^\s/$.?#].[^\s]*$", re.IGNORECASE
+)
+```
+
+### Dataclasses & TypedDicts
+
+`shortener/schemas.py` defines typed value objects that decouple service logic from DRF serializer internals.
+
+```python
+@dataclass
+class ShortenRequest:
+    original_url: str          # input to the shortening operation
+
+@dataclass
+class ShortenResult:
+    short_code: str
+    original_url: str
+    short_url: str
+    created_at: str            # ISO-8601 timestamp
+
+class URLResponseDict(TypedDict):
+    short_code: str
+    original_url: str
+    short_url: str
+    created_at: str
+```
+
+### Dependency Injection via Protocol
+
+`URLCreateSerializer` accepts any `ShortCodeGenerator`-compatible callable at construction time. The default is `default_generator` (production). Tests inject a mock without subclassing anything.
+
+```python
+class URLCreateSerializer(serializers.ModelSerializer[URL]):
+    def __init__(self, *args, generator: ShortCodeGenerator = default_generator, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._generator = generator
+
+    def create(self, validated_data):
+        short_code = self._generator(length=6)   # calls the injected generator
+        return URL.objects.create(short_code=short_code, **validated_data)
+```
+
+### Environment Variables
+
+`python-decouple` reads from `.env` and validates at startup — the app fails fast with a clear message if `SECRET_KEY` is missing rather than crashing at runtime.
+
+```python
+try:
+    SECRET_KEY: str = config("SECRET_KEY")
+except UndefinedValueError as exc:
+    raise RuntimeError("SECRET_KEY is not set. Add it to your .env file.") from exc
+
+DEBUG: bool = config("DEBUG", default=False, cast=bool)
+ALLOWED_HOSTS: list[str] = config("ALLOWED_HOSTS", default="localhost", cast=Csv())
+```
+
+### Type Annotations
+
+All views, serializers, models, generators, validators, and schemas carry full type annotations. `mypy` runs in `strict` mode with `django-stubs` and `djangorestframework-stubs`.
+
+```python
+def validate_short_code(code: str) -> bool: ...
+def get_short_url(self, obj: URL) -> str: ...
+async def get(self, request: Request) -> Response: ...
+```
+
+### Tests (pytest)
+
+74 tests across 4 modules. `conftest.py` provides shared fixtures. `@pytest.mark.django_db` grants DB access per test. `@pytest.mark.parametrize` drives data-driven cases.
+
+```
+tests/
+├── conftest.py          # api_client, sample_url_data, created_url fixtures
+├── test_health.py       # GET /health/ — 200, fields, DB error propagation
+├── test_models.py       # generator, ABC, Protocol, validators, dataclasses, URL model
+├── test_serializers.py  # URLCreateSerializer + URLResponseSerializer
+└── test_views.py        # POST /api/v1/urls/ + GET /<short_code>/ — 17 cases
+```
+
+---
+
 _Python 3.11+ · Django 5.0 · DRF · PostgreSQL 15 · AmaliTech Training Program_
