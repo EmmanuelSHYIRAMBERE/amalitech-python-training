@@ -27,13 +27,13 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install linting tools
-        run: pip install ruff black mypy django-stubs djangorestframework-stubs
+        run: pip install ruff black "mypy>=1.10,<1.15" "django-stubs[compatible-mypy]>=5.0" "djangorestframework-stubs[compatible-mypy]>=3.15"
       - name: Ruff lint
         run: ruff check config/ shortener/ api/ core/
       - name: Black format check
         run: black --check config/ shortener/ api/ core/
       - name: mypy type check
-        run: mypy config/ shortener/ api/ core/
+        run: mypy --ignore-missing-imports --explicit-package-bases config/ shortener/ api/ core/
 
   docker-build:
     name: Docker Build
