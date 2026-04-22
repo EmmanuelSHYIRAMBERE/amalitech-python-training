@@ -79,3 +79,41 @@ jobs:
         run: python manage.py migrate --noinput
       - name: Generate OpenAPI schema
         run: python manage.py spectacular --file schema.yml
+
+  test:
+    name: Pytest & Coverage
+    runs-on: ubuntu-latest
+    needs: django-check
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: urlshortener
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: admin321
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-retries 5
+    env:
+      SECRET_KEY: ci-test-secret-key
+      DEBUG: "True"
+      ALLOWED_HOSTS: localhost,127.0.0.1
+      DB_NAME: urlshortener
+      DB_USER: postgres
+      DB_PASSWORD: admin321
+      DB_HOST: localhost
+      DB_PORT: "5432"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run pytest with coverage
+        run: coverage run -m pytest
+      - name: Print coverage report
+        run: coverage report
