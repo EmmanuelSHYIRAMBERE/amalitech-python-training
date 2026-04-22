@@ -5,11 +5,6 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 
-# ---------------------------------------------------------------------------
-# GET /health/
-# ---------------------------------------------------------------------------
-
-
 @pytest.mark.django_db
 def test_health_check_returns_200(api_client: APIClient) -> None:
     """GET /health/ must return HTTP 200 OK."""
@@ -19,26 +14,23 @@ def test_health_check_returns_200(api_client: APIClient) -> None:
 
 @pytest.mark.django_db
 def test_health_check_status_field_is_ok(api_client: APIClient) -> None:
-    """Response body must contain {"status": "ok"}."""
     response = api_client.get("/health/")
     assert response.data["status"] == "ok"
 
 
 @pytest.mark.django_db
 def test_health_check_db_field_is_reachable(api_client: APIClient) -> None:
-    """Response body must contain {"db": "reachable"} when DB is available."""
     response = api_client.get("/health/")
     assert response.data["db"] == "reachable"
 
 
 @pytest.mark.django_db
 def test_health_check_response_has_exactly_two_fields(api_client: APIClient) -> None:
-    """Response body must contain exactly the 'status' and 'db' keys."""
     response = api_client.get("/health/")
     assert set(response.data.keys()) == {"status", "db"}
 
 
-def test_health_check_returns_500_when_db_unavailable(mocker) -> None:
+def test_health_check_propagates_db_error(mocker) -> None:
     """GET /health/ must propagate an exception when the DB connection fails."""
     mocker.patch(
         "core.views.connection.ensure_connection",
