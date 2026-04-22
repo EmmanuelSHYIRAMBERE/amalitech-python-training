@@ -1,0 +1,18 @@
+Django>=5.0,<6.0
+djangorestframework>=3.15
+psycopg2-binary>=2.9
+python-decouple>=3.8
+gunicorn>=22.0
+drf-spectacular>=0.27
+
+# Testing
+pytest>=8.0
+pytest-django>=4.8
+pytest-mock>=3.14
+coverage>=7.0
+
+# Type checking
+mypy==1.19.1
+django-stubs[compatible-mypy]==6.0.3
+djangorestframework-stubs[compatible-mypy]>=3.15
+types-requests>=2.31
