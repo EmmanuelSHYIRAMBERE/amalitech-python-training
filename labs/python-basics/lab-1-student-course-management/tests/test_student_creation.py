@@ -53,6 +53,15 @@ class TestStudentCreation:
         with pytest.raises(ValueError, match="Year"):
             UndergraduateStudent("S022", "Valid Name", "v@example.com", bad_year)
 
+    def test_graduate_no_topic_defaults(self):
+        s = GraduateStudent("S030", "No Topic", "nt@example.com")
+        assert s.research_topic == ""
+        assert s.advisor is None
+
+    def test_graduate_with_topic(self):
+        s = GraduateStudent("S031", "With Topic", "wt@example.com", "AI")
+        assert s.research_topic == "AI"
+
     def test_invalid_country_raises(self):
         with pytest.raises(ValueError, match="Country"):
             InternationalStudent("S023", "Valid Name", "v@example.com", "A", 1)
