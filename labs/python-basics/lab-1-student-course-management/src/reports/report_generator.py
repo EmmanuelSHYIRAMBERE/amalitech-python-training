@@ -126,7 +126,7 @@ class CourseReport(ReportGenerator):
         headers = ["Code", "Name", "Credits", "Instructor", "Enrolled", "Schedule"]
         report += tabulate(table_data, headers=headers, tablefmt="grid")
 
-        total_capacity = sum(c._max_students for c in self._courses)
+        total_capacity = sum(c.max_students for c in self._courses)
         total_enrolled = sum(c.current_enrollment for c in self._courses)
         report += f"\n\n{Fore.GREEN}Total Courses: {len(self._courses)} | "
         report += (

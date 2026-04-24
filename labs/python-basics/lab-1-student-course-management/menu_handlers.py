@@ -832,7 +832,7 @@ class MenuHandlers:
         )
 
         # Course capacity statistics
-        total_capacity = sum(c._max_students for c in self.system.courses.values())
+        total_capacity = sum(c.max_students for c in self.system.courses.values())
         total_enrolled_in_courses = sum(
             c.current_enrollment for c in self.system.courses.values()
         )
