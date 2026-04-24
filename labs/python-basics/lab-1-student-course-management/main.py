@@ -6,9 +6,8 @@ Main entry point for the console application.
 
 import logging
 
-from colorama import Fore
-
 from app import StudentCourseManagementSystem
+from colorama import Fore
 from menu_handlers import MenuHandlers
 
 logging.basicConfig(

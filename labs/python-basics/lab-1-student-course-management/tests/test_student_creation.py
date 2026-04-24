@@ -1,7 +1,6 @@
 """Tests for student creation and constructor validation."""
 
 import pytest
-
 from src.models.student import (
     GraduateStudent,
     InternationalStudent,

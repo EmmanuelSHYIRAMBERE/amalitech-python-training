@@ -6,10 +6,8 @@ Main application class for managing students and courses.
 
 import logging
 import os
-from typing import Dict
 
 from colorama import init
-
 from src.models.course import Course
 from src.models.student import (
     GraduateStudent,
@@ -28,16 +26,20 @@ class StudentCourseManagementSystem:
     """Facade that owns the in-memory student and course registries."""
 
     def __init__(self) -> None:
-        self.students: Dict[str, Student] = {}
-        self.courses: Dict[str, Course] = {}
+        self.students: dict[str, Student] = {}
+        self.courses: dict[str, Course] = {}
         self._initialize_sample_data()
         logger.info("StudentCourseManagementSystem initialised with sample data")
 
     def _initialize_sample_data(self) -> None:
         """Populate the system with sample students, courses, and enrollments."""
         student1 = UndergraduateStudent("S001", "Alice Johnson", "alice@example.com", 2)
-        student2 = GraduateStudent("S002", "Bob Smith", "bob@example.com", "Machine Learning")
-        student3 = InternationalStudent("S003", "Carlos Rodriguez", "carlos@example.com", "Spain", 3)
+        student2 = GraduateStudent(
+            "S002", "Bob Smith", "bob@example.com", "Machine Learning"
+        )
+        student3 = InternationalStudent(
+            "S003", "Carlos Rodriguez", "carlos@example.com", "Spain", 3
+        )
         self.students = {"S001": student1, "S002": student2, "S003": student3}
 
         course1 = Course("CS101", "Introduction to Programming", 3, "Dr. Williams", 30)

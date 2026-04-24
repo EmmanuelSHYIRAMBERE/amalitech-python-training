@@ -1,7 +1,6 @@
 """Tests for course management and cross-model sync between Course and Student."""
 
 import pytest
-
 from src.models.course import Course
 
 
@@ -51,7 +50,14 @@ class TestCourse:
 
     def test_enrollment_summary_keys(self, course):
         summary = course.get_enrollment_summary()
-        for key in ("course_code", "name", "enrolled", "capacity", "available", "is_full"):
+        for key in (
+            "course_code",
+            "name",
+            "enrolled",
+            "capacity",
+            "available",
+            "is_full",
+        ):
             assert key in summary
 
     def test_course_len(self, course, undergrad):

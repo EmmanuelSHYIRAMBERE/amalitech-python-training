@@ -3,7 +3,6 @@
 import logging
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Dict, List, Optional
 
 from src.utils.helpers import validate_email
 
@@ -33,10 +32,10 @@ class Student(ABC):
         self._student_id = student_id.strip()
         self._name = ""
         self._email = ""
-        self.name = name        # use setter for validation
-        self.email = email      # use setter for validation
-        self._enrolled_courses: List[str] = []
-        self._grades: Dict[str, List[float]] = {}
+        self.name = name  # use setter for validation
+        self.email = email  # use setter for validation
+        self._enrolled_courses: list[str] = []
+        self._grades: dict[str, list[float]] = {}
         self._enrollment_date: datetime = datetime.now()
         logger.debug("Created %s id=%s", self.__class__.__name__, self._student_id)
 
@@ -126,7 +125,9 @@ class Student(ABC):
             ``True`` if newly enrolled, ``False`` if already enrolled.
         """
         if course_code in self._enrolled_courses:
-            logger.debug("Student %s already enrolled in %s", self._student_id, course_code)
+            logger.debug(
+                "Student %s already enrolled in %s", self._student_id, course_code
+            )
             return False
         self._enrolled_courses.append(course_code)
         logger.info("Student %s enrolled in course %s", self._student_id, course_code)
@@ -160,7 +161,12 @@ class Student(ABC):
         if not (0.0 <= grade <= 4.0):
             raise ValueError(f"Grade must be between 0.0 and 4.0, got {grade}")
         self._grades.setdefault(course_code, []).append(grade)
-        logger.debug("Added grade %.2f for student %s in %s", grade, self._student_id, course_code)
+        logger.debug(
+            "Added grade %.2f for student %s in %s",
+            grade,
+            self._student_id,
+            course_code,
+        )
 
     def calculate_gpa(self) -> float:
         """Calculate GPA as the mean of all recorded grades.
@@ -173,7 +179,7 @@ class Student(ABC):
             return 0.0
         return sum(all_grades) / len(all_grades)
 
-    def get_enrolled_courses(self) -> List[str]:
+    def get_enrolled_courses(self) -> list[str]:
         """Return a copy of the enrolled course codes.
 
         Returns:
@@ -186,7 +192,9 @@ class Student(ABC):
     # ------------------------------------------------------------------ #
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(id={self._student_id!r}, name={self._name!r})"
+        return (
+            f"{self.__class__.__name__}(id={self._student_id!r}, name={self._name!r})"
+        )
 
     def __str__(self) -> str:
         return f"{self.get_student_type()}: {self._name} ({self._student_id})"
@@ -291,7 +299,7 @@ class GraduateStudent(Student):
         """
         super().__init__(student_id, name, email)
         self._research_topic: str = research_topic
-        self._advisor: Optional[str] = None
+        self._advisor: str | None = None
 
     @property
     def research_topic(self) -> str:
@@ -303,7 +311,7 @@ class GraduateStudent(Student):
         self._research_topic = topic
 
     @property
-    def advisor(self) -> Optional[str]:
+    def advisor(self) -> str | None:
         """Name of the assigned advisor, or ``None`` if unassigned."""
         return self._advisor
 

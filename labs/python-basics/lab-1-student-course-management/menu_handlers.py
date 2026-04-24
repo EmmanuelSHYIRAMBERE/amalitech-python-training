@@ -6,16 +6,16 @@ Menu handlers and user interface logic.
 
 import os
 from datetime import datetime
-from colorama import Fore, Style
 
+from colorama import Fore, Style
+from src.models.course import Course
 from src.models.student import (
-    UndergraduateStudent,
     GraduateStudent,
     InternationalStudent,
+    UndergraduateStudent,
 )
-from src.models.course import Course
+from src.reports.report_generator import CourseReport, EnrollmentReport, StudentReport
 from src.utils.helpers import create_menu, get_user_input, validate_email
-from src.reports.report_generator import StudentReport, CourseReport, EnrollmentReport
 
 
 class MenuHandlers:
@@ -45,7 +45,7 @@ class MenuHandlers:
 
             choice = get_user_input(
                 "Enter your choice: ",
-                lambda x: x.isdigit() and 0 <= int(x) <= len(options),
+                lambda x, _o=options: x.isdigit() and 0 <= int(x) <= len(_o),
             )
 
             choice = int(choice)
@@ -87,7 +87,7 @@ class MenuHandlers:
 
             choice = get_user_input(
                 "Enter your choice: ",
-                lambda x: x.isdigit() and 0 <= int(x) <= len(options),
+                lambda x, _o=options: x.isdigit() and 0 <= int(x) <= len(_o),
             )
             choice = int(choice)
 
@@ -221,7 +221,7 @@ class MenuHandlers:
         print(Fore.CYAN + "\n📋 ALL STUDENTS")
         print("-" * 50)
 
-        for student_id, student in sorted(self.system.students.items()):
+        for _student_id, student in sorted(self.system.students.items()):
             print(f"{student}")
             print(f"  📧 {student.email}")
             print(f"  📚 Courses: {len(student.get_enrolled_courses())}")
@@ -328,7 +328,7 @@ class MenuHandlers:
 
             choice = get_user_input(
                 "Enter your choice: ",
-                lambda x: x.isdigit() and 0 <= int(x) <= len(options),
+                lambda x, _o=options: x.isdigit() and 0 <= int(x) <= len(_o),
             )
             choice = int(choice)
 
@@ -403,7 +403,7 @@ class MenuHandlers:
         print(Fore.CYAN + "\n📚 ALL COURSES")
         print("-" * 50)
 
-        for course_code, course in sorted(self.system.courses.items()):
+        for _course_code, course in sorted(self.system.courses.items()):
             summary = course.get_enrollment_summary()
             print(f"{course}")
             print(f"  👨🏫 Instructor: {course.instructor}")
@@ -533,7 +533,7 @@ class MenuHandlers:
 
             choice = get_user_input(
                 "Enter your choice: ",
-                lambda x: x.isdigit() and 0 <= int(x) <= len(options),
+                lambda x, _o=options: x.isdigit() and 0 <= int(x) <= len(_o),
             )
             choice = int(choice)
 
@@ -736,7 +736,7 @@ class MenuHandlers:
 
             choice = get_user_input(
                 "Enter your choice: ",
-                lambda x: x.isdigit() and 0 <= int(x) <= len(options),
+                lambda x, _o=options: x.isdigit() and 0 <= int(x) <= len(_o),
             )
             choice = int(choice)
 

@@ -1,10 +1,11 @@
 """Report generation using ABC and polymorphism."""
 
 from abc import ABC, abstractmethod
-from typing import List, Any
 from datetime import datetime
-from tabulate import tabulate
+from typing import Any
+
 from colorama import Fore, Style, init
+from tabulate import tabulate
 
 # Initialize colorama
 init(autoreset=True)
@@ -23,7 +24,7 @@ class ReportGenerator(ABC):
         pass
 
     @abstractmethod
-    def get_data(self) -> List[Any]:
+    def get_data(self) -> list[Any]:
         """Get the data for the report."""
         pass
 
@@ -53,11 +54,11 @@ class ReportGenerator(ABC):
 class StudentReport(ReportGenerator):
     """Student-specific report generator."""
 
-    def __init__(self, students: List):
+    def __init__(self, students: list):
         super().__init__("STUDENT REPORT")
         self._students = students
 
-    def get_data(self) -> List[Any]:
+    def get_data(self) -> list[Any]:
         return self._students
 
     def generate(self) -> str:
@@ -94,11 +95,11 @@ class StudentReport(ReportGenerator):
 class CourseReport(ReportGenerator):
     """Course-specific report generator."""
 
-    def __init__(self, courses: List):
+    def __init__(self, courses: list):
         super().__init__("COURSE REPORT")
         self._courses = courses
 
-    def get_data(self) -> List[Any]:
+    def get_data(self) -> list[Any]:
         return self._courses
 
     def generate(self) -> str:
@@ -139,12 +140,12 @@ class CourseReport(ReportGenerator):
 class EnrollmentReport(ReportGenerator):
     """Enrollment-specific report generator."""
 
-    def __init__(self, students: List, courses: List):
+    def __init__(self, students: list, courses: list):
         super().__init__("ENROLLMENT REPORT")
         self._students = students
         self._courses = {c.course_code: c for c in courses}
 
-    def get_data(self) -> List[Any]:
+    def get_data(self) -> list[Any]:
         return self._students
 
     def generate(self) -> str:

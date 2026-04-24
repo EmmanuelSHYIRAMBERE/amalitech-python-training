@@ -2,7 +2,6 @@
 
 import logging
 from datetime import datetime
-from typing import Dict, List
 
 from src.models.student import Student
 
@@ -39,8 +38,8 @@ class Course:
         self._credits: int = 0
         self._instructor: str = instructor
         self._max_students: int = max(1, max_students)
-        self._enrolled_students: List[Student] = []
-        self._schedule: Dict[str, str] = {}
+        self._enrolled_students: list[Student] = []
+        self._schedule: dict[str, str] = {}
         self._created_at: datetime = datetime.now()
 
         # Use setters for validated fields
@@ -128,14 +127,22 @@ class Course:
             full or the student is already enrolled.
         """
         if self.is_full:
-            logger.warning("Course %s is full; cannot add student %s", self._course_code, student.student_id)
+            logger.warning(
+                "Course %s is full; cannot add student %s",
+                self._course_code,
+                student.student_id,
+            )
             return False
         if student in self._enrolled_students:
-            logger.debug("Student %s already in course %s", student.student_id, self._course_code)
+            logger.debug(
+                "Student %s already in course %s", student.student_id, self._course_code
+            )
             return False
         self._enrolled_students.append(student)
         student.enroll_course(self._course_code)
-        logger.info("Student %s added to course %s", student.student_id, self._course_code)
+        logger.info(
+            "Student %s added to course %s", student.student_id, self._course_code
+        )
         return True
 
     def remove_student(self, student: Student) -> bool:
@@ -151,10 +158,12 @@ class Course:
             return False
         self._enrolled_students.remove(student)
         student.drop_course(self._course_code)
-        logger.info("Student %s removed from course %s", student.student_id, self._course_code)
+        logger.info(
+            "Student %s removed from course %s", student.student_id, self._course_code
+        )
         return True
 
-    def get_student_list(self) -> List[Student]:
+    def get_student_list(self) -> list[Student]:
         """Return a copy of the enrolled student list.
 
         Returns:
@@ -190,7 +199,7 @@ class Course:
     # Summary                                                              #
     # ------------------------------------------------------------------ #
 
-    def get_enrollment_summary(self) -> Dict:
+    def get_enrollment_summary(self) -> dict:
         """Return a dict with enrollment statistics.
 
         Returns:

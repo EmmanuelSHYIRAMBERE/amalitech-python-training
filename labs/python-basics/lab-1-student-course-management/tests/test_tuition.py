@@ -1,7 +1,6 @@
 """Tests for tuition calculation per student type."""
 
 import pytest
-
 from src.models.student import (
     GraduateStudent,
     InternationalStudent,
@@ -38,7 +37,8 @@ class TestTuition:
     def test_international_tuition_includes_surcharge(self, international):
         base = (
             UndergraduateStudent.TUITION_BASE
-            + len(international.get_enrolled_courses()) * UndergraduateStudent.TUITION_PER_COURSE
+            + len(international.get_enrolled_courses())
+            * UndergraduateStudent.TUITION_PER_COURSE
         )
         expected = base + InternationalStudent.INTERNATIONAL_FEE
         assert international.calculate_tuition() == pytest.approx(expected)

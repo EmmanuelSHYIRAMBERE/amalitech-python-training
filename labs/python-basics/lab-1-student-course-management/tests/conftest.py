@@ -1,7 +1,6 @@
 """Shared fixtures for all test modules."""
 
 import pytest
-
 from src.models.course import Course
 from src.models.student import (
     GraduateStudent,
@@ -22,7 +21,9 @@ def grad():
 
 @pytest.fixture
 def international():
-    return InternationalStudent("S003", "Carlos Rodriguez", "carlos@example.com", "Spain", 3)
+    return InternationalStudent(
+        "S003", "Carlos Rodriguez", "carlos@example.com", "Spain", 3
+    )
 
 
 @pytest.fixture

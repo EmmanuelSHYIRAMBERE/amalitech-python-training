@@ -1,7 +1,5 @@
 """Tests for student type strings, dunder methods, and graduate-specific logic."""
 
-import pytest
-
 from src.models.student import GraduateStudent, UndergraduateStudent
 
 
