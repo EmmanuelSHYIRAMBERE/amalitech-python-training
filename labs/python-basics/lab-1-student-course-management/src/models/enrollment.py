@@ -1,11 +1,10 @@
 """Enrollment management functions."""
 
-from typing import Dict, List
 from src.utils.helpers import flexible_summary
 
 
 def add_student(
-    students_db: Dict,
+    students_db: dict,
     sid: str,
     name: str,
     email: str,
@@ -22,7 +21,7 @@ def add_student(
 
 
 def add_course(
-    courses_db: Dict, code: str, name: str, credits: int, instructor: str
+    courses_db: dict, code: str, name: str, credits: int, instructor: str
 ) -> bool:
     """Add a new course to the database."""
     if code in courses_db:
@@ -34,7 +33,7 @@ def add_course(
     return True
 
 
-def enroll_student(enrollments_db: Dict, sid: str, course_code: str) -> bool:
+def enroll_student(enrollments_db: dict, sid: str, course_code: str) -> bool:
     """Enroll a student in a course."""
     if sid not in enrollments_db:
         enrollments_db[sid] = []
@@ -48,14 +47,14 @@ def enroll_student(enrollments_db: Dict, sid: str, course_code: str) -> bool:
     return True
 
 
-def calculate_average(grades: List[float]) -> float:
+def calculate_average(grades: list[float]) -> float:
     """Calculate average of grades."""
     return sum(grades) / len(grades) if grades else 0.0
 
 
 def get_course_roster(
-    course_code: str, students_db: Dict, enrollments_db: Dict
-) -> List[Dict]:
+    course_code: str, students_db: dict, enrollments_db: dict
+) -> list[dict]:
     """Get all students enrolled in a course."""
     roster = []
     for sid, courses in enrollments_db.items():
@@ -67,7 +66,7 @@ def get_course_roster(
 
 
 def generate_enrollment_report(
-    students_db: Dict, courses_db: Dict, enrollments_db: Dict
+    students_db: dict, courses_db: dict, enrollments_db: dict
 ) -> None:
     """Generate comprehensive enrollment report."""
     print("\n" + "=" * 60)

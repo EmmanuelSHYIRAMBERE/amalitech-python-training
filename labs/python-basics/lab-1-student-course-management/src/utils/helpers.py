@@ -1,8 +1,7 @@
 """Helper functions and utilities."""
 
-from typing import List, Dict
-from datetime import datetime
 import re
+from datetime import datetime
 
 
 def validate_email(email: str) -> bool:
@@ -17,8 +16,8 @@ def calculate_grade_percentage(score: float, total: float) -> float:
 
 
 def filter_students_by_course(
-    students: Dict, course_code: str, enrollments: Dict
-) -> List[str]:
+    students: dict, course_code: str, enrollments: dict
+) -> list[str]:
     """Filter students enrolled in a specific course."""
     return [
         students[sid]["name"]
@@ -27,7 +26,7 @@ def filter_students_by_course(
     ]
 
 
-def create_menu(options: List[str]) -> None:
+def create_menu(options: list[str]) -> None:
     """Create a formatted menu from options list."""
     print("\n" + "=" * 50)
     print("📚 STUDENT COURSE MANAGEMENT SYSTEM")
@@ -56,7 +55,7 @@ def safe_divide(a: float, b: float, default: float = 0.0) -> float:
 
 
 # def *args, **kwargs demonstration
-def flexible_summary(*args, **kwargs) -> Dict:
+def flexible_summary(*args, **kwargs) -> dict:
     """
     Demonstrate *args and **kwargs usage.
     Args: variable number of student names
