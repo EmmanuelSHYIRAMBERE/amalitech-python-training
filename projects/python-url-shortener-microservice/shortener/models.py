@@ -319,6 +319,5 @@ class Click(models.Model):
     def __repr__(self) -> str:
         """Developer-friendly representation for debugging and pytest output."""
         return (
-            f"Click(id={self.pk!r}, url_id={self.url_id!r}, "
-            f"ip={self.ip_address!r})"
+            f"Click(id={self.pk!r}, url_id={self.url_id!r}, " f"ip={self.ip_address!r})"
         )
