@@ -9,10 +9,12 @@ New in Mod 6:
 """
 
 import logging
+from datetime import datetime
 from typing import Any
 
 from django.db import IntegrityError
 from django.db.models import Count
+from django.utils import timezone
 from rest_framework import serializers
 from rest_framework.request import Request
 
@@ -72,6 +74,22 @@ class URLCreateSerializer(serializers.ModelSerializer[URL]):
     class Meta:
         model = URL
         fields = ["original_url", "custom_alias", "expires_at", "tags"]
+
+    def validate_expires_at(self, value: "datetime | None") -> "datetime | None":
+        """Reject expires_at values that are already in the past.
+
+        Args:
+            value: The submitted expiry datetime (timezone-aware) or None.
+
+        Returns:
+            The validated datetime unchanged, or None.
+
+        Raises:
+            ValidationError: If ``value`` is set and is not in the future.
+        """
+        if value is not None and value <= timezone.now():
+            raise serializers.ValidationError("expires_at must be a future datetime.")
+        return value
 
     def validate_original_url(self, value: str) -> str:
         """Enforce http/https scheme using compiled regex.
