@@ -172,14 +172,10 @@ class Migration(migrations.Migration):
         ),
         migrations.AddIndex(
             model_name="click",
-            index=models.Index(
-                fields=["url", "country"], name="click_url_country_idx"
-            ),
+            index=models.Index(fields=["url", "country"], name="click_url_country_idx"),
         ),
         migrations.AddIndex(
             model_name="click",
-            index=models.Index(
-                fields=["url", "clicked_at"], name="click_url_time_idx"
-            ),
+            index=models.Index(fields=["url", "clicked_at"], name="click_url_time_idx"),
         ),
     ]

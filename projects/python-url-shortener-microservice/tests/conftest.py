@@ -10,7 +10,7 @@ New fixtures:
 import pytest
 from rest_framework.test import APIClient
 
-from shortener.models import Tag, URL
+from shortener.models import URL, Tag
 from users.models import User
 
 
