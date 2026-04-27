@@ -294,7 +294,6 @@ def test_create_url_raises_500_on_collision_exhaustion(
     Mod 7 will add an exception_handler to convert it to 503 Service Unavailable.
     """
     from django.db import IntegrityError
-    from shortener.exceptions import ShortCodeCollisionError
 
     mocker.patch(
         "shortener.serializers.URL.objects.create",

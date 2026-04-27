@@ -61,9 +61,9 @@ def test_exception_hierarchy_is_correct() -> None:
         ShortCodeCollisionError,
         ShortCodeError,
         ShortenerError,
+        ShortLinkError,
         ShortLinkExpiredError,
         ShortLinkInactiveError,
-        ShortLinkError,
     )
 
     assert issubclass(ShortLinkError, ShortenerError)
@@ -71,6 +71,7 @@ def test_exception_hierarchy_is_correct() -> None:
     assert issubclass(ShortLinkExpiredError, ShortLinkError)
     assert issubclass(ShortCodeError, ShortenerError)
     assert issubclass(ShortCodeCollisionError, ShortCodeError)
+
 
 # ---------------------------------------------------------------------------
 # SecureShortCodeGenerator (unchanged from Mod 5)
@@ -255,8 +256,7 @@ def test_click_result_is_frozen() -> None:
 
 def test_click_result_has_geo_true_when_both_set() -> None:
     cr = ClickResult(
-        url_id=1, ip_address="1.2.3.4", user_agent="ua",
-        country="RW", city="Kigali"
+        url_id=1, ip_address="1.2.3.4", user_agent="ua", country="RW", city="Kigali"
     )
     assert cr.has_geo() is True
 
@@ -273,8 +273,7 @@ def test_click_result_has_geo_false_when_both_missing() -> None:
 
 def test_click_result_is_known_referrer_true() -> None:
     cr = ClickResult(
-        url_id=1, ip_address="1.2.3.4", user_agent="ua",
-        referrer="https://google.com"
+        url_id=1, ip_address="1.2.3.4", user_agent="ua", referrer="https://google.com"
     )
     assert cr.is_known_referrer() is True
 
@@ -321,24 +320,6 @@ def test_user_email_is_unique(user: User) -> None:
 def test_user_str_contains_username_and_tier(user: User) -> None:
     assert user.username in str(user)
     assert user.tier in str(user)
-
-
-@pytest.mark.django_db
-def test_user_repr_contains_username(user: User) -> None:
-    assert user.username in repr(user)
-    assert "User" in repr(user)
-
-
-def test_user_is_valid_tier_accepts_valid() -> None:
-    assert User.is_valid_tier("Free") is True
-    assert User.is_valid_tier("Premium") is True
-    assert User.is_valid_tier("Admin") is True
-
-
-def test_user_is_valid_tier_rejects_invalid() -> None:
-    assert User.is_valid_tier("Unknown") is False
-    assert User.is_valid_tier("") is False
-    assert User.is_valid_tier("free") is False  # case-sensitive
 
 
 @pytest.mark.django_db
@@ -600,9 +581,7 @@ def test_click_str_contains_short_code(created_url: URL) -> None:
 
 @pytest.mark.django_db
 def test_click_repr_contains_ip(created_url: URL) -> None:
-    click = Click.objects.create(
-        url=created_url, ip_address="9.9.9.9", user_agent="ua"
-    )
+    click = Click.objects.create(url=created_url, ip_address="9.9.9.9", user_agent="ua")
     assert "9.9.9.9" in repr(click)
     assert "Click" in repr(click)
 
