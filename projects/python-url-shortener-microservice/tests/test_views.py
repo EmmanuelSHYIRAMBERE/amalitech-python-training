@@ -277,3 +277,94 @@ def test_analytics_contains_clicks_by_country(
 def test_analytics_unknown_code_returns_404(api_client: APIClient) -> None:
     response = api_client.get("/api/v1/analytics/unknown1/")
     assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+# ---------------------------------------------------------------------------
+# Collision retry — ShortCodeCollisionError (best-practices addition)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_create_url_raises_500_on_collision_exhaustion(
+    api_client: APIClient, sample_url_data: dict[str, str], mocker
+) -> None:
+    """When all 5 retry attempts collide, DRF returns 500 (unhandled app error).
+
+    ShortCodeCollisionError is not a DRF exception so it propagates as a 500.
+    Mod 7 will add an exception_handler to convert it to 503 Service Unavailable.
+    """
+    from django.db import IntegrityError
+    from shortener.exceptions import ShortCodeCollisionError
+
+    mocker.patch(
+        "shortener.serializers.URL.objects.create",
+        side_effect=IntegrityError("duplicate key"),
+    )
+    # Disable Django test client's exception re-raise so we get the HTTP response.
+    api_client.raise_request_exception = False
+    response = api_client.post("/api/v1/urls/", sample_url_data, format="json")
+    assert response.status_code == 500
+
+
+# ---------------------------------------------------------------------------
+# transaction.atomic — Click + click_count atomicity (best-practices addition)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_redirect_click_and_count_are_atomic(
+    api_client: APIClient, created_url: URL, mocker
+) -> None:
+    """If increment_click_count raises, the Click row must also be rolled back."""
+    mocker.patch.object(
+        created_url.__class__,
+        "increment_click_count",
+        side_effect=Exception("DB failure"),
+    )
+    # Patch get_object_or_404 to return our controlled instance.
+    mocker.patch(
+        "shortener.views.get_object_or_404",
+        return_value=created_url,
+    )
+    with pytest.raises(Exception, match="DB failure"):
+        api_client.get(f"/{created_url.short_code}/")
+
+    # The transaction rolled back — no Click row should exist.
+    assert Click.objects.filter(url=created_url).count() == 0
+
+
+# ---------------------------------------------------------------------------
+# Named exceptions in RedirectView (best-practices addition)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_redirect_inactive_returns_404_with_detail(
+    api_client: APIClient, user: User
+) -> None:
+    """404 response for inactive link must include the short_code in detail."""
+    url = URL.objects.create(
+        original_url="https://example.com",
+        short_code="inact9",
+        owner=user,
+        is_active=False,
+    )
+    response = api_client.get(f"/{url.short_code}/")
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert "inact9" in str(response.data)
+
+
+@pytest.mark.django_db
+def test_redirect_expired_returns_404_with_detail(
+    api_client: APIClient, user: User
+) -> None:
+    """404 response for expired link must include the short_code in detail."""
+    url = URL.objects.create(
+        original_url="https://example.com",
+        short_code="exprd9",
+        owner=user,
+        expires_at=timezone.now() - timedelta(seconds=1),
+    )
+    response = api_client.get(f"/{url.short_code}/")
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert "exprd9" in str(response.data)

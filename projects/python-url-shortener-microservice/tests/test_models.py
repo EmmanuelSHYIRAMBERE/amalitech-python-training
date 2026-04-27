@@ -169,6 +169,31 @@ def test_shorten_request_stores_url() -> None:
     assert req.original_url == "https://example.com"
 
 
+def test_shorten_request_post_init_rejects_empty_url() -> None:
+    """__post_init__ must raise ValueError for empty original_url."""
+    with pytest.raises(ValueError, match="non-empty"):
+        ShortenRequest(original_url="")
+
+
+def test_shorten_request_post_init_rejects_whitespace_url() -> None:
+    with pytest.raises(ValueError, match="non-empty"):
+        ShortenRequest(original_url="   ")
+
+
+def test_shorten_result_is_frozen() -> None:
+    """ShortenResult must be immutable (frozen=True)."""
+    from dataclasses import FrozenInstanceError
+
+    result = ShortenResult(
+        short_code="abc123",
+        original_url="https://example.com",
+        short_url="http://localhost/abc123/",
+        created_at="2025-01-01T00:00:00Z",
+    )
+    with pytest.raises(FrozenInstanceError):
+        result.short_code = "other"  # type: ignore[misc]
+
+
 def test_shorten_result_stores_all_fields() -> None:
     result = ShortenResult(
         short_code="abc123",
@@ -178,6 +203,19 @@ def test_shorten_result_stores_all_fields() -> None:
     )
     assert result.short_code == "abc123"
     assert result.short_url == "http://localhost/abc123/"
+
+
+def test_shorten_result_as_dict() -> None:
+    """as_dict() must return all four fields as a plain dict."""
+    result = ShortenResult(
+        short_code="abc123",
+        original_url="https://example.com",
+        short_url="http://localhost/abc123/",
+        created_at="2025-01-01T00:00:00Z",
+    )
+    d = result.as_dict()
+    assert d["short_code"] == "abc123"
+    assert set(d.keys()) == {"short_code", "original_url", "short_url", "created_at"}
 
 
 def test_shorten_request_repr_contains_url() -> None:
@@ -204,6 +242,46 @@ def test_click_result_stores_optional_fields() -> None:
     assert cr.country == "RW"
     assert cr.city == "Kigali"
     assert cr.referrer == "https://google.com"
+
+
+def test_click_result_is_frozen() -> None:
+    """ClickResult must be immutable (frozen=True)."""
+    from dataclasses import FrozenInstanceError
+
+    cr = ClickResult(url_id=1, ip_address="1.2.3.4", user_agent="ua")
+    with pytest.raises(FrozenInstanceError):
+        cr.country = "RW"  # type: ignore[misc]
+
+
+def test_click_result_has_geo_true_when_both_set() -> None:
+    cr = ClickResult(
+        url_id=1, ip_address="1.2.3.4", user_agent="ua",
+        country="RW", city="Kigali"
+    )
+    assert cr.has_geo() is True
+
+
+def test_click_result_has_geo_false_when_city_missing() -> None:
+    cr = ClickResult(url_id=1, ip_address="1.2.3.4", user_agent="ua", country="RW")
+    assert cr.has_geo() is False
+
+
+def test_click_result_has_geo_false_when_both_missing() -> None:
+    cr = ClickResult(url_id=1, ip_address="1.2.3.4", user_agent="ua")
+    assert cr.has_geo() is False
+
+
+def test_click_result_is_known_referrer_true() -> None:
+    cr = ClickResult(
+        url_id=1, ip_address="1.2.3.4", user_agent="ua",
+        referrer="https://google.com"
+    )
+    assert cr.is_known_referrer() is True
+
+
+def test_click_result_is_known_referrer_false_when_none() -> None:
+    cr = ClickResult(url_id=1, ip_address="1.2.3.4", user_agent="ua")
+    assert cr.is_known_referrer() is False
 
 
 # ---------------------------------------------------------------------------
@@ -263,6 +341,24 @@ def test_user_is_valid_tier_rejects_invalid() -> None:
     assert User.is_valid_tier("free") is False  # case-sensitive
 
 
+@pytest.mark.django_db
+def test_user_repr_contains_username(user: User) -> None:
+    assert user.username in repr(user)
+    assert "User" in repr(user)
+
+
+def test_user_is_valid_tier_accepts_valid() -> None:
+    assert User.is_valid_tier("Free") is True
+    assert User.is_valid_tier("Premium") is True
+    assert User.is_valid_tier("Admin") is True
+
+
+def test_user_is_valid_tier_rejects_invalid() -> None:
+    assert User.is_valid_tier("Unknown") is False
+    assert User.is_valid_tier("") is False
+    assert User.is_valid_tier("free") is False  # case-sensitive
+
+
 # ---------------------------------------------------------------------------
 # Tag model (Mod 6)
 # ---------------------------------------------------------------------------
@@ -271,6 +367,37 @@ def test_user_is_valid_tier_rejects_invalid() -> None:
 @pytest.mark.django_db
 def test_tag_str_is_name(tag_marketing: Tag) -> None:
     assert str(tag_marketing) == "Marketing"
+
+
+@pytest.mark.django_db
+def test_tag_repr_contains_name(tag_marketing: Tag) -> None:
+    assert "Marketing" in repr(tag_marketing)
+    assert "Tag" in repr(tag_marketing)
+
+
+@pytest.mark.django_db
+def test_tag_eq_by_name(db: None) -> None:
+    t1, _ = Tag.objects.get_or_create(name="Tech")
+    t2, _ = Tag.objects.get_or_create(name="Tech")
+    assert t1 == t2
+
+
+def test_tag_eq_unsaved_instances() -> None:
+    """__eq__ works on unsaved Tag instances — safe in tests before DB flush."""
+    t1 = Tag(name="Alpha")
+    t2 = Tag(name="Alpha")
+    assert t1 == t2
+
+
+def test_tag_neq_different_names() -> None:
+    assert Tag(name="A") != Tag(name="B")
+
+
+def test_tag_hash_consistent_with_eq() -> None:
+    t1 = Tag(name="X")
+    t2 = Tag(name="X")
+    assert hash(t1) == hash(t2)
+    assert len({t1, t2}) == 1  # set deduplication works
 
 
 @pytest.mark.django_db
@@ -297,6 +424,28 @@ def test_tags_ordered_alphabetically(db: None) -> None:
 @pytest.mark.django_db
 def test_url_str_format(created_url: URL) -> None:
     assert str(created_url) == f"{created_url.short_code} → {created_url.original_url}"
+
+
+@pytest.mark.django_db
+def test_url_repr_contains_short_code(created_url: URL) -> None:
+    assert created_url.short_code in repr(created_url)
+    assert "URL" in repr(created_url)
+
+
+@pytest.mark.django_db
+def test_url_eq_by_pk(created_url: URL, user: User) -> None:
+    same = URL.objects.get(pk=created_url.pk)
+    assert created_url == same
+
+
+def test_url_eq_unsaved_by_short_code() -> None:
+    u1 = URL(short_code="abc123", original_url="https://a.com")
+    u2 = URL(short_code="abc123", original_url="https://b.com")
+    assert u1 == u2
+
+
+def test_url_neq_different_short_codes() -> None:
+    assert URL(short_code="aaa111") != URL(short_code="bbb222")
 
 
 @pytest.mark.django_db
@@ -447,6 +596,15 @@ def test_click_str_contains_short_code(created_url: URL) -> None:
         url=created_url, ip_address="1.2.3.4", user_agent="Mozilla/5.0"
     )
     assert created_url.short_code in str(click)
+
+
+@pytest.mark.django_db
+def test_click_repr_contains_ip(created_url: URL) -> None:
+    click = Click.objects.create(
+        url=created_url, ip_address="9.9.9.9", user_agent="ua"
+    )
+    assert "9.9.9.9" in repr(click)
+    assert "Click" in repr(click)
 
 
 @pytest.mark.django_db
