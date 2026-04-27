@@ -39,8 +39,12 @@ INSTALLED_APPS = [
     "rest_framework",
     "drf_spectacular",
     "core",
+    "users",
     "shortener",
 ]
+
+# Must be set before any migration that references the user model.
+AUTH_USER_MODEL = "users.User"
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -69,8 +73,8 @@ REST_FRAMEWORK = {
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "URL Shortener API",
-    "DESCRIPTION": "Enterprise-Grade URL Shortener Microservice — Module 5 MVP",
-    "VERSION": "1.0.0",
+    "DESCRIPTION": "Enterprise-Grade URL Shortener Microservice — Module 6: ORM & Data Access Layer",
+    "VERSION": "2.0.0",
 }
 
 # ---------------------------------------------------------------------------
