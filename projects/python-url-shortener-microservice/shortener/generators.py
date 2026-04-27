@@ -1,6 +1,6 @@
 """Short-code generator hierarchy.
 
-Mirrors the WeatherProvider ABC pattern from the TDD weather lab:
+Mirrors ABC pattern:
   BaseShortCodeGenerator (ABC)  ←  enforces the interface
   SecureShortCodeGenerator      ←  production implementation (secrets module)
 

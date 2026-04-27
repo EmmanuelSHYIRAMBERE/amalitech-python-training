@@ -1,8 +1,7 @@
 """Regex-based validators for the shortener app.
 
 All patterns are compiled once at module level as re.Pattern[str] constants —
-never inside functions, never uncompiled — following the same convention used
-in the importer lab (validator.py) and the log analyzer lab (patterns.py).
+never inside functions, never uncompiled.
 """
 
 import re
