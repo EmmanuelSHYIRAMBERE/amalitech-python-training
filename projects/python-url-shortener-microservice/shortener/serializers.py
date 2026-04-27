@@ -11,10 +11,12 @@ New in Mod 6:
 import logging
 from typing import Any
 
+from django.db import IntegrityError
 from django.db.models import Count
 from rest_framework import serializers
 from rest_framework.request import Request
 
+from .exceptions import ShortCodeCollisionError
 from .generators import default_generator
 from .models import URL, Click, Tag
 from .protocols import ShortCodeGenerator
@@ -80,19 +82,62 @@ class URLCreateSerializer(serializers.ModelSerializer[URL]):
         return value
 
     def create(self, validated_data: dict[str, Any]) -> URL:
-        # Pop M2M tags before creating the instance — Django requires the
-        # instance to exist before M2M relations can be set.
+        """Persist a new URL, retrying on short_code collision.
+
+        Follows the try/except/else/finally pattern from Clean Code Lab 1:
+          - except IntegrityError : collision — retry with a new code
+          - else                  : success — break the retry loop
+          - finally               : always log the attempt for debugging
+
+        Args:
+            validated_data: Cleaned data from the serializer fields.
+
+        Returns:
+            The newly created URL instance.
+
+        Raises:
+            ShortCodeCollisionError: If all retry attempts produce a duplicate
+                short_code (extremely unlikely with 62^6 possible codes).
+        """
         tags: list[Tag] = validated_data.pop("tags", [])
-        short_code = self._generator(length=6)
-        url = URL.objects.create(short_code=short_code, **validated_data)
-        if tags:
-            url.tags.set(tags)
-        logger.info(
-            "Created short_code=%r for original_url=%r tags=%r",
-            url.short_code,
-            url.original_url,
-            [t.name for t in tags],
-        )
+        _max_attempts = 5
+        url: URL | None = None
+
+        for attempt in range(1, _max_attempts + 1):
+            short_code = self._generator(length=6)
+            try:
+                url = URL.objects.create(short_code=short_code, **validated_data)
+            except IntegrityError:
+                # short_code collision — generate a new one and retry.
+                logger.warning(
+                    "short_code collision on attempt %d/%d code=%r — retrying",
+                    attempt,
+                    _max_attempts,
+                    short_code,
+                )
+            else:
+                # Success — attach tags and exit the retry loop.
+                if tags:
+                    url.tags.set(tags)
+                logger.info(
+                    "Created short_code=%r for original_url=%r tags=%r",
+                    url.short_code,
+                    url.original_url,
+                    [t.name for t in tags],
+                )
+                break
+            finally:
+                logger.debug(
+                    "create attempt %d/%d short_code=%r",
+                    attempt,
+                    _max_attempts,
+                    short_code,
+                )
+        else:
+            # All attempts exhausted — raise a named application exception.
+            raise ShortCodeCollisionError(attempts=_max_attempts)
+
+        assert url is not None  # guaranteed by the else-break above
         return url
 
 
