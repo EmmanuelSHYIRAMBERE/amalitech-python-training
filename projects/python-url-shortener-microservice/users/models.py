@@ -36,3 +36,26 @@ class User(AbstractUser):
 
     def __str__(self) -> str:
         return f"{self.username} ({self.tier})"
+
+    def __repr__(self) -> str:
+        """Developer-friendly representation for debugging and pytest output."""
+        return f"User(id={self.pk!r}, username={self.username!r}, tier={self.tier!r})"
+
+    @staticmethod
+    def is_valid_tier(tier: str) -> bool:
+        """Return True if ``tier`` is one of the defined Tier choices.
+
+        Args:
+            tier: The tier string to validate.
+
+        Returns:
+            ``True`` if the tier is valid, ``False`` otherwise.
+
+        Example::
+
+            >>> User.is_valid_tier("Premium")
+            True
+            >>> User.is_valid_tier("Unknown")
+            False
+        """
+        return tier in {choice.value for choice in User.Tier}

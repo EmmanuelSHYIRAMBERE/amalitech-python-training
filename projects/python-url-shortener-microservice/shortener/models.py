@@ -47,6 +47,20 @@ class Tag(models.Model):
     def __str__(self) -> str:
         return self.name
 
+    def __repr__(self) -> str:
+        """Developer-friendly representation for debugging and pytest output."""
+        return f"Tag(id={self.pk!r}, name={self.name!r})"
+
+    def __eq__(self, other: object) -> bool:
+        """Compare tags by name — safe for unsaved instances in tests."""
+        if not isinstance(other, Tag):
+            return NotImplemented
+        return self.name == other.name
+
+    def __hash__(self) -> int:
+        """Hash by name so Tag instances work correctly in sets and dict keys."""
+        return hash(self.name)
+
 
 # ---------------------------------------------------------------------------
 # URLQuerySet / URLManager
@@ -194,6 +208,25 @@ class URL(TimeStampedModel):
     def __str__(self) -> str:
         return f"{self.short_code} → {self.original_url}"
 
+    def __repr__(self) -> str:
+        """Developer-friendly representation for debugging and pytest output."""
+        return f"URL(id={self.pk!r}, short_code={self.short_code!r})"
+
+    def __eq__(self, other: object) -> bool:
+        """Compare URLs by short_code — safe for unsaved instances in tests."""
+        if not isinstance(other, URL):
+            return NotImplemented
+        # Fall back to pk comparison when both are saved.
+        if self.pk is not None and other.pk is not None:
+            return self.pk == other.pk
+        return self.short_code == other.short_code
+
+    def __hash__(self) -> int:
+        """Hash by pk when saved, by short_code when unsaved."""
+        if self.pk is not None:
+            return hash(self.pk)
+        return hash(self.short_code)
+
     @property
     def is_expired(self) -> bool:
         """Return True if the link has passed its expiry date."""
@@ -262,3 +295,10 @@ class Click(models.Model):
 
     def __str__(self) -> str:
         return f"Click on {self.url.short_code} from {self.ip_address} at {self.clicked_at}"
+
+    def __repr__(self) -> str:
+        """Developer-friendly representation for debugging and pytest output."""
+        return (
+            f"Click(id={self.pk!r}, url_id={self.url_id!r}, "
+            f"ip={self.ip_address!r})"
+        )
