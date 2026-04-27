@@ -1,14 +1,18 @@
-"""Tests for shortener.views — URLCreateView (POST) and RedirectView (GET)."""
+"""Tests for shortener.views — Module 5 + Module 6."""
+
+from datetime import timedelta
 
 import pytest
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from shortener.models import URL
+from shortener.models import Click, URL
 from shortener.serializers import URLCreateSerializer
+from users.models import User
 
 # ---------------------------------------------------------------------------
-# URLCreateView — POST /api/v1/urls/
+# URLCreateView — POST /api/v1/urls/ (Mod 5, unchanged)
 # ---------------------------------------------------------------------------
 
 
@@ -16,7 +20,6 @@ from shortener.serializers import URLCreateSerializer
 def test_create_url_returns_201(
     api_client: APIClient, sample_url_data: dict[str, str]
 ) -> None:
-    """A valid POST must return HTTP 201 Created."""
     response = api_client.post("/api/v1/urls/", sample_url_data, format="json")
     assert response.status_code == status.HTTP_201_CREATED
 
@@ -77,10 +80,7 @@ def test_create_url_short_code_is_six_chars(
 def test_create_url_with_injected_generator(
     api_client: APIClient, sample_url_data: dict[str, str], mocker
 ) -> None:
-    """Generator injected via Protocol DI must be called and its value used."""
     mock_gen = mocker.MagicMock(return_value="mocked1")
-    # URLCreateSerializer accepts generator= at construction time (DI via Protocol).
-    # Patch the class so every instantiation by the view uses the mock generator.
     original_init = URLCreateSerializer.__init__
 
     def patched_init(self, *args, **kwargs):
@@ -107,20 +107,12 @@ def test_create_url_missing_body_error_references_field(api_client: APIClient) -
 
 @pytest.mark.parametrize(
     "bad_url",
-    [
-        "not-a-url",
-        "",
-        "just text",
-        "http://",
-        # ftp:// now rejected by validate_url_scheme regex validator
-        "ftp://example.com",
-    ],
+    ["not-a-url", "", "just text", "http://", "ftp://example.com"],
 )
 @pytest.mark.django_db
 def test_create_url_invalid_url_returns_400(
     api_client: APIClient, bad_url: str
 ) -> None:
-    """Malformed URLs and non-http/https schemes must return HTTP 400."""
     response = api_client.post(
         "/api/v1/urls/", {"original_url": bad_url}, format="json"
     )
@@ -136,7 +128,7 @@ def test_create_url_short_url_is_absolute_uri(
 
 
 # ---------------------------------------------------------------------------
-# RedirectView — GET /<short_code>/
+# RedirectView — GET /<short_code>/ (Mod 5, unchanged)
 # ---------------------------------------------------------------------------
 
 
@@ -161,9 +153,9 @@ def test_redirect_unknown_code_returns_404(api_client: APIClient) -> None:
 
 
 @pytest.mark.django_db
-def test_redirect_uses_correct_original_url() -> None:
+def test_redirect_uses_correct_original_url(user: User) -> None:
     target = "https://www.specific-target.com/path"
-    URL.objects.create(original_url=target, short_code="tgt001")
+    URL.objects.create(original_url=target, short_code="tgt001", owner=user)
     client = APIClient()
     response = client.get("/tgt001/")
     assert response["Location"] == target
@@ -175,3 +167,101 @@ def test_redirect_does_not_follow_redirect_by_default(
 ) -> None:
     response = api_client.get(f"/{created_url.short_code}/")
     assert response.status_code != status.HTTP_200_OK
+
+
+# ---------------------------------------------------------------------------
+# RedirectView — Mod 6 behaviour
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_redirect_logs_click(api_client: APIClient, created_url: URL) -> None:
+    """Every redirect must create a Click record."""
+    assert Click.objects.count() == 0
+    api_client.get(f"/{created_url.short_code}/")
+    assert Click.objects.count() == 1
+
+
+@pytest.mark.django_db
+def test_redirect_increments_click_count(api_client: APIClient, created_url: URL) -> None:
+    api_client.get(f"/{created_url.short_code}/")
+    created_url.refresh_from_db()
+    assert created_url.click_count == 1
+
+
+@pytest.mark.django_db
+def test_redirect_inactive_url_returns_404(api_client: APIClient, user: User) -> None:
+    url = URL.objects.create(
+        original_url="https://example.com",
+        short_code="inact2",
+        owner=user,
+        is_active=False,
+    )
+    response = api_client.get(f"/{url.short_code}/")
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+@pytest.mark.django_db
+def test_redirect_expired_url_returns_404(api_client: APIClient, user: User) -> None:
+    url = URL.objects.create(
+        original_url="https://example.com",
+        short_code="exprd3",
+        owner=user,
+        expires_at=timezone.now() - timedelta(seconds=1),
+    )
+    response = api_client.get(f"/{url.short_code}/")
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+@pytest.mark.django_db
+def test_redirect_click_stores_user_agent(api_client: APIClient, created_url: URL) -> None:
+    api_client.get(
+        f"/{created_url.short_code}/",
+        HTTP_USER_AGENT="TestBrowser/1.0",
+    )
+    click = Click.objects.first()
+    assert click is not None
+    assert click.user_agent == "TestBrowser/1.0"
+
+
+@pytest.mark.django_db
+def test_redirect_click_stores_referrer(api_client: APIClient, created_url: URL) -> None:
+    api_client.get(
+        f"/{created_url.short_code}/",
+        HTTP_REFERER="https://google.com",
+    )
+    click = Click.objects.first()
+    assert click is not None
+    assert click.referrer == "https://google.com"
+
+
+# ---------------------------------------------------------------------------
+# URLAnalyticsView — GET /api/v1/analytics/<short_code>/ (Mod 6)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_analytics_returns_200(api_client: APIClient, created_url: URL) -> None:
+    response = api_client.get(f"/api/v1/analytics/{created_url.short_code}/")
+    assert response.status_code == status.HTTP_200_OK
+
+
+@pytest.mark.django_db
+def test_analytics_contains_click_count(api_client: APIClient, created_url: URL) -> None:
+    response = api_client.get(f"/api/v1/analytics/{created_url.short_code}/")
+    assert "click_count" in response.data
+
+
+@pytest.mark.django_db
+def test_analytics_contains_clicks_by_country(api_client: APIClient, created_url: URL) -> None:
+    Click.objects.create(url=created_url, ip_address="1.1.1.1", user_agent="ua", country="RW")
+    response = api_client.get(f"/api/v1/analytics/{created_url.short_code}/")
+    assert "clicks_by_country" in response.data
+    assert response.data["clicks_by_country"][0]["country"] == "RW"
+    assert response.data["clicks_by_country"][0]["total"] == 1
+
+
+@pytest.mark.django_db
+def test_analytics_unknown_code_returns_404(api_client: APIClient) -> None:
+    response = api_client.get("/api/v1/analytics/unknown1/")
+    assert response.status_code == status.HTTP_404_NOT_FOUND
