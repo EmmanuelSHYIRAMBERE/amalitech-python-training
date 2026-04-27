@@ -19,7 +19,7 @@ from django.db.models import Count
 from django.utils import timezone
 
 from shortener.generators import BaseShortCodeGenerator, default_generator
-from shortener.models import Click, Tag, URL
+from shortener.models import URL, Click, Tag
 from shortener.protocols import ShortCodeGenerator
 from shortener.schemas import ClickResult, ShortenRequest, ShortenResult
 from shortener.validators import validate_short_code, validate_url_scheme
@@ -248,15 +248,23 @@ def test_url_updated_at_is_set_on_save(created_url: URL) -> None:
 def test_url_short_code_is_unique(user: User) -> None:
     from django.db import IntegrityError
 
-    URL.objects.create(original_url="https://first.com", short_code="unique1", owner=user)
+    URL.objects.create(
+        original_url="https://first.com", short_code="unique1", owner=user
+    )
     with pytest.raises(IntegrityError):
-        URL.objects.create(original_url="https://second.com", short_code="unique1", owner=user)
+        URL.objects.create(
+            original_url="https://second.com", short_code="unique1", owner=user
+        )
 
 
 @pytest.mark.django_db
 def test_url_ordering_is_newest_first(user: User) -> None:
-    URL.objects.create(original_url="https://first.com", short_code="first1", owner=user)
-    URL.objects.create(original_url="https://second.com", short_code="secnd1", owner=user)
+    URL.objects.create(
+        original_url="https://first.com", short_code="first1", owner=user
+    )
+    URL.objects.create(
+        original_url="https://second.com", short_code="secnd1", owner=user
+    )
     urls = list(URL.objects.all())
     assert urls[0].short_code == "secnd1"
     assert urls[1].short_code == "first1"
@@ -326,7 +334,9 @@ def test_url_increment_click_count_is_atomic(created_url: URL) -> None:
 
 
 @pytest.mark.django_db
-def test_url_tags_can_be_attached(created_url: URL, tag_marketing: Tag, tag_social: Tag) -> None:
+def test_url_tags_can_be_attached(
+    created_url: URL, tag_marketing: Tag, tag_social: Tag
+) -> None:
     created_url.tags.set([tag_marketing, tag_social])
     assert created_url.tags.count() == 2
 
@@ -336,11 +346,17 @@ def test_url_custom_alias_is_unique(user: User) -> None:
     from django.db import IntegrityError
 
     URL.objects.create(
-        original_url="https://a.com", short_code="alias1", owner=user, custom_alias="myshop"
+        original_url="https://a.com",
+        short_code="alias1",
+        owner=user,
+        custom_alias="myshop",
     )
     with pytest.raises(IntegrityError):
         URL.objects.create(
-            original_url="https://b.com", short_code="alias2", owner=user, custom_alias="myshop"
+            original_url="https://b.com",
+            short_code="alias2",
+            owner=user,
+            custom_alias="myshop",
         )
 
 
@@ -383,10 +399,14 @@ def test_click_cascade_delete(created_url: URL) -> None:
 
 @pytest.mark.django_db
 def test_active_urls_excludes_inactive(user: User) -> None:
-    URL.objects.create(original_url="https://a.com", short_code="actv01", owner=user, is_active=True)
-    URL.objects.create(original_url="https://b.com", short_code="inact1", owner=user, is_active=False)
+    URL.objects.create(
+        original_url="https://a.com", short_code="actv01", owner=user, is_active=True
+    )
+    URL.objects.create(
+        original_url="https://b.com", short_code="inact1", owner=user, is_active=False
+    )
     assert URL.objects.active_urls().count() == 1
-    assert URL.objects.active_urls().first().short_code == "actv01"  # type: ignore[union-attr]
+    assert URL.objects.active_urls().first().short_code == "actv01"  # type: ignore[union-attr]  # noqa: E501
 
 
 @pytest.mark.django_db
@@ -424,7 +444,10 @@ def test_popular_urls_ordered_by_click_count(user: User) -> None:
         original_url="https://low.com", short_code="low001", owner=user, click_count=5
     )
     high = URL.objects.create(
-        original_url="https://high.com", short_code="high01", owner=user, click_count=100
+        original_url="https://high.com",
+        short_code="high01",
+        owner=user,
+        click_count=100,
     )
     results = list(URL.objects.popular_urls(top_n=2))
     assert results[0].pk == high.pk
@@ -451,9 +474,15 @@ def test_popular_urls_respects_top_n(user: User) -> None:
 @pytest.mark.django_db
 def test_clicks_by_country_aggregation(created_url: URL) -> None:
     """annotate() must compute click totals per country in the DB."""
-    Click.objects.create(url=created_url, ip_address="1.1.1.1", user_agent="ua", country="RW")
-    Click.objects.create(url=created_url, ip_address="2.2.2.2", user_agent="ua", country="RW")
-    Click.objects.create(url=created_url, ip_address="3.3.3.3", user_agent="ua", country="US")
+    Click.objects.create(
+        url=created_url, ip_address="1.1.1.1", user_agent="ua", country="RW"
+    )
+    Click.objects.create(
+        url=created_url, ip_address="2.2.2.2", user_agent="ua", country="RW"
+    )
+    Click.objects.create(
+        url=created_url, ip_address="3.3.3.3", user_agent="ua", country="US"
+    )
 
     stats = (
         created_url.clicks.values("country")
@@ -466,7 +495,9 @@ def test_clicks_by_country_aggregation(created_url: URL) -> None:
 
 
 @pytest.mark.django_db
-def test_select_related_owner_avoids_extra_query(created_url: URL, django_assert_num_queries) -> None:  # type: ignore[no-untyped-def]
+def test_select_related_owner_avoids_extra_query(  # type: ignore[no-untyped-def]
+    created_url: URL, django_assert_num_queries
+) -> None:
     """select_related('owner') must fetch URL + owner in a single query."""
     with django_assert_num_queries(1):
         url = URL.objects.select_related("owner").get(pk=created_url.pk)
@@ -475,7 +506,10 @@ def test_select_related_owner_avoids_extra_query(created_url: URL, django_assert
 
 @pytest.mark.django_db
 def test_prefetch_related_tags_avoids_n_plus_1(
-    created_url: URL, tag_marketing: Tag, tag_social: Tag, django_assert_num_queries  # type: ignore[no-untyped-def]
+    created_url: URL,
+    tag_marketing: Tag,
+    tag_social: Tag,
+    django_assert_num_queries,  # type: ignore[no-untyped-def]
 ) -> None:
     """prefetch_related('tags') must load all tags in exactly 2 queries."""
     created_url.tags.set([tag_marketing, tag_social])

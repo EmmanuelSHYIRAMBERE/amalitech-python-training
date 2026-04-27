@@ -16,18 +16,22 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Click, URL
-from .serializers import URLAnalyticsSerializer, URLCreateSerializer, URLResponseSerializer
+from .models import URL, Click
+from .serializers import (
+    URLAnalyticsSerializer,
+    URLCreateSerializer,
+    URLResponseSerializer,
+)
 
 logger = logging.getLogger(__name__)
 
 
 def _get_client_ip(request: Request) -> str:
     """Extract the real client IP, respecting X-Forwarded-For from proxies."""
-    xff = request.META.get("HTTP_X_FORWARDED_FOR")
+    xff: str | None = request.META.get("HTTP_X_FORWARDED_FOR")
     if xff:
         return xff.split(",")[0].strip()
-    return request.META.get("REMOTE_ADDR", "0.0.0.0")
+    return str(request.META.get("REMOTE_ADDR", "0.0.0.0"))
 
 
 class URLCreateView(APIView):
@@ -64,6 +68,7 @@ class RedirectView(APIView):
         # Respect is_active flag — inactive links return 404.
         if not url.is_active or url.is_expired:
             from rest_framework.exceptions import NotFound
+
             raise NotFound("This short link is no longer active.")
 
         # Log the click synchronously for now (Mod 8 moves this to Celery).

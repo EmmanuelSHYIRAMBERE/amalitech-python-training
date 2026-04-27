@@ -7,7 +7,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from shortener.models import Click, URL
+from shortener.models import URL, Click
 from shortener.serializers import URLCreateSerializer
 from users.models import User
 
@@ -183,7 +183,9 @@ def test_redirect_logs_click(api_client: APIClient, created_url: URL) -> None:
 
 
 @pytest.mark.django_db
-def test_redirect_increments_click_count(api_client: APIClient, created_url: URL) -> None:
+def test_redirect_increments_click_count(
+    api_client: APIClient, created_url: URL
+) -> None:
     api_client.get(f"/{created_url.short_code}/")
     created_url.refresh_from_db()
     assert created_url.click_count == 1
@@ -214,7 +216,9 @@ def test_redirect_expired_url_returns_404(api_client: APIClient, user: User) -> 
 
 
 @pytest.mark.django_db
-def test_redirect_click_stores_user_agent(api_client: APIClient, created_url: URL) -> None:
+def test_redirect_click_stores_user_agent(
+    api_client: APIClient, created_url: URL
+) -> None:
     api_client.get(
         f"/{created_url.short_code}/",
         HTTP_USER_AGENT="TestBrowser/1.0",
@@ -225,7 +229,9 @@ def test_redirect_click_stores_user_agent(api_client: APIClient, created_url: UR
 
 
 @pytest.mark.django_db
-def test_redirect_click_stores_referrer(api_client: APIClient, created_url: URL) -> None:
+def test_redirect_click_stores_referrer(
+    api_client: APIClient, created_url: URL
+) -> None:
     api_client.get(
         f"/{created_url.short_code}/",
         HTTP_REFERER="https://google.com",
@@ -247,14 +253,20 @@ def test_analytics_returns_200(api_client: APIClient, created_url: URL) -> None:
 
 
 @pytest.mark.django_db
-def test_analytics_contains_click_count(api_client: APIClient, created_url: URL) -> None:
+def test_analytics_contains_click_count(
+    api_client: APIClient, created_url: URL
+) -> None:
     response = api_client.get(f"/api/v1/analytics/{created_url.short_code}/")
     assert "click_count" in response.data
 
 
 @pytest.mark.django_db
-def test_analytics_contains_clicks_by_country(api_client: APIClient, created_url: URL) -> None:
-    Click.objects.create(url=created_url, ip_address="1.1.1.1", user_agent="ua", country="RW")
+def test_analytics_contains_clicks_by_country(
+    api_client: APIClient, created_url: URL
+) -> None:
+    Click.objects.create(
+        url=created_url, ip_address="1.1.1.1", user_agent="ua", country="RW"
+    )
     response = api_client.get(f"/api/v1/analytics/{created_url.short_code}/")
     assert "clicks_by_country" in response.data
     assert response.data["clicks_by_country"][0]["country"] == "RW"

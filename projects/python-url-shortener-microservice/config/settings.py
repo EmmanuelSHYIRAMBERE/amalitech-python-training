@@ -73,7 +73,7 @@ REST_FRAMEWORK = {
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "URL Shortener API",
-    "DESCRIPTION": "Enterprise-Grade URL Shortener Microservice — Module 6: ORM & Data Access Layer",
+    "DESCRIPTION": "Enterprise-Grade URL Shortener Microservice — Module 6: ORM & Data Access Layer",  # noqa: E501
     "VERSION": "2.0.0",
 }
 

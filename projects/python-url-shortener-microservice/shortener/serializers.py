@@ -16,7 +16,7 @@ from rest_framework import serializers
 from rest_framework.request import Request
 
 from .generators import default_generator
-from .models import Click, Tag, URL
+from .models import URL, Click, Tag
 from .protocols import ShortCodeGenerator
 from .validators import validate_url_scheme
 
@@ -191,9 +191,5 @@ class URLAnalyticsSerializer(serializers.ModelSerializer[URL]):
 
     def get_clicks_by_country(self, obj: URL) -> list[dict[str, Any]]:
         """Return click totals grouped by country, computed in the DB."""
-        qs = (
-            obj.clicks.values("country")
-            .annotate(total=Count("id"))
-            .order_by("-total")
-        )
+        qs = obj.clicks.values("country").annotate(total=Count("id")).order_by("-total")
         return list(qs)

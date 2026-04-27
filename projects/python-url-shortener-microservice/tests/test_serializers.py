@@ -3,13 +3,12 @@
 import pytest
 from rest_framework.test import APIRequestFactory
 
-from shortener.models import Click, Tag, URL
+from shortener.models import URL, Click, Tag
 from shortener.serializers import (
     URLAnalyticsSerializer,
     URLCreateSerializer,
     URLResponseSerializer,
 )
-from users.models import User
 
 # ---------------------------------------------------------------------------
 # URLCreateSerializer — validation (Mod 5, unchanged)
@@ -122,9 +121,19 @@ def test_response_serializer_contains_expected_fields(created_url: URL) -> None:
     serializer = URLResponseSerializer(created_url)
     data = serializer.data
     expected = {
-        "short_code", "original_url", "short_url", "custom_alias",
-        "tags", "click_count", "is_active", "is_expired",
-        "expires_at", "title", "description", "favicon", "created_at",
+        "short_code",
+        "original_url",
+        "short_url",
+        "custom_alias",
+        "tags",
+        "click_count",
+        "is_active",
+        "is_expired",
+        "expires_at",
+        "title",
+        "description",
+        "favicon",
+        "created_at",
     }
     assert set(data.keys()) == expected
 
@@ -182,12 +191,20 @@ def test_analytics_serializer_contains_expected_fields(created_url: URL) -> None
 
 @pytest.mark.django_db
 def test_analytics_serializer_clicks_by_country(created_url: URL) -> None:
-    Click.objects.create(url=created_url, ip_address="1.1.1.1", user_agent="ua", country="RW")
-    Click.objects.create(url=created_url, ip_address="2.2.2.2", user_agent="ua", country="RW")
-    Click.objects.create(url=created_url, ip_address="3.3.3.3", user_agent="ua", country="US")
+    Click.objects.create(
+        url=created_url, ip_address="1.1.1.1", user_agent="ua", country="RW"
+    )
+    Click.objects.create(
+        url=created_url, ip_address="2.2.2.2", user_agent="ua", country="RW"
+    )
+    Click.objects.create(
+        url=created_url, ip_address="3.3.3.3", user_agent="ua", country="US"
+    )
 
     serializer = URLAnalyticsSerializer(created_url)
-    by_country = {row["country"]: row["total"] for row in serializer.data["clicks_by_country"]}
+    by_country = {
+        row["country"]: row["total"] for row in serializer.data["clicks_by_country"]
+    }
     assert by_country["RW"] == 2
     assert by_country["US"] == 1
 

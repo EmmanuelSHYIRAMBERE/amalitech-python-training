@@ -124,13 +124,13 @@ class URL(TimeStampedModel):
       - created_at     : B-tree index (fast ordering / range queries).
     """
 
-    objects: URLManager = URLManager()  # type: ignore[assignment]
+    objects: URLManager = URLManager()
 
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="urls",
-        null=True,   # nullable so Mod 5 tests that create URLs without a user still pass
+        null=True,  # nullable so Mod 5 tests that create URLs without a user still pass
         blank=True,
     )
 
@@ -186,7 +186,9 @@ class URL(TimeStampedModel):
             # Explicit composite-friendly index on created_at for range queries.
             models.Index(fields=["created_at"], name="url_created_at_idx"),
             # is_active + expires_at together power active_urls() efficiently.
-            models.Index(fields=["is_active", "expires_at"], name="url_active_expires_idx"),
+            models.Index(
+                fields=["is_active", "expires_at"], name="url_active_expires_idx"
+            ),
         ]
 
     def __str__(self) -> str:
@@ -205,7 +207,11 @@ class URL(TimeStampedModel):
         """
         URL.objects.filter(pk=self.pk).update(click_count=F("click_count") + 1)
         self.refresh_from_db(fields=["click_count"])
-        logger.debug("click_count incremented for short_code=%r → %d", self.short_code, self.click_count)
+        logger.debug(
+            "click_count incremented for short_code=%r → %d",
+            self.short_code,
+            self.click_count,
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -229,7 +235,7 @@ class Click(models.Model):
     clicked_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     ip_address = models.GenericIPAddressField(
-        protocol="both",   # accepts IPv4 and IPv6
+        protocol="both",  # accepts IPv4 and IPv6
         unpack_ipv4=True,  # stores ::ffff:1.2.3.4 as 1.2.3.4
     )
 
