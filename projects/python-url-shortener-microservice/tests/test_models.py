@@ -1,14 +1,10 @@
 """Tests for shortener models, generators, validators, schemas, and protocols.
 
-Module 6 additions:
-  - User model fields and tier choices
-  - Tag model
-  - URL Mod 6 fields (owner, click_count, is_active, expires_at, tags)
-  - URL.is_expired property
-  - URL.increment_click_count() atomic update
-  - Click model
-  - URLManager / URLQuerySet (active_urls, expired_urls, popular_urls)
-  - annotate() aggregation (clicks by country)
+Best-practices additions (from labs analysis):
+  - __repr__ on Tag, URL, Click, User
+  - __eq__ / __hash__ on Tag and URL
+  - User.is_valid_tier() @staticmethod
+  - ShortenerError exception hierarchy
 """
 
 import string
@@ -24,6 +20,57 @@ from shortener.protocols import ShortCodeGenerator
 from shortener.schemas import ClickResult, ShortenRequest, ShortenResult
 from shortener.validators import validate_short_code, validate_url_scheme
 from users.models import User
+
+# ---------------------------------------------------------------------------
+# Exception hierarchy
+# ---------------------------------------------------------------------------
+
+
+def test_shortener_error_is_base_exception() -> None:
+    from shortener.exceptions import ShortenerError
+
+    assert issubclass(ShortenerError, Exception)
+
+
+def test_short_link_inactive_error_message() -> None:
+    from shortener.exceptions import ShortLinkInactiveError
+
+    exc = ShortLinkInactiveError("aB3xYz")
+    assert "aB3xYz" in str(exc)
+    assert exc.short_code == "aB3xYz"
+
+
+def test_short_link_expired_error_message() -> None:
+    from shortener.exceptions import ShortLinkExpiredError
+
+    exc = ShortLinkExpiredError("aB3xYz")
+    assert "aB3xYz" in str(exc)
+    assert exc.short_code == "aB3xYz"
+
+
+def test_short_code_collision_error_message() -> None:
+    from shortener.exceptions import ShortCodeCollisionError
+
+    exc = ShortCodeCollisionError(attempts=5)
+    assert "5" in str(exc)
+    assert exc.attempts == 5
+
+
+def test_exception_hierarchy_is_correct() -> None:
+    from shortener.exceptions import (
+        ShortCodeCollisionError,
+        ShortCodeError,
+        ShortenerError,
+        ShortLinkExpiredError,
+        ShortLinkInactiveError,
+        ShortLinkError,
+    )
+
+    assert issubclass(ShortLinkError, ShortenerError)
+    assert issubclass(ShortLinkInactiveError, ShortLinkError)
+    assert issubclass(ShortLinkExpiredError, ShortLinkError)
+    assert issubclass(ShortCodeError, ShortenerError)
+    assert issubclass(ShortCodeCollisionError, ShortCodeError)
 
 # ---------------------------------------------------------------------------
 # SecureShortCodeGenerator (unchanged from Mod 5)
@@ -196,6 +243,24 @@ def test_user_email_is_unique(user: User) -> None:
 def test_user_str_contains_username_and_tier(user: User) -> None:
     assert user.username in str(user)
     assert user.tier in str(user)
+
+
+@pytest.mark.django_db
+def test_user_repr_contains_username(user: User) -> None:
+    assert user.username in repr(user)
+    assert "User" in repr(user)
+
+
+def test_user_is_valid_tier_accepts_valid() -> None:
+    assert User.is_valid_tier("Free") is True
+    assert User.is_valid_tier("Premium") is True
+    assert User.is_valid_tier("Admin") is True
+
+
+def test_user_is_valid_tier_rejects_invalid() -> None:
+    assert User.is_valid_tier("Unknown") is False
+    assert User.is_valid_tier("") is False
+    assert User.is_valid_tier("free") is False  # case-sensitive
 
 
 # ---------------------------------------------------------------------------
