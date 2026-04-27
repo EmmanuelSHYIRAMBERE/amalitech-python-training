@@ -26,13 +26,12 @@ defaults:
     working-directory: projects/python-url-shortener-microservice
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Shared env reused across jobs that need a DB connection
+# Shared env — Python version used across all jobs
+# Note: POSTGRES_* values are inlined in services: blocks because the
+# env context is not available there (GitHub Actions limitation).
 # ─────────────────────────────────────────────────────────────────────────────
 env:
   PYTHON_VERSION: "3.11"
-  POSTGRES_DB: urlshortener
-  POSTGRES_USER: postgres
-  POSTGRES_PASSWORD: ci-postgres-password
 
 jobs:
 
@@ -132,9 +131,9 @@ jobs:
       postgres:
         image: postgres:15
         env:
-          POSTGRES_DB: ${{ env.POSTGRES_DB }}
-          POSTGRES_USER: ${{ env.POSTGRES_USER }}
-          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+          POSTGRES_DB: urlshortener
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-postgres-password
         ports:
           - 5432:5432
         options: >-
@@ -147,9 +146,9 @@ jobs:
       SECRET_KEY: ci-test-secret-key-mod6
       DEBUG: "True"
       ALLOWED_HOSTS: localhost,127.0.0.1
-      DB_NAME: ${{ env.POSTGRES_DB }}
-      DB_USER: ${{ env.POSTGRES_USER }}
-      DB_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+      DB_NAME: urlshortener
+      DB_USER: postgres
+      DB_PASSWORD: ci-postgres-password
       DB_HOST: localhost
       DB_PORT: "5432"
 
@@ -213,9 +212,9 @@ jobs:
       postgres:
         image: postgres:15
         env:
-          POSTGRES_DB: ${{ env.POSTGRES_DB }}
-          POSTGRES_USER: ${{ env.POSTGRES_USER }}
-          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+          POSTGRES_DB: urlshortener
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-postgres-password
         ports:
           - 5432:5432
         options: >-
@@ -228,9 +227,9 @@ jobs:
       SECRET_KEY: ci-test-secret-key-mod6
       DEBUG: "True"
       ALLOWED_HOSTS: localhost,127.0.0.1
-      DB_NAME: ${{ env.POSTGRES_DB }}
-      DB_USER: ${{ env.POSTGRES_USER }}
-      DB_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+      DB_NAME: urlshortener
+      DB_USER: postgres
+      DB_PASSWORD: ci-postgres-password
       DB_HOST: localhost
       DB_PORT: "5432"
 
