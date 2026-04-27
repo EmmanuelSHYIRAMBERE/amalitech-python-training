@@ -174,12 +174,11 @@ jobs:
         run: python manage.py migrate --noinput
 
       - name: Verify default tags were seeded
-        # Confirms the data migration ran and produced the expected 10 tags.
-        run: >
-          python -c "
-          import django, os
-          os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
-          django.setup()
+        # manage.py shell -c handles django.setup() automatically.
+        # | (literal block scalar) preserves newlines — fixes the
+        # IndentationError caused by > (folded scalar) collapsing them.
+        run: |
+          python manage.py shell -c "
           from shortener.models import Tag
           count = Tag.objects.count()
           assert count >= 10, f'Expected >= 10 default tags, got {count}'
