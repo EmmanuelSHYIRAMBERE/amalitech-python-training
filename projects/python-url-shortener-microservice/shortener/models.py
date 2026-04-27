@@ -102,15 +102,35 @@ class URLManager(models.Manager["URL"]):
     """Custom manager that exposes URLQuerySet methods directly on URL.objects."""
 
     def get_queryset(self) -> URLQuerySet:
+        """Return the base URLQuerySet for this manager."""
         return URLQuerySet(self.model, using=self._db)
 
     def active_urls(self) -> URLQuerySet:
+        """Return URLs that are active and not yet expired.
+
+        Returns:
+            QuerySet filtered to is_active=True and expires_at in the future
+            (or null).
+        """
         return self.get_queryset().active_urls()
 
     def expired_urls(self) -> URLQuerySet:
+        """Return URLs whose expiry date has passed.
+
+        Returns:
+            QuerySet filtered to expires_at <= now().
+        """
         return self.get_queryset().expired_urls()
 
     def popular_urls(self, top_n: int = 10) -> URLQuerySet:
+        """Return the top N URLs ordered by click_count descending.
+
+        Args:
+            top_n: Maximum number of results to return. Defaults to 10.
+
+        Returns:
+            QuerySet of at most ``top_n`` URLs, ordered by click_count DESC.
+        """
         return self.get_queryset().popular_urls(top_n=top_n)
 
 

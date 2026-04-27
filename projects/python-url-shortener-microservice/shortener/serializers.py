@@ -74,7 +74,20 @@ class URLCreateSerializer(serializers.ModelSerializer[URL]):
         fields = ["original_url", "custom_alias", "expires_at", "tags"]
 
     def validate_original_url(self, value: str) -> str:
-        """Enforce http/https scheme using compiled regex."""
+        """Enforce http/https scheme using compiled regex.
+
+        Django's URLField accepts any scheme (ftp://, ftps://, etc.) by
+        design. This validator adds the stricter http/https-only check.
+
+        Args:
+            value: The raw URL string submitted by the client.
+
+        Returns:
+            The validated URL string, unchanged.
+
+        Raises:
+            ValidationError: If the URL does not start with http:// or https://.
+        """
         if not validate_url_scheme(value):
             raise serializers.ValidationError(
                 "URL must use http:// or https:// scheme."
@@ -172,6 +185,15 @@ class URLResponseSerializer(serializers.ModelSerializer[URL]):
         ]
 
     def get_short_url(self, obj: URL) -> str:
+        """Build the absolute short URL for the given URL instance.
+
+        Args:
+            obj: The URL model instance being serialized.
+
+        Returns:
+            Absolute URI (e.g. ``http://localhost:8000/aB3xYz/``) when a
+            request context is available, relative path otherwise.
+        """
         request: Request | None = self.context.get("request")
         if request:
             return request.build_absolute_uri(f"/{obj.short_code}/")
