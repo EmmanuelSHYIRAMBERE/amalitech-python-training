@@ -1,11 +1,12 @@
-"""Value objects and typed response shapes for the shortener app.
+"""Value objects and typed response shapes for the shortener app — Module 6.
 
-Dataclasses decouple the service logic from DRF serializer internals:
+Dataclasses:
   ShortenRequest  — input to the shortening operation
   ShortenResult   — output of the shortening operation
+  ClickResult     — typed representation of a logged click
 
-TypedDicts provide a typed schema for JSON response dicts:
-  URLResponseDict — shape of the POST /api/v1/urls/ response body
+TypedDicts:
+  URLResponseDict    — shape of the POST /api/v1/urls/ response body
   HealthResponseDict — shape of the GET /health/ response body
 """
 
@@ -43,6 +44,27 @@ class ShortenResult:
     original_url: str
     short_url: str
     created_at: str
+
+
+@dataclass
+class ClickResult:
+    """Typed representation of a single logged click event.
+
+    Attributes:
+        url_id: PK of the URL that was clicked.
+        ip_address: Client IP address.
+        user_agent: Browser / OS string from the HTTP User-Agent header.
+        country: Geo-resolved country (nullable).
+        city: Geo-resolved city (nullable).
+        referrer: HTTP Referer header value (nullable).
+    """
+
+    url_id: int
+    ip_address: str
+    user_agent: str
+    country: str | None = None
+    city: str | None = None
+    referrer: str | None = None
 
 
 # ---------------------------------------------------------------------------
