@@ -1,4 +1,4 @@
-"""DRF serializers for the shortener app — Module 6.
+"""DRF serializers for the shortener app — Module 6 + Module 7.
 
 New in Mod 6:
   - TagSerializer          : read-only tag representation.
@@ -6,6 +6,11 @@ New in Mod 6:
   - URLResponseSerializer  : exposes all new URL fields including tags.
   - ClickSerializer        : read-only analytics row.
   - URLAnalyticsSerializer : aggregated stats per URL (clicks by country).
+
+New in Mod 7:
+  - URLCreateSerializer.validate() : enforces tier-based business rules
+    (free user quota + no custom_alias for free tier).
+  - URLCreateSerializer.update()   : supports partial PUT from URLDetailView.
 """
 
 import logging
@@ -23,6 +28,8 @@ from .generators import default_generator
 from .models import URL, Click, Tag
 from .protocols import ShortCodeGenerator
 from .validators import validate_url_scheme
+
+FREE_TIER_URL_LIMIT = 10
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +81,31 @@ class URLCreateSerializer(serializers.ModelSerializer[URL]):
     class Meta:
         model = URL
         fields = ["original_url", "custom_alias", "expires_at", "tags"]
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        """Enforce tier-based business rules.
+
+        - Free users: max 10 active URLs, no custom_alias.
+        - Premium users: unlimited URLs, custom_alias allowed.
+        """
+        request: Request | None = self.context.get("request")
+        user = getattr(request, "user", None)
+
+        if user and user.is_authenticated:
+            # Custom alias is a premium-only feature.
+            if attrs.get("custom_alias") and not user.is_premium:
+                raise serializers.ValidationError(
+                    {"custom_alias": "Custom aliases are available to Premium users only."}
+                )
+            # Free tier URL quota.
+            if not user.is_premium:
+                active_count = URL.objects.filter(owner=user, is_active=True).count()
+                if active_count >= FREE_TIER_URL_LIMIT:
+                    raise serializers.ValidationError(
+                        f"Free users may have at most {FREE_TIER_URL_LIMIT} active URLs. "
+                        "Upgrade to Premium for unlimited links."
+                    )
+        return attrs
 
     def validate_expires_at(self, value: "datetime | None") -> "datetime | None":
         """Reject expires_at values that are already in the past.
@@ -170,6 +202,20 @@ class URLCreateSerializer(serializers.ModelSerializer[URL]):
 
         assert url is not None  # guaranteed by the else-break above
         return url
+
+    def update(self, instance: URL, validated_data: dict[str, Any]) -> URL:
+        """Partial update — used by URLDetailView PUT.
+
+        Tags are re-set when provided; omitting tags leaves them unchanged.
+        """
+        tags: list[Tag] | None = validated_data.pop("tags", None)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        if tags is not None:
+            instance.tags.set(tags)
+        logger.info("Updated URL short_code=%r", instance.short_code)
+        return instance
 
 
 # ---------------------------------------------------------------------------
