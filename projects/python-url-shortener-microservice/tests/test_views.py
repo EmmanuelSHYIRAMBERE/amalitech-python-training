@@ -1,4 +1,10 @@
-"""Tests for shortener.views — Module 5 + Module 6."""
+"""Tests for shortener.views — Module 5 + Module 6 + Module 7.
+
+Module 7 changes:
+  - URLCreateView now requires authentication → use auth_client fixture.
+  - URLAnalyticsView is premium-only → use premium_auth_client fixture.
+  - RedirectView remains public → api_client (unauthenticated) still used.
+"""
 
 from datetime import timedelta
 
@@ -12,73 +18,73 @@ from shortener.serializers import URLCreateSerializer
 from users.models import User
 
 # ---------------------------------------------------------------------------
-# URLCreateView — POST /api/v1/urls/ (Mod 5, unchanged)
+# URLCreateView — POST /api/v1/urls/
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.django_db
 def test_create_url_returns_201(
-    api_client: APIClient, sample_url_data: dict[str, str]
+    auth_client: APIClient, sample_url_data: dict[str, str]
 ) -> None:
-    response = api_client.post("/api/v1/urls/", sample_url_data, format="json")
+    response = auth_client.post("/api/v1/urls/", sample_url_data, format="json")
     assert response.status_code == status.HTTP_201_CREATED
 
 
 @pytest.mark.django_db
 def test_create_url_response_contains_short_code(
-    api_client: APIClient, sample_url_data: dict[str, str]
+    auth_client: APIClient, sample_url_data: dict[str, str]
 ) -> None:
-    response = api_client.post("/api/v1/urls/", sample_url_data, format="json")
+    response = auth_client.post("/api/v1/urls/", sample_url_data, format="json")
     assert "short_code" in response.data
     assert response.data["short_code"]
 
 
 @pytest.mark.django_db
 def test_create_url_response_contains_short_url(
-    api_client: APIClient, sample_url_data: dict[str, str]
+    auth_client: APIClient, sample_url_data: dict[str, str]
 ) -> None:
-    response = api_client.post("/api/v1/urls/", sample_url_data, format="json")
+    response = auth_client.post("/api/v1/urls/", sample_url_data, format="json")
     assert "short_url" in response.data
     assert response.data["short_url"]
 
 
 @pytest.mark.django_db
 def test_create_url_response_contains_original_url(
-    api_client: APIClient, sample_url_data: dict[str, str]
+    auth_client: APIClient, sample_url_data: dict[str, str]
 ) -> None:
-    response = api_client.post("/api/v1/urls/", sample_url_data, format="json")
+    response = auth_client.post("/api/v1/urls/", sample_url_data, format="json")
     assert response.data["original_url"] == sample_url_data["original_url"]
 
 
 @pytest.mark.django_db
 def test_create_url_response_contains_created_at(
-    api_client: APIClient, sample_url_data: dict[str, str]
+    auth_client: APIClient, sample_url_data: dict[str, str]
 ) -> None:
-    response = api_client.post("/api/v1/urls/", sample_url_data, format="json")
+    response = auth_client.post("/api/v1/urls/", sample_url_data, format="json")
     assert "created_at" in response.data
     assert response.data["created_at"]
 
 
 @pytest.mark.django_db
 def test_create_url_persists_to_database(
-    api_client: APIClient, sample_url_data: dict[str, str]
+    auth_client: APIClient, sample_url_data: dict[str, str]
 ) -> None:
     assert URL.objects.count() == 0
-    api_client.post("/api/v1/urls/", sample_url_data, format="json")
+    auth_client.post("/api/v1/urls/", sample_url_data, format="json")
     assert URL.objects.count() == 1
 
 
 @pytest.mark.django_db
 def test_create_url_short_code_is_six_chars(
-    api_client: APIClient, sample_url_data: dict[str, str]
+    auth_client: APIClient, sample_url_data: dict[str, str]
 ) -> None:
-    response = api_client.post("/api/v1/urls/", sample_url_data, format="json")
+    response = auth_client.post("/api/v1/urls/", sample_url_data, format="json")
     assert len(response.data["short_code"]) == 6
 
 
 @pytest.mark.django_db
 def test_create_url_with_injected_generator(
-    api_client: APIClient, sample_url_data: dict[str, str], mocker
+    auth_client: APIClient, sample_url_data: dict[str, str], mocker
 ) -> None:
     mock_gen = mocker.MagicMock(return_value="mocked1")
     original_init = URLCreateSerializer.__init__
@@ -88,20 +94,20 @@ def test_create_url_with_injected_generator(
         original_init(self, *args, **kwargs)
 
     mocker.patch.object(URLCreateSerializer, "__init__", patched_init)
-    response = api_client.post("/api/v1/urls/", sample_url_data, format="json")
+    response = auth_client.post("/api/v1/urls/", sample_url_data, format="json")
     assert response.status_code == status.HTTP_201_CREATED
     assert response.data["short_code"] == "mocked1"
 
 
 @pytest.mark.django_db
-def test_create_url_missing_body_returns_400(api_client: APIClient) -> None:
-    response = api_client.post("/api/v1/urls/", {}, format="json")
+def test_create_url_missing_body_returns_400(auth_client: APIClient) -> None:
+    response = auth_client.post("/api/v1/urls/", {}, format="json")
     assert response.status_code == status.HTTP_400_BAD_REQUEST
 
 
 @pytest.mark.django_db
-def test_create_url_missing_body_error_references_field(api_client: APIClient) -> None:
-    response = api_client.post("/api/v1/urls/", {}, format="json")
+def test_create_url_missing_body_error_references_field(auth_client: APIClient) -> None:
+    response = auth_client.post("/api/v1/urls/", {}, format="json")
     assert "original_url" in response.data
 
 
@@ -111,9 +117,9 @@ def test_create_url_missing_body_error_references_field(api_client: APIClient) -
 )
 @pytest.mark.django_db
 def test_create_url_invalid_url_returns_400(
-    api_client: APIClient, bad_url: str
+    auth_client: APIClient, bad_url: str
 ) -> None:
-    response = api_client.post(
+    response = auth_client.post(
         "/api/v1/urls/", {"original_url": bad_url}, format="json"
     )
     assert response.status_code == status.HTTP_400_BAD_REQUEST
@@ -121,14 +127,14 @@ def test_create_url_invalid_url_returns_400(
 
 @pytest.mark.django_db
 def test_create_url_short_url_is_absolute_uri(
-    api_client: APIClient, sample_url_data: dict[str, str]
+    auth_client: APIClient, sample_url_data: dict[str, str]
 ) -> None:
-    response = api_client.post("/api/v1/urls/", sample_url_data, format="json")
+    response = auth_client.post("/api/v1/urls/", sample_url_data, format="json")
     assert response.data["short_url"].startswith("http")
 
 
 # ---------------------------------------------------------------------------
-# RedirectView — GET /<short_code>/ (Mod 5, unchanged)
+# RedirectView — GET /<short_code>/ (public — unauthenticated api_client)
 # ---------------------------------------------------------------------------
 
 
@@ -170,7 +176,7 @@ def test_redirect_does_not_follow_redirect_by_default(
 
 
 # ---------------------------------------------------------------------------
-# RedirectView — Mod 6 behaviour
+# RedirectView — Mod 6 behaviour (public)
 # ---------------------------------------------------------------------------
 
 
@@ -242,71 +248,68 @@ def test_redirect_click_stores_referrer(
 
 
 # ---------------------------------------------------------------------------
-# URLAnalyticsView — GET /api/v1/analytics/<short_code>/ (Mod 6)
+# URLAnalyticsView — GET /api/v1/analytics/<short_code>/ (premium only)
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.django_db
-def test_analytics_returns_200(api_client: APIClient, created_url: URL) -> None:
-    response = api_client.get(f"/api/v1/analytics/{created_url.short_code}/")
+def test_analytics_returns_200(
+    premium_auth_client: APIClient, created_url: URL
+) -> None:
+    response = premium_auth_client.get(f"/api/v1/analytics/{created_url.short_code}/")
     assert response.status_code == status.HTTP_200_OK
 
 
 @pytest.mark.django_db
 def test_analytics_contains_click_count(
-    api_client: APIClient, created_url: URL
+    premium_auth_client: APIClient, created_url: URL
 ) -> None:
-    response = api_client.get(f"/api/v1/analytics/{created_url.short_code}/")
+    response = premium_auth_client.get(f"/api/v1/analytics/{created_url.short_code}/")
     assert "click_count" in response.data
 
 
 @pytest.mark.django_db
 def test_analytics_contains_clicks_by_country(
-    api_client: APIClient, created_url: URL
+    premium_auth_client: APIClient, created_url: URL
 ) -> None:
     Click.objects.create(
         url=created_url, ip_address="1.1.1.1", user_agent="ua", country="RW"
     )
-    response = api_client.get(f"/api/v1/analytics/{created_url.short_code}/")
+    response = premium_auth_client.get(f"/api/v1/analytics/{created_url.short_code}/")
     assert "clicks_by_country" in response.data
     assert response.data["clicks_by_country"][0]["country"] == "RW"
     assert response.data["clicks_by_country"][0]["total"] == 1
 
 
 @pytest.mark.django_db
-def test_analytics_unknown_code_returns_404(api_client: APIClient) -> None:
-    response = api_client.get("/api/v1/analytics/unknown1/")
+def test_analytics_unknown_code_returns_404(premium_auth_client: APIClient) -> None:
+    response = premium_auth_client.get("/api/v1/analytics/unknown1/")
     assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
 # ---------------------------------------------------------------------------
-# Collision retry — ShortCodeCollisionError (best-practices addition)
+# Collision retry — ShortCodeCollisionError
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.django_db
 def test_create_url_raises_500_on_collision_exhaustion(
-    api_client: APIClient, sample_url_data: dict[str, str], mocker
+    auth_client: APIClient, sample_url_data: dict[str, str], mocker
 ) -> None:
-    """When all 5 retry attempts collide, DRF returns 500 (unhandled app error).
-
-    ShortCodeCollisionError is not a DRF exception so it propagates as a 500.
-    Mod 7 will add an exception_handler to convert it to 503 Service Unavailable.
-    """
+    """When all 5 retry attempts collide, DRF returns 500 (unhandled app error)."""
     from django.db import IntegrityError
 
     mocker.patch(
         "shortener.serializers.URL.objects.create",
         side_effect=IntegrityError("duplicate key"),
     )
-    # Disable Django test client's exception re-raise so we get the HTTP response.
-    api_client.raise_request_exception = False
-    response = api_client.post("/api/v1/urls/", sample_url_data, format="json")
+    auth_client.raise_request_exception = False
+    response = auth_client.post("/api/v1/urls/", sample_url_data, format="json")
     assert response.status_code == 500
 
 
 # ---------------------------------------------------------------------------
-# transaction.atomic — Click + click_count atomicity (best-practices addition)
+# transaction.atomic — Click + click_count atomicity
 # ---------------------------------------------------------------------------
 
 
@@ -320,7 +323,6 @@ def test_redirect_click_and_count_are_atomic(
         "increment_click_count",
         side_effect=Exception("DB failure"),
     )
-    # Patch get_object_or_404 to return our controlled instance.
     mocker.patch(
         "shortener.views.get_object_or_404",
         return_value=created_url,
@@ -328,12 +330,11 @@ def test_redirect_click_and_count_are_atomic(
     with pytest.raises(Exception, match="DB failure"):
         api_client.get(f"/{created_url.short_code}/")
 
-    # The transaction rolled back — no Click row should exist.
     assert Click.objects.filter(url=created_url).count() == 0
 
 
 # ---------------------------------------------------------------------------
-# Named exceptions in RedirectView (best-practices addition)
+# Named exceptions in RedirectView
 # ---------------------------------------------------------------------------
 
 
@@ -341,7 +342,6 @@ def test_redirect_click_and_count_are_atomic(
 def test_redirect_inactive_returns_404_with_detail(
     api_client: APIClient, user: User
 ) -> None:
-    """404 response for inactive link must include the short_code in detail."""
     url = URL.objects.create(
         original_url="https://example.com",
         short_code="inact9",
@@ -357,7 +357,6 @@ def test_redirect_inactive_returns_404_with_detail(
 def test_redirect_expired_returns_404_with_detail(
     api_client: APIClient, user: User
 ) -> None:
-    """404 response for expired link must include the short_code in detail."""
     url = URL.objects.create(
         original_url="https://example.com",
         short_code="exprd9",
