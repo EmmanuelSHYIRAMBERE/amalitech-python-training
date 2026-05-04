@@ -1,0 +1,468 @@
+name: CI — Python URL Shortener Microservice (Mod 7)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Triggers
+# ─────────────────────────────────────────────────────────────────────────────
+on:
+  push:
+    branches:
+      - feat/python-url-shortener-microservice-mod7
+      - develop
+    paths:
+      - "projects/python-url-shortener-microservice/**"
+      - ".github/workflows/python-url-shortener-mod7.yml"
+  pull_request:
+    branches:
+      - develop
+    paths:
+      - "projects/python-url-shortener-microservice/**"
+      - ".github/workflows/python-url-shortener-mod7.yml"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# All jobs run from the project subdirectory by default
+# ─────────────────────────────────────────────────────────────────────────────
+defaults:
+  run:
+    working-directory: projects/python-url-shortener-microservice
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Shared env — Python version used across all jobs
+# Note: POSTGRES_* values are inlined in services: blocks because the
+# env context is not available there (GitHub Actions limitation).
+# ─────────────────────────────────────────────────────────────────────────────
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Job 1 — Lint & Format
+  # Runs ruff (lint + import order) and black (format check).
+  # Mod 7 adds users/serializers.py, users/views.py, shortener/permissions.py,
+  # and shortener/throttles.py — all included in the check paths.
+  # No DB needed — pure static analysis.
+  # ───────────────────────────────────────────────────────────────────────────
+  lint:
+    name: Lint & Format Check
+    runs-on: ubuntu-latest
+    env:
+      SECRET_KEY: ci-dummy-secret-key-not-for-production
+      DEBUG: "False"
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        # Full requirements.txt so django-stubs can import settings.py cleanly.
+        # ruff and black are added on top (not in requirements.txt).
+        run: pip install -r requirements.txt ruff black
+
+      - name: Ruff — lint
+        # Mod 7 new files: users/serializers.py, users/views.py,
+        # shortener/permissions.py, shortener/throttles.py
+        run: ruff check config/ shortener/ api/ core/ users/
+
+      - name: Black — format check
+        run: black --check config/ shortener/ api/ core/ users/
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Job 2 — Type Check (mypy)
+  # Separated from lint so failures are reported independently in the PR.
+  # Mod 7 adds users/serializers.py and users/views.py which must also
+  # pass strict type checks.
+  # ───────────────────────────────────────────────────────────────────────────
+  type-check:
+    name: Type Check (mypy)
+    runs-on: ubuntu-latest
+    env:
+      SECRET_KEY: ci-dummy-secret-key-not-for-production
+      DEBUG: "False"
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: mypy — type check
+        # --ignore-missing-imports: psycopg2 and decouple have no bundled stubs.
+        # --explicit-package-bases: required when running from the project
+        #   subdirectory so mypy resolves config.settings correctly.
+        # users/ now contains serializers.py and views.py — must pass strict.
+        run: >
+          mypy
+          --ignore-missing-imports
+          --explicit-package-bases
+          config/ shortener/ api/ core/ users/
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Job 3 — Docker Build
+  # Validates the multi-stage Dockerfile builds cleanly with the new
+  # djangorestframework-simplejwt dependency included in requirements.txt.
+  # Does not push — image is discarded after the job.
+  # ───────────────────────────────────────────────────────────────────────────
+  docker-build:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        working-directory: projects/python-url-shortener-microservice
+        run: docker build -t url-shortener:mod7 .
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Job 4 — Django System Check
+  # Validates settings, models, URL configuration, and all migrations.
+  # Mod 7 additions verified here:
+  #   - rest_framework_simplejwt and token_blacklist in INSTALLED_APPS
+  #   - simplejwt token_blacklist migration tables created
+  #   - Auth endpoints registered in URL patterns
+  #   - OpenAPI schema includes BearerAuth security scheme
+  # ───────────────────────────────────────────────────────────────────────────
+  django-check:
+    name: Django System Check
+    runs-on: ubuntu-latest
+    needs: [lint, type-check]
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: urlshortener
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-postgres-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      SECRET_KEY: ci-test-secret-key-mod7
+      DEBUG: "True"
+      ALLOWED_HOSTS: localhost,127.0.0.1
+      DB_NAME: urlshortener
+      DB_USER: postgres
+      DB_PASSWORD: ci-postgres-password
+      DB_HOST: localhost
+      DB_PORT: "5432"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Django system check
+        # Validates INSTALLED_APPS (including rest_framework_simplejwt +
+        # token_blacklist), AUTH_USER_MODEL, model fields, URL patterns.
+        run: python manage.py check --fail-level WARNING
+
+      - name: Run migrations
+        # Applies in dependency order:
+        #   auth → users/0001 → shortener/0001 → shortener/0002 → shortener/0003
+        #   → token_blacklist migrations (simplejwt outstanding + blacklisted token tables)
+        run: python manage.py migrate --noinput
+
+      - name: Verify token_blacklist tables exist
+        # Confirms simplejwt token_blacklist migration ran successfully.
+        # Both tables must exist for token rotation + blacklisting to work.
+        run: |
+          python manage.py shell -c "
+          from django.db import connection
+          tables = connection.introspection.table_names()
+          assert 'token_blacklist_outstandingtoken' in tables, \
+              'token_blacklist_outstandingtoken table missing'
+          assert 'token_blacklist_blacklistedtoken' in tables, \
+              'token_blacklist_blacklistedtoken table missing'
+          print('OK — token_blacklist tables exist')
+          "
+
+      - name: Verify default tags were seeded
+        run: |
+          python manage.py shell -c "
+          from shortener.models import Tag
+          count = Tag.objects.count()
+          assert count >= 10, f'Expected >= 10 default tags, got {count}'
+          print(f'OK — {count} tags seeded')
+          "
+
+      - name: Verify auth URL patterns are registered
+        # Confirms /api/v1/auth/register/, /api/v1/auth/login/, and
+        # /api/v1/auth/refresh/ are all resolvable in the URL configuration.
+        run: |
+          python manage.py shell -c "
+          from django.urls import reverse, NoReverseMatch
+          for name in ['auth-register', 'auth-login', 'auth-refresh']:
+              try:
+                  url = reverse(name)
+                  print(f'OK — {name} resolves to {url}')
+              except NoReverseMatch as e:
+                  raise AssertionError(f'URL name not found: {name}') from e
+          "
+
+      - name: Generate OpenAPI schema
+        # Validates drf-spectacular can introspect all views and serializers,
+        # including the new RegisterView, LoginView, and TokenRefreshView.
+        run: python manage.py spectacular --file schema.yml
+
+      - name: Verify BearerAuth security scheme in schema
+        # Confirms the JWT BearerAuth security scheme is present in the
+        # generated OpenAPI schema so Swagger UI renders the padlock icon.
+        run: |
+          python -c "
+          import yaml
+          with open('schema.yml') as f:
+              schema = yaml.safe_load(f)
+          schemes = schema.get('components', {}).get('securitySchemes', {})
+          assert 'BearerAuth' in schemes, \
+              f'BearerAuth not found in securitySchemes. Got: {list(schemes.keys())}'
+          print('OK — BearerAuth security scheme present in OpenAPI schema')
+          "
+
+      - name: Upload OpenAPI schema artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: openapi-schema-mod7
+          path: projects/python-url-shortener-microservice/schema.yml
+          retention-days: 7
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Job 5 — Pytest & Coverage
+  # Runs the full test suite (153 tests: 123 Mod 5/6 + 30 new Mod 7) against
+  # a live Postgres instance.
+  # Mod 7 test additions:
+  #   - tests/test_auth.py  — 30 tests: register, login, refresh, RBAC, tiers
+  #   - tests/test_views.py — migrated to auth_client / premium_auth_client
+  # users/ is added to coverage source since it now contains serializers + views.
+  # Fails if coverage drops below 80%.
+  # Uploads the HTML coverage report as a downloadable artifact.
+  # ───────────────────────────────────────────────────────────────────────────
+  test:
+    name: Pytest & Coverage
+    runs-on: ubuntu-latest
+    needs: django-check
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: urlshortener
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-postgres-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      SECRET_KEY: ci-test-secret-key-mod7
+      DEBUG: "True"
+      ALLOWED_HOSTS: localhost,127.0.0.1
+      DB_NAME: urlshortener
+      DB_USER: postgres
+      DB_PASSWORD: ci-postgres-password
+      DB_HOST: localhost
+      DB_PORT: "5432"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run pytest with coverage
+        # coverage.run.source = ["shortener", "core", "api", "users"] — users/
+        # is now included because it contains serializers.py and views.py with
+        # real logic (RegisterSerializer, LoginView, etc.) that must be measured.
+        run: coverage run -m pytest
+
+      - name: Coverage report (terminal)
+        run: coverage report --show-missing
+
+      - name: Enforce minimum coverage threshold
+        # Fail the build if total coverage drops below 80%.
+        run: coverage report --fail-under=80
+
+      - name: Generate HTML coverage report
+        run: coverage html
+
+      - name: Upload HTML coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report-mod7
+          path: projects/python-url-shortener-microservice/htmlcov/
+          retention-days: 7
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Job 6 — Auth Smoke Test
+  # Spins up the Django dev server and exercises the three auth endpoints
+  # end-to-end with real HTTP requests using curl.
+  # This job runs after the test suite passes so it only fires on a known-good
+  # build — it is not a substitute for the pytest suite.
+  # ───────────────────────────────────────────────────────────────────────────
+  auth-smoke-test:
+    name: Auth Endpoints Smoke Test
+    runs-on: ubuntu-latest
+    needs: test
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: urlshortener
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-postgres-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      SECRET_KEY: ci-test-secret-key-mod7
+      DEBUG: "True"
+      ALLOWED_HOSTS: localhost,127.0.0.1,0.0.0.0
+      DB_NAME: urlshortener
+      DB_USER: postgres
+      DB_PASSWORD: ci-postgres-password
+      DB_HOST: localhost
+      DB_PORT: "5432"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Apply migrations
+        run: python manage.py migrate --noinput
+
+      - name: Start Django dev server in background
+        run: |
+          python manage.py runserver 0.0.0.0:8000 &
+          # Wait for the server to be ready before sending requests.
+          for i in $(seq 1 15); do
+            curl -sf http://localhost:8000/health/ && break
+            echo "Waiting for server... attempt $i"
+            sleep 2
+          done
+
+      - name: Smoke test — health check is reachable without auth
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/health/)
+          echo "Health check status: $STATUS"
+          [ "$STATUS" = "200" ] || (echo "FAIL: expected 200, got $STATUS" && exit 1)
+
+      - name: Smoke test — register a new user (201)
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST http://localhost:8000/api/v1/auth/register/ \
+            -H "Content-Type: application/json" \
+            -d '{"username":"smokeuser","email":"smoke@example.com","password":"SmokePass123!","password2":"SmokePass123!"}')
+          echo "Register status: $STATUS"
+          [ "$STATUS" = "201" ] || (echo "FAIL: expected 201, got $STATUS" && exit 1)
+
+      - name: Smoke test — login returns tokens (200)
+        run: |
+          RESPONSE=$(curl -s -X POST http://localhost:8000/api/v1/auth/login/ \
+            -H "Content-Type: application/json" \
+            -d '{"username":"smokeuser","password":"SmokePass123!"}')
+          echo "Login response: $RESPONSE"
+          echo "$RESPONSE" | python -c "
+          import sys, json
+          data = json.load(sys.stdin)
+          assert 'access'  in data, f'Missing access token.  Got: {list(data.keys())}'
+          assert 'refresh' in data, f'Missing refresh token. Got: {list(data.keys())}'
+          assert 'user'    in data, f'Missing user profile.  Got: {list(data.keys())}'
+          print('OK — access, refresh, and user keys present')
+          "
+          # Export access token for subsequent steps.
+          echo "ACCESS_TOKEN=$(echo $RESPONSE | python -c \"import sys,json; print(json.load(sys.stdin)['access'])\")" >> $GITHUB_ENV
+          echo "REFRESH_TOKEN=$(echo $RESPONSE | python -c \"import sys,json; print(json.load(sys.stdin)['refresh'])\")" >> $GITHUB_ENV
+
+      - name: Smoke test — token refresh returns new access token (200)
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST http://localhost:8000/api/v1/auth/refresh/ \
+            -H "Content-Type: application/json" \
+            -d "{\"refresh\":\"$REFRESH_TOKEN\"}")
+          echo "Token refresh status: $STATUS"
+          [ "$STATUS" = "200" ] || (echo "FAIL: expected 200, got $STATUS" && exit 1)
+
+      - name: Smoke test — create URL requires auth (401 without token)
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST http://localhost:8000/api/v1/urls/ \
+            -H "Content-Type: application/json" \
+            -d '{"original_url":"https://example.com"}')
+          echo "Unauthenticated create status: $STATUS"
+          [ "$STATUS" = "401" ] || (echo "FAIL: expected 401, got $STATUS" && exit 1)
+
+      - name: Smoke test — create URL succeeds with Bearer token (201)
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST http://localhost:8000/api/v1/urls/ \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"original_url":"https://example.com/smoke-test"}')
+          echo "Authenticated create status: $STATUS"
+          [ "$STATUS" = "201" ] || (echo "FAIL: expected 201, got $STATUS" && exit 1)
+
+      - name: Smoke test — wrong password returns 401
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST http://localhost:8000/api/v1/auth/login/ \
+            -H "Content-Type: application/json" \
+            -d '{"username":"smokeuser","password":"WrongPassword!"}')
+          echo "Bad credentials status: $STATUS"
+          [ "$STATUS" = "401" ] || (echo "FAIL: expected 401, got $STATUS" && exit 1)
+
+      - name: Smoke test — redirect is public (302 without token)
+        run: |
+          # Get the short_code from the URL we created above.
+          RESPONSE=$(curl -s \
+            -X POST http://localhost:8000/api/v1/urls/ \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"original_url":"https://example.com/redirect-test"}')
+          SHORT_CODE=$(echo $RESPONSE | python -c "import sys,json; print(json.load(sys.stdin)['short_code'])")
+          echo "Short code: $SHORT_CODE"
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            --max-redirs 0 \
+            http://localhost:8000/$SHORT_CODE/)
+          echo "Public redirect status: $STATUS"
+          [ "$STATUS" = "302" ] || (echo "FAIL: expected 302, got $STATUS" && exit 1)
