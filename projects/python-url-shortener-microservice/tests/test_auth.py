@@ -66,7 +66,9 @@ def test_register_password_mismatch_returns_400(api_client: APIClient) -> None:
 
 
 @pytest.mark.django_db
-def test_register_duplicate_email_returns_400(api_client: APIClient, user: User) -> None:
+def test_register_duplicate_email_returns_400(
+    api_client: APIClient, user: User
+) -> None:
     payload = {
         "username": "other",
         "email": user.email,
@@ -247,7 +249,9 @@ def test_premium_user_can_use_custom_alias(premium_user: User) -> None:
 @pytest.mark.django_db
 def test_list_urls_returns_only_own_urls(user: User, premium_user: User) -> None:
     URL.objects.create(original_url="https://a.com", short_code="own001", owner=user)
-    URL.objects.create(original_url="https://b.com", short_code="oth001", owner=premium_user)
+    URL.objects.create(
+        original_url="https://b.com", short_code="oth001", owner=premium_user
+    )
     client = auth_client(user)
     response = client.get("/api/v1/urls/list/")
     assert response.status_code == status.HTTP_200_OK

@@ -2,7 +2,8 @@
 
 New in Mod 7:
   auth_client         — APIClient pre-loaded with a JWT Bearer token for `user`
-  premium_auth_client — APIClient pre-loaded with a JWT Bearer token for `premium_user`"""
+  premium_auth_client — APIClient pre-loaded with a JWT Bearer token for `premium_user`
+"""
 
 import pytest
 from rest_framework.test import APIClient

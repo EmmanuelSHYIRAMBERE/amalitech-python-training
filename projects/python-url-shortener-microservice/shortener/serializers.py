@@ -95,7 +95,9 @@ class URLCreateSerializer(serializers.ModelSerializer[URL]):
             # Custom alias is a premium-only feature.
             if attrs.get("custom_alias") and not user.is_premium:
                 raise serializers.ValidationError(
-                    {"custom_alias": "Custom aliases are available to Premium users only."}
+                    {
+                        "custom_alias": "Custom aliases are available to Premium users only."
+                    }
                 )
             # Free tier URL quota.
             if not user.is_premium:

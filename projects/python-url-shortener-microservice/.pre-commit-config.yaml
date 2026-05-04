@@ -13,7 +13,7 @@ repos:
         files: ^projects/python-url-shortener-microservice/
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.10.0
+    rev: v1.19.1
     hooks:
       - id: mypy
         files: ^projects/python-url-shortener-microservice/
@@ -29,3 +29,4 @@ repos:
           - drf-spectacular
           - psycopg2-binary
           - pytest
+          - djangorestframework-simplejwt
