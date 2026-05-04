@@ -10,7 +10,6 @@ Module 7 additions:
 
 import logging
 
-from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404
@@ -30,8 +29,6 @@ from .serializers import (
     URLCreateSerializer,
     URLResponseSerializer,
 )
-
-User = get_user_model()
 
 logger = logging.getLogger(__name__)
 
@@ -60,10 +57,11 @@ class URLCreateView(APIView):
         summary="Shorten a URL",
     )
     def post(self, request: Request) -> Response:
-        serializer = URLCreateSerializer(data=request.data, context={"request": request})
+        serializer = URLCreateSerializer(
+            data=request.data, context={"request": request}
+        )
         serializer.is_valid(raise_exception=True)
-        assert isinstance(request.user, User)  # guaranteed by IsAuthenticated
-        url = serializer.save(owner=request.user)
+        url = serializer.save(owner_id=request.user.pk)
         logger.info(
             "POST /api/v1/urls/ — created short_code=%r original_url=%r user=%r",
             url.short_code,
@@ -87,11 +85,13 @@ class URLListView(APIView):
     )
     def get(self, request: Request) -> Response:
         urls = (
-            URL.objects.filter(owner=request.user)
+            URL.objects.filter(owner_id=request.user.pk)
             .prefetch_related("tags")
             .order_by("-created_at")
         )
-        serializer = URLResponseSerializer(urls, many=True, context={"request": request})
+        serializer = URLResponseSerializer(
+            urls, many=True, context={"request": request}
+        )
         return Response(serializer.data)
 
 
@@ -129,8 +129,14 @@ class URLDetailView(APIView):
         )
         serializer.is_valid(raise_exception=True)
         updated = serializer.save()
-        logger.info("PUT /api/v1/urls/%s/ — updated by user=%r", short_code, request.user.username)
-        return Response(URLResponseSerializer(updated, context={"request": request}).data)
+        logger.info(
+            "PUT /api/v1/urls/%s/ — updated by user=%r",
+            short_code,
+            request.user.username,
+        )
+        return Response(
+            URLResponseSerializer(updated, context={"request": request}).data
+        )
 
     @extend_schema(responses={204: None}, summary="Deactivate a URL (owner only)")
     def delete(self, request: Request, short_code: str) -> Response:
@@ -139,7 +145,9 @@ class URLDetailView(APIView):
         url.is_active = False
         url.save(update_fields=["is_active", "updated_at"])
         logger.info(
-            "DELETE /api/v1/urls/%s/ — deactivated by user=%r", short_code, request.user.username
+            "DELETE /api/v1/urls/%s/ — deactivated by user=%r",
+            short_code,
+            request.user.username,
         )
         return Response(status=status.HTTP_204_NO_CONTENT)
 

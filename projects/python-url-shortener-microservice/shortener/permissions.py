@@ -26,7 +26,8 @@ class IsOwnerOrReadOnly(BasePermission):
     def has_permission(self, request: Request, view: APIView) -> bool:
         return bool(
             request.method in SAFE_METHODS
-            or request.user and request.user.is_authenticated
+            or request.user
+            and request.user.is_authenticated
         )
 
     def has_object_permission(self, request: Request, view: APIView, obj: URL) -> bool:
@@ -44,4 +45,6 @@ class IsPremiumUser(BasePermission):
     message = "This feature is available to Premium users only."
 
     def has_permission(self, request: Request, view: APIView) -> bool:
-        return bool(request.user and request.user.is_authenticated and request.user.is_premium)
+        return bool(
+            request.user and request.user.is_authenticated and request.user.is_premium
+        )

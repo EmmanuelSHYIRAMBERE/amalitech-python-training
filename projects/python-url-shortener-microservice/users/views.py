@@ -2,6 +2,7 @@
 
 import logging
 
+from django.contrib.auth import authenticate
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.permissions import AllowAny
@@ -13,6 +14,7 @@ from rest_framework_simplejwt.views import TokenRefreshView as BaseTokenRefreshV
 
 from shortener.throttles import LoginRateThrottle
 
+from .models import User
 from .serializers import RegisterSerializer, UserProfileSerializer
 
 logger = logging.getLogger(__name__)
@@ -49,26 +51,46 @@ class LoginView(APIView):
     throttle_classes = [LoginRateThrottle]
 
     @extend_schema(
-        request={"application/json": {"type": "object", "properties": {
-            "username": {"type": "string"},
-            "password": {"type": "string"},
-        }, "required": ["username", "password"]}},
-        responses={200: {"type": "object", "properties": {
-            "access": {"type": "string"},
-            "refresh": {"type": "string"},
-            "user": {"type": "object"},
-        }}},
+        request={
+            "application/json": {
+                "type": "object",
+                "properties": {
+                    "username": {"type": "string"},
+                    "password": {"type": "string"},
+                },
+                "required": ["username", "password"],
+            }
+        },
+        responses={
+            200: {
+                "type": "object",
+                "properties": {
+                    "access": {"type": "string"},
+                    "refresh": {"type": "string"},
+                    "user": {"type": "object"},
+                },
+            }
+        },
         summary="Login and obtain JWT tokens",
     )
     def post(self, request: Request) -> Response:
-        from django.contrib.auth import authenticate
-
         username = request.data.get("username", "")
         password = request.data.get("password", "")
 
-        user = authenticate(request=request, username=username, password=password)
-        if user is None:
+        abstract_user = authenticate(
+            request=request, username=username, password=password
+        )
+        if abstract_user is None:
             logger.warning("Failed login attempt for username=%r", username)
+            return Response(
+                {"detail": "Invalid credentials."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        # Re-fetch as concrete User so mypy and UserProfileSerializer are satisfied.
+        try:
+            user = User.objects.get(pk=abstract_user.pk)
+        except User.DoesNotExist:  # pragma: no cover
             return Response(
                 {"detail": "Invalid credentials."},
                 status=status.HTTP_401_UNAUTHORIZED,
@@ -76,11 +98,13 @@ class LoginView(APIView):
 
         refresh = RefreshToken.for_user(user)
         logger.info("User logged in: username=%r", user.username)
-        return Response({
-            "access": str(refresh.access_token),
-            "refresh": str(refresh),
-            "user": UserProfileSerializer(user).data,
-        })
+        return Response(
+            {
+                "access": str(refresh.access_token),
+                "refresh": str(refresh),
+                "user": UserProfileSerializer(user).data,
+            }
+        )
 
 
 class TokenRefreshView(BaseTokenRefreshView):
