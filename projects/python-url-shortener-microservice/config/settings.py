@@ -103,16 +103,6 @@ SPECTACULAR_SETTINGS = {
     "TITLE": "URL Shortener API",
     "DESCRIPTION": "Enterprise-Grade URL Shortener Microservice — Module 7: Authentication & Authorization",  # noqa: E501
     "VERSION": "3.0.0",
-    "SECURITY": [{"BearerAuth": []}],
-    "COMPONENTS": {
-        "securitySchemes": {
-            "BearerAuth": {
-                "type": "http",
-                "scheme": "bearer",
-                "bearerFormat": "JWT",
-            }
-        }
-    },
 }
 
 # ---------------------------------------------------------------------------

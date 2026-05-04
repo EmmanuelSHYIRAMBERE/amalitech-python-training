@@ -224,18 +224,18 @@ jobs:
         # including the new RegisterView, LoginView, and TokenRefreshView.
         run: python manage.py spectacular --file schema.yml
 
-      - name: Verify BearerAuth security scheme in schema
-        # Confirms the JWT BearerAuth security scheme is present in the
-        # generated OpenAPI schema so Swagger UI renders the padlock icon.
+      - name: Verify JWT security scheme in schema
+        # drf-spectacular auto-generates 'jwtAuth' from JWTAuthentication.
+        # Confirms the scheme is present so Swagger UI renders the padlock icon.
         run: |
           python -c "
           import yaml
           with open('schema.yml') as f:
               schema = yaml.safe_load(f)
           schemes = schema.get('components', {}).get('securitySchemes', {})
-          assert 'BearerAuth' in schemes, \
-              f'BearerAuth not found in securitySchemes. Got: {list(schemes.keys())}'
-          print('OK — BearerAuth security scheme present in OpenAPI schema')
+          assert 'jwtAuth' in schemes, \
+              f'jwtAuth not found in securitySchemes. Got: {list(schemes.keys())}'
+          print('OK — jwtAuth security scheme present in OpenAPI schema')
           "
 
       - name: Upload OpenAPI schema artifact
