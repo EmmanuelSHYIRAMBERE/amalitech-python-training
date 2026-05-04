@@ -410,9 +410,10 @@ jobs:
           assert 'user'    in data, f'Missing user profile.  Got: {list(data.keys())}'
           print('OK — access, refresh, and user keys present')
           "
-          # Export access token for subsequent steps.
-          echo "ACCESS_TOKEN=$(echo $RESPONSE | python -c \"import sys,json; print(json.load(sys.stdin)['access'])\")" >> $GITHUB_ENV
-          echo "REFRESH_TOKEN=$(echo $RESPONSE | python -c \"import sys,json; print(json.load(sys.stdin)['refresh'])\")" >> $GITHUB_ENV
+          # Write tokens to a temp file to avoid shell quoting issues.
+          echo "$RESPONSE" > /tmp/login_response.json
+          echo "ACCESS_TOKEN=$(python -c "import json; d=json.load(open('/tmp/login_response.json')); print(d['access'])")" >> $GITHUB_ENV
+          echo "REFRESH_TOKEN=$(python -c "import json; d=json.load(open('/tmp/login_response.json')); print(d['refresh'])")" >> $GITHUB_ENV
 
       - name: Smoke test — token refresh returns new access token (200)
         run: |
@@ -454,12 +455,13 @@ jobs:
       - name: Smoke test — redirect is public (302 without token)
         run: |
           # Get the short_code from the URL we created above.
-          RESPONSE=$(curl -s \
+          curl -s \
             -X POST http://localhost:8000/api/v1/urls/ \
             -H "Authorization: Bearer $ACCESS_TOKEN" \
             -H "Content-Type: application/json" \
-            -d '{"original_url":"https://example.com/redirect-test"}')
-          SHORT_CODE=$(echo $RESPONSE | python -c "import sys,json; print(json.load(sys.stdin)['short_code'])")
+            -d '{"original_url":"https://example.com/redirect-test"}' \
+            > /tmp/create_response.json
+          SHORT_CODE=$(python -c "import json; print(json.load(open('/tmp/create_response.json'))['short_code'])")
           echo "Short code: $SHORT_CODE"
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
             --max-redirs 0 \
