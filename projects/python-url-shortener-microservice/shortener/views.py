@@ -10,6 +10,7 @@ Module 7 additions:
 
 import logging
 
+from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404
@@ -29,6 +30,8 @@ from .serializers import (
     URLCreateSerializer,
     URLResponseSerializer,
 )
+
+User = get_user_model()
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +62,7 @@ class URLCreateView(APIView):
     def post(self, request: Request) -> Response:
         serializer = URLCreateSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
+        assert isinstance(request.user, User)  # guaranteed by IsAuthenticated
         url = serializer.save(owner=request.user)
         logger.info(
             "POST /api/v1/urls/ — created short_code=%r original_url=%r user=%r",

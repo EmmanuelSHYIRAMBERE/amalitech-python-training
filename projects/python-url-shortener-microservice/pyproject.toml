@@ -5,7 +5,7 @@ line-length = 100
 select = ["E", "F", "I"]
 
 [tool.ruff.lint.isort]
-known-third-party = ["django", "rest_framework", "drf_spectacular", "decouple"]
+known-third-party = ["django", "rest_framework", "rest_framework_simplejwt", "drf_spectacular", "decouple"]
 
 [tool.mypy]
 python_version = "3.11"
@@ -32,7 +32,7 @@ addopts = "-v --tb=short"
 testpaths = ["tests"]
 
 [tool.coverage.run]
-source = ["shortener", "core", "api"]
+source = ["shortener", "core", "api", "users"]
 omit = ["*/migrations/*", "manage.py"]
 
 [tool.coverage.report]

@@ -20,12 +20,12 @@ class RegisterSerializer(serializers.ModelSerializer[User]):
         model = User
         fields = ["username", "email", "password", "password2"]
 
-    def validate(self, attrs: dict) -> dict:
+    def validate(self, attrs: dict[str, str]) -> dict[str, str]:
         if attrs["password"] != attrs.pop("password2"):
             raise serializers.ValidationError({"password": "Passwords do not match."})
         return attrs
 
-    def create(self, validated_data: dict) -> User:
+    def create(self, validated_data: dict[str, str]) -> User:
         return User.objects.create_user(
             username=validated_data["username"],
             email=validated_data["email"],

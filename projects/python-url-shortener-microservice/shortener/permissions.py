@@ -24,7 +24,10 @@ class IsOwnerOrReadOnly(BasePermission):
     message = "You do not have permission to modify another user's link."
 
     def has_permission(self, request: Request, view: APIView) -> bool:
-        return bool(request.method in SAFE_METHODS or request.user and request.user.is_authenticated)
+        return bool(
+            request.method in SAFE_METHODS
+            or request.user and request.user.is_authenticated
+        )
 
     def has_object_permission(self, request: Request, view: APIView, obj: URL) -> bool:
         if request.method in SAFE_METHODS:
