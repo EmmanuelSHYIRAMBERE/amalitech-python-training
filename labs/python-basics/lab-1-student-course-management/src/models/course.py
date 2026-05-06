@@ -2,6 +2,7 @@
 
 import logging
 from datetime import datetime
+from typing import Any
 
 from src.models.student import Student
 
@@ -199,7 +200,7 @@ class Course:
     # Summary                                                              #
     # ------------------------------------------------------------------ #
 
-    def get_enrollment_summary(self) -> dict:
+    def get_enrollment_summary(self) -> dict[str, Any]:
         """Return a dict with enrollment statistics.
 
         Returns:
