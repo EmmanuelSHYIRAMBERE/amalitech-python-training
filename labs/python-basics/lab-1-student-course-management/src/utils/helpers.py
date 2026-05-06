@@ -1,7 +1,9 @@
 """Helper functions and utilities."""
 
 import re
+from collections.abc import Callable
 from datetime import datetime
+from typing import Any
 
 
 def validate_email(email: str) -> bool:
@@ -16,7 +18,7 @@ def calculate_grade_percentage(score: float, total: float) -> float:
 
 
 def filter_students_by_course(
-    students: dict, course_code: str, enrollments: dict
+    students: dict[str, Any], course_code: str, enrollments: dict[str, Any]
 ) -> list[str]:
     """Filter students enrolled in a specific course."""
     return [
@@ -37,7 +39,11 @@ def create_menu(options: list[str]) -> None:
     print("-" * 50)
 
 
-def get_user_input(prompt: str, validator=None, error_msg="Invalid input."):
+def get_user_input(
+    prompt: str,
+    validator: Callable[[str], bool] | None = None,
+    error_msg: str = "Invalid input.",
+) -> str:
     """Get user input with optional validation."""
     while True:
         value = input(prompt).strip()
@@ -55,7 +61,7 @@ def safe_divide(a: float, b: float, default: float = 0.0) -> float:
 
 
 # def *args, **kwargs demonstration
-def flexible_summary(*args, **kwargs) -> dict:
+def flexible_summary(*args: str, **kwargs: Any) -> dict[str, Any]:
     """
     Demonstrate *args and **kwargs usage.
     Args: variable number of student names

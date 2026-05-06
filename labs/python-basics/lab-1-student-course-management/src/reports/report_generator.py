@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Any
 
 from colorama import Fore, Style, init
-from tabulate import tabulate
+from tabulate import tabulate  # type: ignore[import-untyped]
 
 # Initialize colorama
 init(autoreset=True)
@@ -29,7 +29,7 @@ class ReportGenerator(ABC):
         pass
 
     @classmethod
-    def create_report(cls, report_type: str, **kwargs):
+    def create_report(cls, report_type: str, **kwargs: Any) -> "ReportGenerator":
         """Factory method to create reports."""
         if report_type == "student":
             return StudentReport(kwargs.get("students", []))
@@ -54,7 +54,7 @@ class ReportGenerator(ABC):
 class StudentReport(ReportGenerator):
     """Student-specific report generator."""
 
-    def __init__(self, students: list):
+    def __init__(self, students: list[Any]):
         super().__init__("STUDENT REPORT")
         self._students = students
 
@@ -84,7 +84,7 @@ class StudentReport(ReportGenerator):
             )
 
         headers = ["ID", "Name", "Type", "Email", "GPA", "Courses"]
-        report += tabulate(table_data, headers=headers, tablefmt="grid")
+        report += str(tabulate(table_data, headers=headers, tablefmt="grid"))
         report += (
             f"\n\n{Fore.GREEN}Total Students: {len(self._students)}{Style.RESET_ALL}\n"
         )
@@ -95,7 +95,7 @@ class StudentReport(ReportGenerator):
 class CourseReport(ReportGenerator):
     """Course-specific report generator."""
 
-    def __init__(self, courses: list):
+    def __init__(self, courses: list[Any]):
         super().__init__("COURSE REPORT")
         self._courses = courses
 
@@ -125,7 +125,7 @@ class CourseReport(ReportGenerator):
             )
 
         headers = ["Code", "Name", "Credits", "Instructor", "Enrolled", "Schedule"]
-        report += tabulate(table_data, headers=headers, tablefmt="grid")
+        report += str(tabulate(table_data, headers=headers, tablefmt="grid"))
 
         total_capacity = sum(c.max_students for c in self._courses)
         total_enrolled = sum(c.current_enrollment for c in self._courses)
@@ -140,7 +140,7 @@ class CourseReport(ReportGenerator):
 class EnrollmentReport(ReportGenerator):
     """Enrollment-specific report generator."""
 
-    def __init__(self, students: list, courses: list):
+    def __init__(self, students: list[Any], courses: list[Any]):
         super().__init__("ENROLLMENT REPORT")
         self._students = students
         self._courses = {c.course_code: c for c in courses}
