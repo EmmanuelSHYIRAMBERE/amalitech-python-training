@@ -1,0 +1,31 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.7
+    hooks:
+      - id: ruff
+        args: [--fix]
+        files: ^projects/python-url-shortener-microservice/
+
+  - repo: https://github.com/psf/black
+    rev: 26.3.1
+    hooks:
+      - id: black
+        files: ^projects/python-url-shortener-microservice/
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.10.0
+    hooks:
+      - id: mypy
+        files: ^projects/python-url-shortener-microservice/
+        args:
+          - --config-file=projects/python-url-shortener-microservice/pyproject.toml
+          - --explicit-package-bases
+        additional_dependencies:
+          - django-stubs[compatible-mypy]
+          - djangorestframework-stubs[compatible-mypy]
+          - types-requests
+          - python-decouple
+          - djangorestframework
+          - drf-spectacular
+          - psycopg2-binary
+          - pytest

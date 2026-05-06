@@ -9,7 +9,7 @@ from psycopg2.extensions import connection as PgConnection
 
 _DSN = os.getenv(
     "DATABASE_URL",
-    "postgresql://postgres:admin321@localhost:5433/ecommerce",
+    "postgresql://postgres:admin321@127.0.0.1:5434/social",
 )
 
 _pool: pool.ThreadedConnectionPool | None = None
