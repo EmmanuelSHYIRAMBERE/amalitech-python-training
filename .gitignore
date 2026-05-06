@@ -1,4 +1,5 @@
 .claude
+
 # Python bytecode
 __pycache__/
 *.py[cod]
@@ -19,6 +20,10 @@ env/
 .mypy_cache/
 .dmypy.json
 
+# Pylance / Pyright cache
+.pylance/
+pyrightconfig.json
+
 # Linter caches
 .ruff_cache/
 
@@ -27,6 +32,13 @@ env/
 .coverage.*
 htmlcov/
 .pytest_cache/
+
+# Generated report files
+**/reports/report.json
+**/reports/*.json
+
+# Generated utility scripts
+gen_log.py
 
 # IDE / editor
 .vscode/
