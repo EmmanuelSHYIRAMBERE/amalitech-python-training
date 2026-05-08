@@ -1,12 +1,18 @@
-"""Tests for shortener.views — Module 5 + Module 6 + Module 7.
+"""Tests for shortener.views — Module 5 + Module 6 + Module 7 + Module 8.
 
 Module 7 changes:
   - URLCreateView now requires authentication → use auth_client fixture.
   - URLAnalyticsView is premium-only → use premium_auth_client fixture.
   - RedirectView remains public → api_client (unauthenticated) still used.
+
+Module 8 changes:
+  - RedirectView now uses cache-aside (get_cached_url) and async tasks.
+  - Click records are created by Celery task, not in the view.
+  - Tests mock get_cached_url and track_click.delay.
 """
 
 from datetime import timedelta
+from unittest.mock import patch
 
 import pytest
 from django.utils import timezone
@@ -181,20 +187,24 @@ def test_redirect_does_not_follow_redirect_by_default(
 
 
 @pytest.mark.django_db
-def test_redirect_logs_click(api_client: APIClient, created_url: URL) -> None:
-    """Every redirect must create a Click record."""
-    assert Click.objects.count() == 0
-    api_client.get(f"/{created_url.short_code}/")
-    assert Click.objects.count() == 1
+def test_redirect_queues_click_task(api_client: APIClient, created_url: URL) -> None:
+    """Module 8: Every redirect must queue a Celery task (not write synchronously)."""
+    with patch("shortener.views.track_click.delay") as mock_task, \
+         patch("shortener.views.get_cached_url", return_value=created_url):
+        api_client.get(f"/{created_url.short_code}/")
+    mock_task.assert_called_once()
 
 
 @pytest.mark.django_db
-def test_redirect_increments_click_count(
+def test_redirect_click_task_receives_url_id(
     api_client: APIClient, created_url: URL
 ) -> None:
-    api_client.get(f"/{created_url.short_code}/")
-    created_url.refresh_from_db()
-    assert created_url.click_count == 1
+    """Module 8: The queued task must receive the correct url_id."""
+    with patch("shortener.views.track_click.delay") as mock_task, \
+         patch("shortener.views.get_cached_url", return_value=created_url):
+        api_client.get(f"/{created_url.short_code}/")
+    call_kwargs = mock_task.call_args.kwargs
+    assert call_kwargs["url_id"] == created_url.pk
 
 
 @pytest.mark.django_db
