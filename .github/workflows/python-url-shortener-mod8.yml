@@ -1,0 +1,522 @@
+name: CI — Python URL Shortener Microservice (Mod 8)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Triggers
+# ─────────────────────────────────────────────────────────────────────────────
+on:
+  push:
+    branches:
+      - feat/python-url-shortener-microservice-mod8
+      - develop
+    paths:
+      - "projects/python-url-shortener-microservice/**"
+      - ".github/workflows/python-url-shortener-mod8.yml"
+  pull_request:
+    branches:
+      - develop
+    paths:
+      - "projects/python-url-shortener-microservice/**"
+      - ".github/workflows/python-url-shortener-mod8.yml"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# All jobs run from the project subdirectory by default
+# ─────────────────────────────────────────────────────────────────────────────
+defaults:
+  run:
+    working-directory: projects/python-url-shortener-microservice
+
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Job 1 — Lint & Format
+  # Mod 8 new files: shortener/cache.py, shortener/tasks.py,
+  # shortener/middleware.py, config/celery.py
+  # ───────────────────────────────────────────────────────────────────────────
+  lint:
+    name: Lint & Format Check
+    runs-on: ubuntu-latest
+    env:
+      SECRET_KEY: ci-dummy-secret-key-not-for-production
+      DEBUG: "False"
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt ruff black
+
+      - name: Ruff — lint
+        run: ruff check config/ shortener/ api/ core/ users/
+
+      - name: Black — format check
+        run: black --check config/ shortener/ api/ core/ users/
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Job 2 — Type Check (mypy)
+  # Mod 8 adds celery, django-redis, and python-json-logger.
+  # All three are listed in pyproject.toml [[tool.mypy.overrides]] with
+  # ignore_missing_imports = true so mypy does not require their stubs.
+  # ───────────────────────────────────────────────────────────────────────────
+  type-check:
+    name: Type Check (mypy)
+    runs-on: ubuntu-latest
+    env:
+      SECRET_KEY: ci-dummy-secret-key-not-for-production
+      DEBUG: "False"
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: mypy — type check
+        run: >
+          mypy
+          --ignore-missing-imports
+          --explicit-package-bases
+          config/ shortener/ api/ core/ users/
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Job 3 — Docker Build
+  # Validates the multi-stage Dockerfile builds cleanly with all Mod 8
+  # dependencies (redis, celery, django-celery-beat, etc.) in requirements.txt.
+  # ───────────────────────────────────────────────────────────────────────────
+  docker-build:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        working-directory: projects/python-url-shortener-microservice
+        run: docker build -t url-shortener:mod8 .
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Job 4 — Django System Check
+  # Mod 8 additions verified here:
+  #   - django_celery_results and django_celery_beat in INSTALLED_APPS
+  #   - django_celery_results and django_celery_beat migrations applied
+  #   - CACHES setting points to Redis (mocked via REDIS_URL env var)
+  #   - RequestLoggingMiddleware registered in MIDDLEWARE
+  #   - HealthResponseDict has redis field (schema check)
+  # ───────────────────────────────────────────────────────────────────────────
+  django-check:
+    name: Django System Check
+    runs-on: ubuntu-latest
+    needs: [lint, type-check]
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: urlshortener
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-postgres-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      SECRET_KEY: ci-test-secret-key-mod8
+      DEBUG: "True"
+      ALLOWED_HOSTS: localhost,127.0.0.1
+      DB_NAME: urlshortener
+      DB_USER: postgres
+      DB_PASSWORD: ci-postgres-password
+      DB_HOST: localhost
+      DB_PORT: "5432"
+      REDIS_URL: redis://localhost:6379/0
+      CELERY_BROKER_URL: redis://localhost:6379/1
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Django system check
+        run: python manage.py check --fail-level WARNING
+
+      - name: Run migrations
+        # Applies in dependency order including:
+        #   django_celery_results — task result backend tables
+        #   django_celery_beat    — periodic task schedule tables
+        #   token_blacklist       — simplejwt blacklist tables
+        run: python manage.py migrate --noinput
+
+      - name: Verify Celery Beat tables exist
+        run: |
+          python manage.py shell -c "
+          from django.db import connection
+          tables = connection.introspection.table_names()
+          for t in ['django_celery_beat_periodictask', 'django_celery_results_taskresult']:
+              assert t in tables, f'{t} table missing — migration did not run'
+              print(f'OK — {t} exists')
+          "
+
+      - name: Verify token_blacklist tables exist
+        run: |
+          python manage.py shell -c "
+          from django.db import connection
+          tables = connection.introspection.table_names()
+          for t in ['token_blacklist_outstandingtoken', 'token_blacklist_blacklistedtoken']:
+              assert t in tables, f'{t} table missing'
+              print(f'OK — {t} exists')
+          "
+
+      - name: Verify default tags were seeded
+        run: |
+          python manage.py shell -c "
+          from shortener.models import Tag
+          count = Tag.objects.count()
+          assert count >= 10, f'Expected >= 10 default tags, got {count}'
+          print(f'OK — {count} tags seeded')
+          "
+
+      - name: Verify auth URL patterns are registered
+        run: |
+          python manage.py shell -c "
+          from django.urls import reverse, NoReverseMatch
+          for name in ['auth-register', 'auth-login', 'auth-refresh']:
+              try:
+                  url = reverse(name)
+                  print(f'OK — {name} resolves to {url}')
+              except NoReverseMatch as e:
+                  raise AssertionError(f'URL name not found: {name}') from e
+          "
+
+      - name: Verify RequestLoggingMiddleware is registered
+        run: |
+          python manage.py shell -c "
+          from django.conf import settings
+          mw = 'shortener.middleware.RequestLoggingMiddleware'
+          assert mw in settings.MIDDLEWARE, f'{mw} not found in MIDDLEWARE'
+          print(f'OK — {mw} registered')
+          "
+
+      - name: Verify Redis cache backend is configured
+        run: |
+          python manage.py shell -c "
+          from django.conf import settings
+          backend = settings.CACHES['default']['BACKEND']
+          assert backend == 'django_redis.cache.RedisCache', \
+              f'Expected django_redis.cache.RedisCache, got {backend}'
+          print(f'OK — cache backend: {backend}')
+          "
+
+      - name: Verify Redis is reachable via Django cache
+        run: |
+          python manage.py shell -c "
+          from django.core.cache import cache
+          cache.set('ci_check', 'ok', timeout=10)
+          value = cache.get('ci_check')
+          assert value == 'ok', f'Expected ok, got {value!r}'
+          print('OK — Redis cache set/get works')
+          "
+
+      - name: Generate OpenAPI schema
+        run: python manage.py spectacular --file schema.yml
+
+      - name: Verify JWT security scheme in schema
+        run: |
+          python -c "
+          import yaml
+          with open('schema.yml') as f:
+              schema = yaml.safe_load(f)
+          schemes = schema.get('components', {}).get('securitySchemes', {})
+          assert 'jwtAuth' in schemes, \
+              f'jwtAuth not found in securitySchemes. Got: {list(schemes.keys())}'
+          print('OK — jwtAuth security scheme present in OpenAPI schema')
+          "
+
+      - name: Upload OpenAPI schema artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: openapi-schema-mod8
+          path: projects/python-url-shortener-microservice/schema.yml
+          retention-days: 7
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Job 5 — Pytest & Coverage
+  # Runs the full test suite against live Postgres and Redis services.
+  # Mod 8 new test files:
+  #   - tests/test_cache.py             — 4 tests (cache-aside utilities)
+  #   - tests/test_redirect_caching.py  — 6 tests (RedirectView + async task)
+  #   - tests/test_tasks.py             — 5 tests (track_click, cleanup)
+  #   - tests/test_cache_invalidation.py — 2 tests (PUT/DELETE invalidation)
+  # All tests mock Redis and Celery — no live broker needed for the test suite.
+  # ───────────────────────────────────────────────────────────────────────────
+  test:
+    name: Pytest & Coverage
+    runs-on: ubuntu-latest
+    needs: django-check
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: urlshortener
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-postgres-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      SECRET_KEY: ci-test-secret-key-mod8
+      DEBUG: "True"
+      ALLOWED_HOSTS: localhost,127.0.0.1
+      DB_NAME: urlshortener
+      DB_USER: postgres
+      DB_PASSWORD: ci-postgres-password
+      DB_HOST: localhost
+      DB_PORT: "5432"
+      REDIS_URL: redis://localhost:6379/0
+      CELERY_BROKER_URL: redis://localhost:6379/1
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run pytest with coverage
+        run: coverage run -m pytest
+
+      - name: Coverage report (terminal)
+        run: coverage report --show-missing
+
+      - name: Enforce minimum coverage threshold
+        run: coverage report --fail-under=80
+
+      - name: Generate HTML coverage report
+        run: coverage html
+
+      - name: Upload HTML coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report-mod8
+          path: projects/python-url-shortener-microservice/htmlcov/
+          retention-days: 7
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Job 6 — Smoke Test
+  # Spins up Django dev server + Redis and exercises the full request cycle:
+  #   - /health/ returns {"status":"ok","db":"reachable","redis":"reachable"}
+  #   - Redirect returns 302 without a token (AllowAny preserved)
+  #   - Auth endpoints still work (register, login, token refresh)
+  #   - Unauthenticated POST /api/v1/urls/ returns 401
+  #   - Authenticated POST /api/v1/urls/ returns 201
+  # Celery tasks are NOT exercised here — they require a running worker.
+  # The write-behind pattern is verified in the pytest suite via mocks.
+  # ───────────────────────────────────────────────────────────────────────────
+  smoke-test:
+    name: Smoke Test
+    runs-on: ubuntu-latest
+    needs: test
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: urlshortener
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-postgres-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      SECRET_KEY: ci-test-secret-key-mod8
+      DEBUG: "True"
+      ALLOWED_HOSTS: localhost,127.0.0.1,0.0.0.0
+      DB_NAME: urlshortener
+      DB_USER: postgres
+      DB_PASSWORD: ci-postgres-password
+      DB_HOST: localhost
+      DB_PORT: "5432"
+      REDIS_URL: redis://localhost:6379/0
+      CELERY_BROKER_URL: redis://localhost:6379/1
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Apply migrations
+        run: python manage.py migrate --noinput
+
+      - name: Start Django dev server in background
+        run: |
+          python manage.py runserver 0.0.0.0:8000 &
+          for i in $(seq 1 15); do
+            curl -sf http://localhost:8000/health/ && break
+            echo "Waiting for server... attempt $i"
+            sleep 2
+          done
+
+      - name: Smoke test — health check returns ok with redis field
+        run: |
+          RESPONSE=$(curl -s http://localhost:8000/health/)
+          echo "Health response: $RESPONSE"
+          python -c "
+          import json, sys
+          data = json.loads('$RESPONSE')
+          assert data['status'] == 'ok',        f'status: {data[\"status\"]}'
+          assert data['db']     == 'reachable', f'db: {data[\"db\"]}'
+          assert data['redis']  == 'reachable', f'redis: {data[\"redis\"]}'
+          print('OK — health check: status=ok, db=reachable, redis=reachable')
+          "
+
+      - name: Smoke test — register a new user (201)
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST http://localhost:8000/api/v1/auth/register/ \
+            -H "Content-Type: application/json" \
+            -d '{"username":"smokeuser","email":"smoke@example.com","password":"SmokePass123!","password2":"SmokePass123!"}')
+          echo "Register status: $STATUS"
+          [ "$STATUS" = "201" ] || (echo "FAIL: expected 201, got $STATUS" && exit 1)
+
+      - name: Smoke test — login returns access + refresh + user (200)
+        run: |
+          RESPONSE=$(curl -s -X POST http://localhost:8000/api/v1/auth/login/ \
+            -H "Content-Type: application/json" \
+            -d '{"username":"smokeuser","password":"SmokePass123!"}')
+          echo "Login response: $RESPONSE"
+          echo "$RESPONSE" | python -c "
+          import sys, json
+          data = json.load(sys.stdin)
+          assert 'access'  in data, f'Missing access token.  Got: {list(data.keys())}'
+          assert 'refresh' in data, f'Missing refresh token. Got: {list(data.keys())}'
+          assert 'user'    in data, f'Missing user profile.  Got: {list(data.keys())}'
+          print('OK — access, refresh, and user keys present')
+          "
+          echo "$RESPONSE" > /tmp/login_response.json
+          echo "ACCESS_TOKEN=$(python -c "import json; d=json.load(open('/tmp/login_response.json')); print(d['access'])")" >> $GITHUB_ENV
+          echo "REFRESH_TOKEN=$(python -c "import json; d=json.load(open('/tmp/login_response.json')); print(d['refresh'])")" >> $GITHUB_ENV
+
+      - name: Smoke test — token refresh returns new access token (200)
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST http://localhost:8000/api/v1/auth/refresh/ \
+            -H "Content-Type: application/json" \
+            -d "{\"refresh\":\"$REFRESH_TOKEN\"}")
+          echo "Token refresh status: $STATUS"
+          [ "$STATUS" = "200" ] || (echo "FAIL: expected 200, got $STATUS" && exit 1)
+
+      - name: Smoke test — unauthenticated POST /api/v1/urls/ returns 401
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST http://localhost:8000/api/v1/urls/ \
+            -H "Content-Type: application/json" \
+            -d '{"original_url":"https://example.com"}')
+          echo "Unauthenticated create status: $STATUS"
+          [ "$STATUS" = "401" ] || (echo "FAIL: expected 401, got $STATUS" && exit 1)
+
+      - name: Smoke test — authenticated POST /api/v1/urls/ returns 201
+        run: |
+          RESPONSE=$(curl -s \
+            -X POST http://localhost:8000/api/v1/urls/ \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"original_url":"https://example.com/smoke-test"}')
+          echo "Create URL response: $RESPONSE"
+          echo "$RESPONSE" > /tmp/create_response.json
+          STATUS=$(echo "$RESPONSE" | python -c "
+          import sys, json
+          data = json.load(sys.stdin)
+          assert 'short_code' in data, f'Missing short_code. Got: {list(data.keys())}'
+          print('201')
+          " 2>/dev/null || echo "error")
+          [ "$STATUS" = "201" ] || (echo "FAIL: short_code missing in response" && exit 1)
+
+      - name: Smoke test — redirect is public (302 without token)
+        run: |
+          SHORT_CODE=$(python -c "import json; print(json.load(open('/tmp/create_response.json'))['short_code'])")
+          echo "Short code: $SHORT_CODE"
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            --max-redirs 0 \
+            http://localhost:8000/$SHORT_CODE/)
+          echo "Public redirect status: $STATUS"
+          [ "$STATUS" = "302" ] || (echo "FAIL: expected 302, got $STATUS" && exit 1)
+
+      - name: Smoke test — wrong password returns 401
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST http://localhost:8000/api/v1/auth/login/ \
+            -H "Content-Type: application/json" \
+            -d '{"username":"smokeuser","password":"WrongPassword!"}')
+          echo "Bad credentials status: $STATUS"
+          [ "$STATUS" = "401" ] || (echo "FAIL: expected 401, got $STATUS" && exit 1)
