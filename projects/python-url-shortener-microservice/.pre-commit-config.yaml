@@ -30,3 +30,10 @@ repos:
           - psycopg2-binary
           - pytest
           - djangorestframework-simplejwt
+          # Module 8
+          - celery
+          - django-celery-beat
+          - django-celery-results
+          - django-redis
+          - redis
+          - python-json-logger

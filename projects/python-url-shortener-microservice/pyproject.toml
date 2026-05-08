@@ -19,7 +19,11 @@ module = ["decouple", "decouple.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-module = ["tests.*", "manage"]
+module = ["celery", "celery.*", "django_celery_beat", "django_celery_beat.*", "django_celery_results", "django_celery_results.*", "django_redis", "django_redis.*", "pythonjsonlogger", "pythonjsonlogger.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["tests.*", "manage", "config.celery", "config"]
 ignore_errors = true
 
 [tool.django-stubs]
