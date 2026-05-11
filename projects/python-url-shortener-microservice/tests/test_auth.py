@@ -1,5 +1,7 @@
 """Tests for Module 7 — Authentication, Authorization, and Tier Logic."""
 
+from unittest.mock import patch
+
 import pytest
 from rest_framework import status
 from rest_framework.test import APIClient
@@ -338,5 +340,6 @@ def test_analytics_premium_user_returns_200(
 @pytest.mark.django_db
 def test_redirect_is_public(api_client: APIClient, created_url: URL) -> None:
     """Unauthenticated users must still be able to follow short links."""
-    response = api_client.get(f"/{created_url.short_code}/")
+    with patch("shortener.views.track_click.delay"):
+        response = api_client.get(f"/{created_url.short_code}/")
     assert response.status_code == status.HTTP_302_FOUND
