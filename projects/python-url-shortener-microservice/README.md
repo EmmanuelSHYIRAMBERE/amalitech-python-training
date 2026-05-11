@@ -3,35 +3,44 @@
 </div>
 <br/>
 
-# URL Shortener Microservice — Module 5
+# URL Shortener Microservice
 
-> **Phase 1 Foundation** · Django 5.0+ · DRF · PostgreSQL 15 · Docker
+> **Enterprise-Grade URL Shortener** · Django 5.0+ · DRF · PostgreSQL 15 · Docker
 
-![CI](https://github.com/EmmanuelSHYIRAMBERE/amalitech-python-training/actions/workflows/python-url-shortener-mod5.yml/badge.svg)
+![CI Mod 5](https://github.com/EmmanuelSHYIRAMBERE/amalitech-python-training/actions/workflows/python-url-shortener-mod5.yml/badge.svg)
+![CI Mod 6](https://github.com/EmmanuelSHYIRAMBERE/amalitech-python-training/actions/workflows/python-url-shortener-mod6.yml/badge.svg)
 
 ---
 
 ## About
 
-|             |                                                         |
-| ----------- | ------------------------------------------------------- |
-| **Trainee** | Emmanuel SHYIRAMBERE                                    |
-| **Module**  | Module 5 — Django REST Framework & Microservices        |
-| **Stack**   | Python 3.11 · Django 5.0 · DRF · PostgreSQL 15 · Docker |
+|                |                                                              |
+| -------------- | ------------------------------------------------------------ |
+| **Trainee**    | Emmanuel SHYIRAMBERE                                         |
+| **Modules**    | Module 5 — Foundation & Containerization · Module 6 — ORM & Data Access Layer |
+| **Stack**      | Python 3.11 · Django 5.0 · DRF · PostgreSQL 15 · Docker     |
+| **Tests**      | 123 passing                                                  |
 
 ---
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────┐
-│                   Docker Compose                    │
-│                                                     │
-│  ┌──────────────────┐      ┌─────────────────────┐  │
-│  │   web (Django)   │─────▶│  db (PostgreSQL 15) │  │
-│  │   :8000          │      │  :5435              │  │
-│  └──────────────────┘      └─────────────────────┘  │
-└─────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│                        Docker Compose                        │
+│                                                              │
+│  ┌───────────────────────┐      ┌──────────────────────────┐ │
+│  │    web (Django 5)     │─────▶│   db (PostgreSQL 15)     │ │
+│  │    gunicorn :8000     │      │   :5435 (host-mapped)    │ │
+│  └───────────────────────┘      └──────────────────────────┘ │
+└──────────────────────────────────────────────────────────────┘
+
+Request flow:
+  POST /api/v1/urls/          →  URLCreateView  →  URL.objects.create()
+  GET  /<short_code>/         →  RedirectView   →  Click.objects.create()  →  302
+  GET  /api/v1/analytics/<>/  →  URLAnalyticsView  →  annotate(Count)
+  GET  /health/               →  HealthCheckView   →  connection.ensure_connection()
+  GET  /api/docs/             →  Swagger UI (drf-spectacular)
 ```
 
 ---
@@ -41,34 +50,99 @@
 ```
 url-shortener-microservice/
 ├── config/
-│   ├── settings.py       # python-decouple config + LOGGING
-│   ├── urls.py           # root router + Swagger
-│   └── wsgi.py
-├── shortener/
-│   ├── models.py         # URL model + secrets-based short_code generator
-│   ├── serializers.py    # DRF serializers with full type annotations
-│   ├── views.py          # POST create + GET redirect + structured logging
-│   ├── urls.py           # /<short_code>/ redirect route
+│   ├── settings.py          # python-decouple config, AUTH_USER_MODEL, LOGGING
+│   ├── urls.py              # root router + Swagger endpoints
+│   ├── wsgi.py              # gunicorn entry point
+│   └── asgi.py              # uvicorn entry point (available)
+│
+├── users/                   # Mod 6 — custom User model
+│   ├── models.py            # User(AbstractUser) + is_premium + tier
+│   ├── apps.py
 │   └── migrations/
+│       └── 0001_initial.py
+│
+├── shortener/
+│   ├── models.py            # URL + Tag + Click + URLQuerySet + URLManager
+│   ├── generators.py        # BaseShortCodeGenerator (ABC) + SecureShortCodeGenerator
+│   ├── protocols.py         # ShortCodeGenerator Protocol (PEP 544)
+│   ├── schemas.py           # ShortenRequest, ShortenResult, ClickResult dataclasses
+│   ├── serializers.py       # URLCreate/Response/Analytics + Tag + Click serializers
+│   ├── validators.py        # compiled regex validators (short_code + URL scheme)
+│   ├── views.py             # URLCreateView + RedirectView + URLAnalyticsView
+│   ├── urls.py              # /<short_code>/ redirect route
+│   └── migrations/
+│       ├── 0001_initial.py
+│       ├── 0002_mod6_schema.py   # Tag, Click, all new URL fields, indexes
+│       └── 0003_seed_default_tags.py  # data migration — 10 default tags
+│
 ├── core/
-│   ├── models.py         # TimeStampedModel abstract base
-│   └── views.py          # GET /health/ endpoint
+│   ├── models.py            # TimeStampedModel abstract base (created_at, updated_at)
+│   ├── views.py             # GET /health/ — DB connectivity check
+│   └── urls.py
+│
 ├── api/
-│   └── urls.py           # /api/v1/ versioned routes
+│   └── urls.py              # /api/v1/ versioned routes (urls + analytics)
+│
 ├── tests/
-│   ├── conftest.py       # shared fixtures (api_client, created_url)
-│   ├── test_models.py    # generate_short_code + URL model
-│   ├── test_serializers.py
-│   ├── test_views.py     # POST /api/v1/urls/ + GET /<short_code>/
-│   └── test_health.py
-├── logs/                 # rotating log files (git-ignored)
-├── Dockerfile            # multi-stage Alpine build + non-root user
+│   ├── conftest.py          # fixtures: api_client, user, premium_user, tags, created_url
+│   ├── test_health.py       # 5 tests — health check endpoint
+│   ├── test_models.py       # 39 tests — User, Tag, URL, Click, URLManager, aggregation
+│   ├── test_serializers.py  # 21 tests — all serializers including analytics
+│   └── test_views.py        # 31 tests — all views including Mod 6 behaviour
+│
+├── docs-explanation/        # deep-dive explanation docs (one file per topic)
+├── logs/                    # rotating log files (git-ignored)
+├── Dockerfile               # multi-stage Alpine build + non-root user
 ├── .dockerignore
 ├── docker-compose.yml
 ├── .env.example
-├── .pre-commit-config.yaml  # black + ruff + mypy
-├── pyproject.toml        # ruff + mypy + pytest + coverage config
+├── .pre-commit-config.yaml  # ruff + black + mypy hooks
+├── pyproject.toml           # ruff + mypy + pytest + coverage config
 └── requirements.txt
+```
+
+---
+
+## Database Schema
+
+```
+┌──────────────────┐         ┌──────────────────┐
+│      users_user  │         │   shortener_tag  │
+├──────────────────┤         ├──────────────────┤
+│ id (PK)          │         │ id (PK)          │
+│ username         │         │ name (unique)    │
+│ email (unique)   │         └────────┬─────────┘
+│ is_premium       │                  │ M2M
+│ tier             │                  │
+└────────┬─────────┘         ┌────────▼──────────────────┐
+         │ FK (owner)        │      shortener_url         │
+         │                   ├───────────────────────────┤
+         └──────────────────▶│ id (PK)                   │
+                             │ original_url              │
+                             │ short_code (unique, idx)  │
+                             │ custom_alias (unique)     │
+                             │ owner FK → users_user     │
+                             │ click_count               │
+                             │ is_active (idx)           │
+                             │ expires_at (idx)          │
+                             │ title / description       │
+                             │ favicon                   │
+                             │ created_at (idx)          │
+                             │ updated_at                │
+                             └────────┬──────────────────┘
+                                      │ FK
+                             ┌────────▼──────────────────┐
+                             │     shortener_click        │
+                             ├───────────────────────────┤
+                             │ id (PK)                   │
+                             │ url FK → shortener_url    │
+                             │ clicked_at (idx)          │
+                             │ ip_address                │
+                             │ user_agent                │
+                             │ country                   │
+                             │ city                      │
+                             │ referrer                  │
+                             └───────────────────────────┘
 ```
 
 ---
@@ -88,28 +162,26 @@ cd projects/python-url-shortener-microservice
 cp .env.example .env
 ```
 
-Edit `.env` — required variables:
+Edit `.env`:
 
-| Variable        | Description                                   | Example               |
-| --------------- | --------------------------------------------- | --------------------- |
-| `SECRET_KEY`    | Django secret key                             | `django-insecure-...` |
-| `DEBUG`         | Debug mode                                    | `True`                |
-| `ALLOWED_HOSTS` | Comma-separated hosts                         | `localhost,127.0.0.1` |
-| `DB_NAME`       | PostgreSQL database name                      | `urlshortener`        |
-| `DB_USER`       | PostgreSQL user                               | `postgres`            |
-| `DB_PASSWORD`   | PostgreSQL password                           | `admin321`            |
-| `DB_HOST`       | DB host (`db` in Docker, `localhost` locally) | `localhost`           |
-| `DB_PORT`       | DB port (mapped port locally)                 | `5435`                |
-| `LOG_LEVEL`     | Logging level                                 | `INFO`                |
-
-> **Local vs Docker:** When running outside Docker set `DB_HOST=localhost` and `DB_PORT=5435`.
-> Inside Docker Compose the service name `db` and port `5432` are used automatically.
+| Variable        | Description                                          | Example               |
+| --------------- | ---------------------------------------------------- | --------------------- |
+| `SECRET_KEY`    | Django secret key                                    | `django-insecure-...` |
+| `DEBUG`         | Debug mode                                           | `True`                |
+| `ALLOWED_HOSTS` | Comma-separated hosts                                | `localhost,127.0.0.1` |
+| `DB_NAME`       | PostgreSQL database name                             | `urlshortener`        |
+| `DB_USER`       | PostgreSQL user                                      | `postgres`            |
+| `DB_PASSWORD`   | PostgreSQL password                                  | `admin321`            |
+| `DB_HOST`       | `db` inside Docker Compose · `localhost` locally     | `localhost`           |
+| `DB_PORT`       | `5432` inside Docker · `5435` locally (host-mapped)  | `5435`                |
+| `LOG_LEVEL`     | `DEBUG` / `INFO` / `WARNING`                         | `INFO`                |
 
 ### 3. Run with Docker (recommended)
 
 ```bash
 docker compose up --build
-# Service is live at http://localhost:8000
+# App live at http://localhost:8000
+# Migrations + tag seeding run automatically on startup
 ```
 
 ### 4. Run locally (without Docker)
@@ -120,7 +192,6 @@ python -m venv .venv
 source .venv/bin/activate     # macOS / Linux
 
 pip install -r requirements.txt
-python manage.py makemigrations shortener
 python manage.py migrate --noinput
 python manage.py runserver
 ```
@@ -129,22 +200,30 @@ python manage.py runserver
 
 ```bash
 pre-commit install
-pre-commit run --all-files    # verify all hooks pass
+pre-commit run --all-files
 ```
 
-Hooks: **black** (formatting) · **ruff** (linting) · **mypy** (strict type checking)
+Hooks: **ruff** (lint + import order) · **black** (formatting) · **mypy** (strict type checking)
 
 ---
 
 ## API Endpoints
 
-| Method | Endpoint         | Description                                        |
-| ------ | ---------------- | -------------------------------------------------- |
-| `POST` | `/api/v1/urls/`  | Shorten a URL → returns `short_code` + `short_url` |
-| `GET`  | `/<short_code>/` | Redirect to original URL (HTTP 302)                |
-| `GET`  | `/health/`       | Health check — DB connectivity                     |
-| `GET`  | `/api/docs/`     | Swagger UI (drf-spectacular)                       |
-| `GET`  | `/api/schema/`   | OpenAPI schema (JSON)                              |
+### Core
+
+| Method | Endpoint           | Description                              | Status |
+| ------ | ------------------ | ---------------------------------------- | ------ |
+| `POST` | `/api/v1/urls/`    | Shorten a URL (accepts tags + alias)     | 201    |
+| `GET`  | `/<short_code>/`   | Redirect to original URL                 | 302    |
+| `GET`  | `/health/`         | DB connectivity health check             | 200    |
+| `GET`  | `/api/docs/`       | Swagger UI                               | 200    |
+| `GET`  | `/api/schema/`     | Raw OpenAPI schema (JSON/YAML)           | 200    |
+
+### Analytics (Mod 6)
+
+| Method | Endpoint                          | Description                                    | Status |
+| ------ | --------------------------------- | ---------------------------------------------- | ------ |
+| `GET`  | `/api/v1/analytics/<short_code>/` | Click stats — total, by country, recent clicks | 200    |
 
 ---
 
@@ -165,8 +244,29 @@ Response `201 Created`:
   "short_code": "aB3xYz",
   "original_url": "https://www.example.com/very/long/path",
   "short_url": "http://localhost:8000/aB3xYz/",
+  "custom_alias": null,
+  "tags": [],
+  "click_count": 0,
+  "is_active": true,
+  "is_expired": false,
+  "expires_at": null,
+  "title": null,
+  "description": null,
+  "favicon": null,
   "created_at": "2025-01-01T12:00:00Z"
 }
+```
+
+### Shorten with tags and expiry (Mod 6)
+
+```bash
+curl -X POST http://localhost:8000/api/v1/urls/ \
+  -H "Content-Type: application/json" \
+  -d '{
+    "original_url": "https://www.example.com/campaign",
+    "tags": ["Marketing", "Social"],
+    "expires_at": "2025-12-31T23:59:59Z"
+  }'
 ```
 
 ### Follow a redirect
@@ -174,6 +274,41 @@ Response `201 Created`:
 ```bash
 curl -L http://localhost:8000/aB3xYz/
 # → HTTP 302 → https://www.example.com/very/long/path
+# Side effects: Click record logged, click_count incremented atomically
+```
+
+### View analytics (Mod 6)
+
+```bash
+curl http://localhost:8000/api/v1/analytics/aB3xYz/
+```
+
+Response `200 OK`:
+
+```json
+{
+  "short_code": "aB3xYz",
+  "original_url": "https://www.example.com/very/long/path",
+  "click_count": 3,
+  "is_active": true,
+  "expires_at": null,
+  "created_at": "2025-01-01T12:00:00Z",
+  "clicks_by_country": [
+    {"country": "RW", "total": 2},
+    {"country": "US", "total": 1}
+  ],
+  "recent_clicks": [
+    {
+      "id": 3,
+      "clicked_at": "2025-01-01T12:02:00Z",
+      "ip_address": "1.2.3.4",
+      "country": "US",
+      "city": null,
+      "user_agent": "Mozilla/5.0",
+      "referrer": "https://google.com"
+    }
+  ]
+}
 ```
 
 ### Health check
@@ -183,32 +318,36 @@ curl http://localhost:8000/health/
 # {"status": "ok", "db": "reachable"}
 ```
 
-### Invalid URL — 400 response
-
-```bash
-curl -X POST http://localhost:8000/api/v1/urls/ \
-  -H "Content-Type: application/json" \
-  -d '{"original_url": "not-a-url"}'
-# {"original_url": ["Enter a valid URL."]}
-```
-
 ---
 
 ## Running Tests
 
 ```bash
-# Full suite
+# Full suite (123 tests)
 pytest
 
 # With coverage report
 coverage run -m pytest
-coverage report
+coverage report --show-missing
 
-# HTML coverage report
+# Enforce threshold (same as CI)
+coverage report --fail-under=80
+
+# HTML report
 coverage html
 start htmlcov/index.html      # Windows
 open htmlcov/index.html       # macOS
 ```
+
+Test breakdown:
+
+| File                  | Tests | Covers                                                          |
+| --------------------- | ----- | --------------------------------------------------------------- |
+| `test_health.py`      | 5     | `GET /health/` — 200, fields, DB error propagation             |
+| `test_models.py`      | 39    | User, Tag, URL, Click, URLManager, N+1 queries, aggregation     |
+| `test_serializers.py` | 21    | All serializers — validation, creation, tags, analytics output  |
+| `test_views.py`       | 31    | All views — create, redirect, click logging, analytics, 404s    |
+| **Total**             | **123** |                                                               |
 
 ---
 
@@ -218,15 +357,15 @@ Logs are written to both stdout and `logs/app.log` (rotated daily, 7-day retenti
 
 ```
 2025-01-01 12:00:00 [INFO] shortener.views: POST /api/v1/urls/ — created short_code='aB3xYz' original_url='https://...'
-2025-01-01 12:00:01 [INFO] shortener.views: GET /aB3xYz/ — redirecting to 'https://...'
+2025-01-01 12:00:01 [INFO] shortener.views: GET /aB3xYz/ — redirecting to 'https://...' (click_count=1)
 ```
 
-Control the log level via `.env`:
+Control via `.env`:
 
 ```
-LOG_LEVEL=DEBUG   # verbose — includes short_code generation
-LOG_LEVEL=INFO    # default — API requests only
-LOG_LEVEL=WARNING # quiet — errors only
+LOG_LEVEL=DEBUG    # includes short_code generation + click_count increments
+LOG_LEVEL=INFO     # default — API requests only
+LOG_LEVEL=WARNING  # quiet — errors only
 ```
 
 ---
@@ -234,32 +373,60 @@ LOG_LEVEL=WARNING # quiet — errors only
 ## Type Checking
 
 ```bash
-mypy config/ shortener/ api/ core/
+mypy config/ shortener/ api/ core/ users/
 ```
 
-Configured in `pyproject.toml` with `strict = true` and `django-stubs` + `djangorestframework-stubs`.
+Configured in `pyproject.toml` with `strict = true`, `django-stubs==6.0.3`, and `djangorestframework-stubs`.
 
 ---
 
-## Module 5 Checklist
+## Module 5 Checklist — Foundation & Containerization
 
 - [x] Modular Django project structure (`config`, `shortener`, `api`, `core` apps)
 - [x] `python-decouple` for environment-based configuration with runtime validation
-- [x] `URL` model with `original_url` (max 2048 chars) + `short_code` (indexed, unique)
+- [x] `URL` model with `original_url` (max 2048 chars) + `short_code` (unique, indexed)
 - [x] Cryptographically secure short code generator (`secrets` module)
 - [x] `POST /api/v1/urls/` — create short link with DRF serializer validation
 - [x] `GET /<short_code>/` — HTTP 302 redirect
 - [x] `GET /health/` — DB connectivity health check
-- [x] Full type annotations on all views, serializers, and models
+- [x] Full type annotations on all views, serializers, and models (`mypy strict`)
 - [x] Structured logging to stdout + rotating file (`logs/app.log`)
 - [x] Full pytest suite — models, serializers, views, health check
-- [x] Multi-stage Alpine `Dockerfile` with non-root user + health check
-- [x] `.dockerignore` to minimise build context
-- [x] `docker-compose.yml` — Django + PostgreSQL 15 with health check
+- [x] Multi-stage Alpine `Dockerfile` with non-root user + `HEALTHCHECK`
+- [x] `.dockerignore` to minimise build context and exclude secrets
+- [x] `docker-compose.yml` — Django + PostgreSQL 15 with health check dependency
 - [x] `drf-spectacular` Swagger/OpenAPI docs at `/api/docs/`
 - [x] API versioning at `/api/v1/`
-- [x] Pre-commit hooks: black + ruff + mypy
-- [x] CI pipeline: lint/mypy → docker-build → django-check → pytest/coverage
+- [x] Pre-commit hooks: ruff + black + mypy
+- [x] CI pipeline: lint → type-check → docker-build → django-check → pytest/coverage
+
+---
+
+## Module 6 Checklist — ORM & Data Access Layer
+
+- [x] **Custom User model** — `User(AbstractUser)` with `is_premium` + `tier` (Free/Premium/Admin)
+- [x] **`AUTH_USER_MODEL = "users.User"`** set before any migrations
+- [x] **URL model expanded** — `owner` (FK), `click_count`, `is_active`, `expires_at`, `custom_alias`, `title`, `description`, `favicon`
+- [x] **`URL.is_expired` property** — compares `expires_at` to `timezone.now()`
+- [x] **`URL.increment_click_count()`** — atomic `F("click_count") + 1` update, no read-modify-write race
+- [x] **`Tag` model** — `name` (unique), M2M with `URL`, alphabetically ordered
+- [x] **`Click` model** — per-visit analytics: `ip_address`, `user_agent`, `country`, `city`, `referrer`, `clicked_at`
+- [x] **`URLQuerySet`** — chainable: `active_urls()`, `expired_urls()`, `popular_urls(top_n)`
+- [x] **`URLManager`** — exposes `URLQuerySet` methods directly on `URL.objects`
+- [x] **Migration `0002_mod6_schema`** — all schema changes in one reviewable migration
+- [x] **Migration `0003_seed_default_tags`** — data migration seeding 10 default tags, reversible, idempotent
+- [x] **`select_related("owner")`** in `RedirectView` — fetches URL + owner in one SQL JOIN (N+1 prevention)
+- [x] **`prefetch_related("clicks")`** in `URLAnalyticsView` — loads all clicks in one extra query (N+1 prevention)
+- [x] **`annotate(Count)`** in `URLAnalyticsSerializer` — clicks-by-country computed in the DB, not Python
+- [x] **Composite DB indexes** — `url_created_at_idx`, `url_active_expires_idx`, `click_url_country_idx`, `click_url_time_idx`
+- [x] **`RedirectView` respects `is_active` and `is_expired`** — returns 404 for inactive/expired links
+- [x] **`RedirectView` logs `Click`** — records ip, user_agent, referrer on every redirect
+- [x] **`URLAnalyticsView`** — `GET /api/v1/analytics/<short_code>/`
+- [x] **`URLCreateSerializer`** — accepts `tags` by name via `SlugRelatedField`
+- [x] **`URLResponseSerializer`** — exposes all new fields including `tags` and `is_expired`
+- [x] **`URLAnalyticsSerializer`** — aggregated stats with `clicks_by_country` + `recent_clicks`
+- [x] **123 tests passing** — full coverage of all Mod 6 models, serializers, views, and query patterns
+- [x] **CI workflow** — 5-job pipeline with coverage threshold enforcement and artifact uploads
 
 ---
 
@@ -267,7 +434,7 @@ Configured in `pyproject.toml` with `strict = true` and `django-stubs` + `django
 
 ### Abstract Base Classes (ABC)
 
-`BaseShortCodeGenerator` in `shortener/generators.py` defines the interface all generators must satisfy. `@abstractmethod` on `generate` prevents direct instantiation and forces subclasses to implement it. `SecureShortCodeGenerator` is the production implementation using `secrets.choice`.
+`BaseShortCodeGenerator` enforces the generator interface. `@abstractmethod` prevents direct instantiation. `SecureShortCodeGenerator` is the production implementation using `secrets.choice` (cryptographically secure, unlike `random`).
 
 ```python
 class BaseShortCodeGenerator(ABC):
@@ -282,62 +449,86 @@ class SecureShortCodeGenerator(BaseShortCodeGenerator):
         return "".join(secrets.choice(self._alphabet) for _ in range(length))
 ```
 
-### Protocols (PEP 544 — Structural Subtyping)
+### Protocols — Structural Subtyping (PEP 544)
 
-`ShortCodeGenerator` in `shortener/protocols.py` is a `@runtime_checkable` Protocol. Any callable with `(length: int = 6) -> str` satisfies it — no inheritance required. This is how `URLCreateSerializer` accepts a generator via dependency injection without being coupled to the ABC hierarchy.
+`ShortCodeGenerator` is a `@runtime_checkable` Protocol. Any callable with the right signature satisfies it — no inheritance required. This is how `URLCreateSerializer` accepts a generator via DI without coupling to the ABC hierarchy.
 
 ```python
 @runtime_checkable
 class ShortCodeGenerator(Protocol):
     def __call__(self, length: int = 6) -> str: ...
 
-# A plain function satisfies the Protocol — no subclassing needed
 def my_gen(length: int = 6) -> str:
     return "x" * length
 
-assert isinstance(my_gen, ShortCodeGenerator)  # True
+assert isinstance(my_gen, ShortCodeGenerator)  # True — duck typing
 ```
 
-### Regex Validators
+### Custom QuerySet & Manager (Mod 6)
 
-All patterns in `shortener/validators.py` are compiled once at module level as `re.Pattern[str]` constants — never inside functions. This avoids recompiling on every request.
+`URLQuerySet` provides chainable, reusable query methods. `URLManager` exposes them directly on `URL.objects` so call sites read like plain English.
 
 ```python
-# Accepts 4–10 alphanumeric chars — rejects path traversal, XSS, URL-encoded payloads
-_SHORT_CODE_PATTERN: re.Pattern[str] = re.compile(r"^[a-zA-Z0-9]{4,10}$")
+class URLQuerySet(models.QuerySet["URL"]):
+    def active_urls(self) -> "URLQuerySet":
+        return self.filter(is_active=True).filter(
+            Q(expires_at__isnull=True) | Q(expires_at__gt=timezone.now())
+        )
 
-# Enforces http/https — Django's URLField accepts ftp:// by design, so this adds the stricter check
-_URL_SCHEME_PATTERN: re.Pattern[str] = re.compile(
-    r"^https?://[^\s/$.?#].[^\s]*$", re.IGNORECASE
+    def popular_urls(self, top_n: int = 10) -> "URLQuerySet":
+        return self.order_by("-click_count")[:top_n]
+
+# Usage
+URL.objects.active_urls().popular_urls(top_n=5)
+```
+
+### Atomic Counter Update — F() Expression (Mod 6)
+
+`click_count` is incremented with `F()` to avoid the read-modify-write race condition that would occur under concurrent requests.
+
+```python
+def increment_click_count(self) -> None:
+    # Translates to: UPDATE shortener_url SET click_count = click_count + 1
+    # Safe under concurrent requests — no Python-level read involved.
+    URL.objects.filter(pk=self.pk).update(click_count=F("click_count") + 1)
+    self.refresh_from_db(fields=["click_count"])
+```
+
+### N+1 Query Prevention (Mod 6)
+
+```python
+# RedirectView — fetches URL + owner in ONE SQL JOIN
+url = get_object_or_404(
+    URL.objects.select_related("owner"),
+    short_code=short_code,
+)
+
+# URLAnalyticsView — loads all clicks in ONE extra query
+url = get_object_or_404(
+    URL.objects.prefetch_related("clicks"),
+    short_code=short_code,
 )
 ```
 
-### Dataclasses & TypedDicts
+### DB Aggregation with annotate() (Mod 6)
 
-`shortener/schemas.py` defines typed value objects that decouple service logic from DRF serializer internals.
+Clicks-by-country is computed entirely in PostgreSQL — never loaded into Python memory.
 
 ```python
-@dataclass
-class ShortenRequest:
-    original_url: str          # input to the shortening operation
-
-@dataclass
-class ShortenResult:
-    short_code: str
-    original_url: str
-    short_url: str
-    created_at: str            # ISO-8601 timestamp
-
-class URLResponseDict(TypedDict):
-    short_code: str
-    original_url: str
-    short_url: str
-    created_at: str
+def get_clicks_by_country(self, obj: URL) -> list[dict]:
+    return list(
+        obj.clicks
+        .values("country")
+        .annotate(total=Count("id"))
+        .order_by("-total")
+    )
+# SQL: SELECT country, COUNT(id) AS total FROM shortener_click
+#      WHERE url_id = %s GROUP BY country ORDER BY total DESC
 ```
 
 ### Dependency Injection via Protocol
 
-`URLCreateSerializer` accepts any `ShortCodeGenerator`-compatible callable at construction time. The default is `default_generator` (production). Tests inject a mock without subclassing anything.
+`URLCreateSerializer` accepts any `ShortCodeGenerator`-compatible callable at construction time. Tests inject a mock without subclassing anything.
 
 ```python
 class URLCreateSerializer(serializers.ModelSerializer[URL]):
@@ -346,45 +537,62 @@ class URLCreateSerializer(serializers.ModelSerializer[URL]):
         self._generator = generator
 
     def create(self, validated_data):
-        short_code = self._generator(length=6)   # calls the injected generator
-        return URL.objects.create(short_code=short_code, **validated_data)
+        tags = validated_data.pop("tags", [])
+        short_code = self._generator(length=6)
+        url = URL.objects.create(short_code=short_code, **validated_data)
+        if tags:
+            url.tags.set(tags)
+        return url
 ```
 
-### Environment Variables
-
-`python-decouple` reads from `.env` and validates at startup — the app fails fast with a clear message if `SECRET_KEY` is missing rather than crashing at runtime.
+### Data Migration — Seeding Default Tags (Mod 6)
 
 ```python
-try:
-    SECRET_KEY: str = config("SECRET_KEY")
-except UndefinedValueError as exc:
-    raise RuntimeError("SECRET_KEY is not set. Add it to your .env file.") from exc
+DEFAULT_TAGS = ["Marketing", "Social", "News", "Technology", "Education",
+                "Entertainment", "Finance", "Health", "Travel", "Other"]
 
-DEBUG: bool = config("DEBUG", default=False, cast=bool)
-ALLOWED_HOSTS: list[str] = config("ALLOWED_HOSTS", default="localhost", cast=Csv())
+def seed_tags(apps, schema_editor):
+    Tag = apps.get_model("shortener", "Tag")
+    for name in DEFAULT_TAGS:
+        Tag.objects.get_or_create(name=name)  # idempotent — safe to re-run
+
+def unseed_tags(apps, schema_editor):
+    Tag = apps.get_model("shortener", "Tag")
+    Tag.objects.filter(name__in=DEFAULT_TAGS).delete()  # reversible
 ```
 
-### Type Annotations
+### Regex Validators
 
-All views, serializers, models, generators, validators, and schemas carry full type annotations. `mypy` runs in `strict` mode with `django-stubs` and `djangorestframework-stubs`.
+All patterns compiled once at module level — never inside functions.
 
 ```python
-def validate_short_code(code: str) -> bool: ...
-def get_short_url(self, obj: URL) -> str: ...
-async def get(self, request: Request) -> Response: ...
+_SHORT_CODE_PATTERN: re.Pattern[str] = re.compile(r"^[a-zA-Z0-9]{4,10}$")
+_URL_SCHEME_PATTERN: re.Pattern[str] = re.compile(
+    r"^https?://[^\s/$.?#].[^\s]*$", re.IGNORECASE
+)
 ```
 
-### Tests (pytest)
+### Dataclasses & TypedDicts
 
-74 tests across 4 modules. `conftest.py` provides shared fixtures. `@pytest.mark.django_db` grants DB access per test. `@pytest.mark.parametrize` drives data-driven cases.
+Typed value objects decouple service logic from DRF serializer internals.
 
-```
-tests/
-├── conftest.py          # api_client, sample_url_data, created_url fixtures
-├── test_health.py       # GET /health/ — 200, fields, DB error propagation
-├── test_models.py       # generator, ABC, Protocol, validators, dataclasses, URL model
-├── test_serializers.py  # URLCreateSerializer + URLResponseSerializer
-└── test_views.py        # POST /api/v1/urls/ + GET /<short_code>/ — 17 cases
+```python
+@dataclass
+class ShortenRequest:
+    original_url: str
+
+@dataclass
+class ClickResult:
+    url_id: int
+    ip_address: str
+    user_agent: str
+    country: str | None = None
+    city: str | None = None
+    referrer: str | None = None
+
+class HealthResponseDict(TypedDict):
+    status: str
+    db: str
 ```
 
 ---

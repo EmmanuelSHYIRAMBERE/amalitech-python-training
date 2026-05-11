@@ -39,8 +39,12 @@ INSTALLED_APPS = [
     "rest_framework",
     "drf_spectacular",
     "core",
+    "users",
     "shortener",
 ]
+
+# Must be set before any migration that references the user model.
+AUTH_USER_MODEL = "users.User"
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -53,9 +57,9 @@ WSGI_APPLICATION = "config.wsgi.application"
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": config("DB_NAME", default="urlshortener"),
+        "NAME": config("DB_NAME", default="your-db-name-here"),
         "USER": config("DB_USER", default="postgres"),
-        "PASSWORD": config("DB_PASSWORD", default="admin321"),
+        "PASSWORD": config("DB_PASSWORD", default="your-db-password-here"),
         "HOST": config("DB_HOST", default="db"),
         "PORT": config("DB_PORT", default="5432"),
     }
@@ -69,8 +73,8 @@ REST_FRAMEWORK = {
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "URL Shortener API",
-    "DESCRIPTION": "Enterprise-Grade URL Shortener Microservice — Module 5 MVP",
-    "VERSION": "1.0.0",
+    "DESCRIPTION": "Enterprise-Grade URL Shortener Microservice — Module 6: ORM & Data Access Layer",  # noqa: E501
+    "VERSION": "2.0.0",
 }
 
 # ---------------------------------------------------------------------------
