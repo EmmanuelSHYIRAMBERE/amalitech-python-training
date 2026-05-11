@@ -6,25 +6,26 @@ Menu handlers and user interface logic.
 
 import os
 from datetime import datetime
-from colorama import Fore, Style
+from typing import Any
 
+from colorama import Fore, Style
+from src.models.course import Course
 from src.models.student import (
-    UndergraduateStudent,
     GraduateStudent,
     InternationalStudent,
+    UndergraduateStudent,
 )
-from src.models.course import Course
+from src.reports.report_generator import CourseReport, EnrollmentReport, StudentReport
 from src.utils.helpers import create_menu, get_user_input, validate_email
-from src.reports.report_generator import StudentReport, CourseReport, EnrollmentReport
 
 
 class MenuHandlers:
     """Handles all menu operations and user interactions."""
 
-    def __init__(self, system):
+    def __init__(self, system: Any) -> None:
         self.system = system
 
-    def run_main_menu(self):
+    def run_main_menu(self) -> None:
         """Main application loop."""
         while True:
             self.system._clear_screen()
@@ -43,12 +44,12 @@ class MenuHandlers:
 
             create_menu(options)
 
-            choice = get_user_input(
+            choice_str = get_user_input(
                 "Enter your choice: ",
-                lambda x: x.isdigit() and 0 <= int(x) <= len(options),
+                lambda x, _o=options: x.isdigit() and 0 <= int(x) <= len(_o),  # type: ignore[misc]
             )
 
-            choice = int(choice)
+            choice = int(choice_str)
 
             if choice == 0:
                 print(Fore.GREEN + "\nThank you for using the system. Goodbye!")
@@ -64,7 +65,7 @@ class MenuHandlers:
             elif choice == 5:
                 self._view_statistics()
 
-    def _student_management_menu(self):
+    def _student_management_menu(self) -> None:
         """Student management submenu."""
         while True:
             self.system._clear_screen()
@@ -85,11 +86,11 @@ class MenuHandlers:
                 print(f"{i}. {option}")
             print("0. Back")
 
-            choice = get_user_input(
+            choice_str = get_user_input(
                 "Enter your choice: ",
-                lambda x: x.isdigit() and 0 <= int(x) <= len(options),
+                lambda x, _o=options: x.isdigit() and 0 <= int(x) <= len(_o),  # type: ignore[misc]
             )
-            choice = int(choice)
+            choice = int(choice_str)
 
             if choice == 0:
                 break
@@ -108,7 +109,7 @@ class MenuHandlers:
 
             input("\nPress Enter to continue...")
 
-    def _add_undergraduate_student(self):
+    def _add_undergraduate_student(self) -> None:
         """Add a new undergraduate student."""
         print(Fore.CYAN + "\n➕ ADD UNDERGRADUATE STUDENT")
         print("-" * 30)
@@ -139,7 +140,7 @@ class MenuHandlers:
         self.system.students[student_id] = student
         print(Fore.GREEN + f"✅ Undergraduate student {name} added successfully!")
 
-    def _add_graduate_student(self):
+    def _add_graduate_student(self) -> None:
         """Add a new graduate student."""
         print(Fore.CYAN + "\n➕ ADD GRADUATE STUDENT")
         print("-" * 30)
@@ -172,7 +173,7 @@ class MenuHandlers:
         self.system.students[student_id] = student
         print(Fore.GREEN + f"✅ Graduate student {name} added successfully!")
 
-    def _add_international_student(self):
+    def _add_international_student(self) -> None:
         """Add a new international student."""
         print(Fore.CYAN + "\n➕ ADD INTERNATIONAL STUDENT")
         print("-" * 30)
@@ -212,7 +213,7 @@ class MenuHandlers:
             + f"✅ International student {name} from {country} added successfully!"
         )
 
-    def _view_all_students(self):
+    def _view_all_students(self) -> None:
         """View all students."""
         if not self.system.students:
             print(Fore.YELLOW + "No students in the system.")
@@ -221,7 +222,7 @@ class MenuHandlers:
         print(Fore.CYAN + "\n📋 ALL STUDENTS")
         print("-" * 50)
 
-        for student_id, student in sorted(self.system.students.items()):
+        for _student_id, student in sorted(self.system.students.items()):
             print(f"{student}")
             print(f"  📧 {student.email}")
             print(f"  📚 Courses: {len(student.get_enrolled_courses())}")
@@ -229,7 +230,7 @@ class MenuHandlers:
             print(f"  💰 Tuition: ${student.calculate_tuition():.2f}")
             print()
 
-    def _view_student_details(self):
+    def _view_student_details(self) -> None:
         """View detailed information about a specific student."""
         if not self.system.students:
             print(Fore.YELLOW + "No students in the system.")
@@ -271,7 +272,7 @@ class MenuHandlers:
         else:
             print("\n📭 No courses enrolled")
 
-    def _update_student_info(self):
+    def _update_student_info(self) -> None:
         """Update student information."""
         if not self.system.students:
             print(Fore.YELLOW + "No students in the system.")
@@ -306,7 +307,7 @@ class MenuHandlers:
 
         print(Fore.GREEN + "✅ Student information updated successfully!")
 
-    def _course_management_menu(self):
+    def _course_management_menu(self) -> None:
         """Course management submenu."""
         while True:
             self.system._clear_screen()
@@ -326,11 +327,11 @@ class MenuHandlers:
                 print(f"{i}. {option}")
             print("0. Back")
 
-            choice = get_user_input(
+            choice_str = get_user_input(
                 "Enter your choice: ",
-                lambda x: x.isdigit() and 0 <= int(x) <= len(options),
+                lambda x, _o=options: x.isdigit() and 0 <= int(x) <= len(_o),  # type: ignore[misc]
             )
-            choice = int(choice)
+            choice = int(choice_str)
 
             if choice == 0:
                 break
@@ -347,7 +348,7 @@ class MenuHandlers:
 
             input("\nPress Enter to continue...")
 
-    def _add_course(self):
+    def _add_course(self) -> None:
         """Add a new course."""
         print(Fore.CYAN + "\n➕ ADD NEW COURSE")
         print("-" * 30)
@@ -394,7 +395,7 @@ class MenuHandlers:
         self.system.courses[course_code] = course
         print(Fore.GREEN + f"✅ Course {name} added successfully!")
 
-    def _view_all_courses(self):
+    def _view_all_courses(self) -> None:
         """View all courses."""
         if not self.system.courses:
             print(Fore.YELLOW + "No courses in the system.")
@@ -403,7 +404,7 @@ class MenuHandlers:
         print(Fore.CYAN + "\n📚 ALL COURSES")
         print("-" * 50)
 
-        for course_code, course in sorted(self.system.courses.items()):
+        for _course_code, course in sorted(self.system.courses.items()):
             summary = course.get_enrollment_summary()
             print(f"{course}")
             print(f"  👨🏫 Instructor: {course.instructor}")
@@ -411,7 +412,7 @@ class MenuHandlers:
             print(f"  📅 Schedule: {course.get_schedule()}")
             print()
 
-    def _view_course_details(self):
+    def _view_course_details(self) -> None:
         """View detailed information about a specific course."""
         if not self.system.courses:
             print(Fore.YELLOW + "No courses in the system.")
@@ -446,7 +447,7 @@ class MenuHandlers:
         if summary["is_full"]:
             print(Fore.YELLOW + "⚠️ Course is full!")
 
-    def _update_course_info(self):
+    def _update_course_info(self) -> None:
         """Update course information."""
         if not self.system.courses:
             print(Fore.YELLOW + "No courses in the system.")
@@ -479,7 +480,7 @@ class MenuHandlers:
 
         print(Fore.GREEN + "✅ Course information updated successfully!")
 
-    def _view_course_roster(self):
+    def _view_course_roster(self) -> None:
         """View the roster for a specific course."""
         if not self.system.courses:
             print(Fore.YELLOW + "No courses in the system.")
@@ -512,7 +513,7 @@ class MenuHandlers:
                 f"{i}. {student.name} ({student.student_id}) - {student.get_student_type()}"
             )
 
-    def _enrollment_management_menu(self):
+    def _enrollment_management_menu(self) -> None:
         """Enrollment management submenu."""
         while True:
             self.system._clear_screen()
@@ -531,11 +532,11 @@ class MenuHandlers:
                 print(f"{i}. {option}")
             print("0. Back")
 
-            choice = get_user_input(
+            choice_str = get_user_input(
                 "Enter your choice: ",
-                lambda x: x.isdigit() and 0 <= int(x) <= len(options),
+                lambda x, _o=options: x.isdigit() and 0 <= int(x) <= len(_o),  # type: ignore[misc]
             )
-            choice = int(choice)
+            choice = int(choice_str)
 
             if choice == 0:
                 break
@@ -550,7 +551,7 @@ class MenuHandlers:
 
             input("\nPress Enter to continue...")
 
-    def _enroll_student(self):
+    def _enroll_student(self) -> None:
         """Enroll a student in a course."""
         if not self.system.students or not self.system.courses:
             print(Fore.YELLOW + "Need both students and courses to enroll!")
@@ -599,7 +600,7 @@ class MenuHandlers:
                 + "❌ Enrollment failed! Course might be full or already enrolled."
             )
 
-    def _drop_student(self):
+    def _drop_student(self) -> None:
         """Drop a student from a course."""
         print(Fore.CYAN + "\n🗑️ DROP STUDENT FROM COURSE")
         print("-" * 30)
@@ -639,7 +640,7 @@ class MenuHandlers:
         else:
             print(Fore.RED + "❌ Failed to drop student from course.")
 
-    def _view_student_enrollments(self):
+    def _view_student_enrollments(self) -> None:
         """View all enrollments for a specific student."""
         if not self.system.students:
             print(Fore.YELLOW + "No students in the system.")
@@ -672,7 +673,7 @@ class MenuHandlers:
                 print(f"  Schedule: {course.get_schedule()}")
                 print()
 
-    def _add_grade(self):
+    def _add_grade(self) -> None:
         """Add a grade for a student in a course."""
         print(Fore.CYAN + "\n📊 ADD GRADE")
         print("-" * 30)
@@ -715,7 +716,7 @@ class MenuHandlers:
             Fore.GREEN + f"✅ Grade {grade} added for {student.name} in {course_code}!"
         )
 
-    def _reports_menu(self):
+    def _reports_menu(self) -> None:
         """Reports generation submenu."""
         while True:
             self.system._clear_screen()
@@ -734,11 +735,11 @@ class MenuHandlers:
                 print(f"{i}. {option}")
             print("0. Back")
 
-            choice = get_user_input(
+            choice_str = get_user_input(
                 "Enter your choice: ",
-                lambda x: x.isdigit() and 0 <= int(x) <= len(options),
+                lambda x, _o=options: x.isdigit() and 0 <= int(x) <= len(_o),  # type: ignore[misc]
             )
-            choice = int(choice)
+            choice = int(choice_str)
 
             if choice == 0:
                 break
@@ -753,7 +754,7 @@ class MenuHandlers:
 
             input("\nPress Enter to continue...")
 
-    def _generate_student_report(self):
+    def _generate_student_report(self) -> None:
         """Generate and display student report."""
         report = StudentReport(list(self.system.students.values()))
         print(report.generate())
@@ -771,7 +772,7 @@ class MenuHandlers:
                 f.write(report.generate())
             print(Fore.GREEN + f"✅ Report saved to {filename}")
 
-    def _generate_course_report(self):
+    def _generate_course_report(self) -> None:
         """Generate and display course report."""
         report = CourseReport(list(self.system.courses.values()))
         print(report.generate())
@@ -789,7 +790,7 @@ class MenuHandlers:
                 f.write(report.generate())
             print(Fore.GREEN + f"✅ Report saved to {filename}")
 
-    def _generate_enrollment_report(self):
+    def _generate_enrollment_report(self) -> None:
         """Generate and display enrollment report."""
         report = EnrollmentReport(
             list(self.system.students.values()), list(self.system.courses.values())
@@ -807,7 +808,7 @@ class MenuHandlers:
                 f.write(report.generate())
             print(Fore.GREEN + f"✅ Report saved to {filename}")
 
-    def _generate_all_reports(self):
+    def _generate_all_reports(self) -> None:
         """Generate all reports."""
         self._generate_student_report()
         print("\n" + "=" * 50)
@@ -815,7 +816,7 @@ class MenuHandlers:
         print("\n" + "=" * 50)
         self._generate_enrollment_report()
 
-    def _view_statistics(self):
+    def _view_statistics(self) -> None:
         """View system statistics."""
         print(Fore.CYAN + "\n📊 SYSTEM STATISTICS")
         print("=" * 50)
@@ -832,7 +833,7 @@ class MenuHandlers:
         )
 
         # Course capacity statistics
-        total_capacity = sum(c._max_students for c in self.system.courses.values())
+        total_capacity = sum(c.max_students for c in self.system.courses.values())
         total_enrolled_in_courses = sum(
             c.current_enrollment for c in self.system.courses.values()
         )
@@ -841,7 +842,7 @@ class MenuHandlers:
         )
 
         # Student type breakdown
-        student_types = {}
+        student_types: dict[str, int] = {}
         for student in self.system.students.values():
             s_type = student.__class__.__name__
             student_types[s_type] = student_types.get(s_type, 0) + 1

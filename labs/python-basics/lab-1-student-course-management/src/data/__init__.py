@@ -1,12 +1,14 @@
 """Data storage module using built-in types."""
 
+from typing import Any
+
 # Global data stores (will be replaced by OOP later)
-students_db = {}  # Dictionary: student_id -> student_data
-courses_db = {}  # Dictionary: course_code -> course_data
-enrollments_db = {}  # Dictionary: student_id -> list of course codes
+students_db: dict[str, Any] = {}  # Dictionary: student_id -> student_data
+courses_db: dict[str, Any] = {}  # Dictionary: course_code -> course_data
+enrollments_db: dict[str, Any] = {}  # Dictionary: student_id -> list of course codes
 
 
-def initialize_data():
+def initialize_data() -> None:
     """Initialize the data stores with sample data."""
     global students_db, courses_db, enrollments_db
 
@@ -45,21 +47,21 @@ def initialize_data():
 
 
 # Comprehensions examples
-def get_student_names():
+def get_student_names() -> dict[str, str]:
     """Use dictionary comprehension to extract student names."""
-    return {sid: data["name"] for sid, data in students_db.items()}
+    return {sid: str(data["name"]) for sid, data in students_db.items()}
 
 
-def get_courses_by_credits(min_credits=3):
+def get_courses_by_credits(min_credits: int = 3) -> list[str]:
     """Use list comprehension to filter courses by credits."""
     return [
-        course["name"]
+        str(course["name"])
         for course in courses_db.values()
         if course["credits"] >= min_credits
     ]
 
 
-def get_enrollment_summary():
+def get_enrollment_summary() -> dict[str, int]:
     """Use set operations to analyze enrollments."""
     all_enrolled_courses = set()
     for courses in enrollments_db.values():
