@@ -177,6 +177,13 @@ SPECTACULAR_SETTINGS = {
 # Module 8: Structured JSON Logging
 # ---------------------------------------------------------------------------
 LOG_LEVEL: str = config("LOG_LEVEL", default="INFO")
+
+try:
+    import pythonjsonlogger.jsonlogger  # noqa: F401
+
+    _json_logger_available = True
+except ImportError:
+    _json_logger_available = False
 LOG_DIR = BASE_DIR / "logs"
 LOG_DIR.mkdir(exist_ok=True)
 
@@ -198,7 +205,7 @@ LOGGING = {
                 "format": "%(asctime)s %(levelname)s %(name)s %(message)s",
                 "datefmt": "%Y-%m-%dT%H:%M:%SZ",
             }
-            if not DEBUG
+            if not DEBUG and _json_logger_available
             else {
                 "format": "{asctime} [{levelname}] {name}: {message}",
                 "style": "{",
