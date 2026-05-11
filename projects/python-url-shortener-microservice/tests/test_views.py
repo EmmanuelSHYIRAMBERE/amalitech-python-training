@@ -189,8 +189,10 @@ def test_redirect_does_not_follow_redirect_by_default(
 @pytest.mark.django_db
 def test_redirect_queues_click_task(api_client: APIClient, created_url: URL) -> None:
     """Module 8: Every redirect must queue a Celery task (not write synchronously)."""
-    with patch("shortener.views.track_click.delay") as mock_task, \
-         patch("shortener.views.get_cached_url", return_value=created_url):
+    with (
+        patch("shortener.views.track_click.delay") as mock_task,
+        patch("shortener.views.get_cached_url", return_value=created_url),
+    ):
         api_client.get(f"/{created_url.short_code}/")
     mock_task.assert_called_once()
 
@@ -200,8 +202,10 @@ def test_redirect_click_task_receives_url_id(
     api_client: APIClient, created_url: URL
 ) -> None:
     """Module 8: The queued task must receive the correct url_id."""
-    with patch("shortener.views.track_click.delay") as mock_task, \
-         patch("shortener.views.get_cached_url", return_value=created_url):
+    with (
+        patch("shortener.views.track_click.delay") as mock_task,
+        patch("shortener.views.get_cached_url", return_value=created_url),
+    ):
         api_client.get(f"/{created_url.short_code}/")
     call_kwargs = mock_task.call_args.kwargs
     assert call_kwargs["url_id"] == created_url.pk

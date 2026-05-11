@@ -23,8 +23,10 @@ def test_redirect_uses_cache_on_hit(user: User) -> None:
         short_code="redir1",
         owner=user,
     )
-    with patch("shortener.views.get_cached_url", return_value=url) as mock_cache, \
-         patch("shortener.views.track_click.delay") as mock_task:
+    with (
+        patch("shortener.views.get_cached_url", return_value=url) as mock_cache,
+        patch("shortener.views.track_click.delay"),
+    ):
         client = APIClient()
         response = client.get("/redir1/")
 
@@ -41,8 +43,10 @@ def test_redirect_queues_celery_task(user: User) -> None:
         short_code="redir2",
         owner=user,
     )
-    with patch("shortener.views.get_cached_url", return_value=url), \
-         patch("shortener.views.track_click.delay") as mock_task:
+    with (
+        patch("shortener.views.get_cached_url", return_value=url),
+        patch("shortener.views.track_click.delay") as mock_task,
+    ):
         client = APIClient()
         client.get("/redir2/", HTTP_USER_AGENT="TestBrowser/1.0")
 
@@ -61,8 +65,10 @@ def test_redirect_does_not_write_click_synchronously(user: User) -> None:
         short_code="redir3",
         owner=user,
     )
-    with patch("shortener.views.get_cached_url", return_value=url), \
-         patch("shortener.views.track_click.delay"):
+    with (
+        patch("shortener.views.get_cached_url", return_value=url),
+        patch("shortener.views.track_click.delay"),
+    ):
         client = APIClient()
         client.get("/redir3/")
 
@@ -79,8 +85,10 @@ def test_redirect_inactive_url_returns_404_with_cache(user: User) -> None:
         owner=user,
         is_active=False,
     )
-    with patch("shortener.views.get_cached_url", return_value=url), \
-         patch("shortener.views.track_click.delay"):
+    with (
+        patch("shortener.views.get_cached_url", return_value=url),
+        patch("shortener.views.track_click.delay"),
+    ):
         client = APIClient()
         response = client.get("/redir4/")
 
@@ -96,8 +104,10 @@ def test_redirect_expired_url_returns_404_with_cache(user: User) -> None:
         owner=user,
         expires_at=timezone.now() - timedelta(seconds=1),
     )
-    with patch("shortener.views.get_cached_url", return_value=url), \
-         patch("shortener.views.track_click.delay"):
+    with (
+        patch("shortener.views.get_cached_url", return_value=url),
+        patch("shortener.views.track_click.delay"),
+    ):
         client = APIClient()
         response = client.get("/redir5/")
 
