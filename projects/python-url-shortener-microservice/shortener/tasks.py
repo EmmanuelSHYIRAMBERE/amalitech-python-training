@@ -14,7 +14,7 @@ Task Best Practices:
 """
 
 import logging
-from datetime import datetime
+from typing import Any
 
 from celery import shared_task
 from django.db import transaction
@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
     soft_time_limit=25,
 )
 def track_click(
-    self,
+    self: Any,
     url_id: int,
     ip_address: str,
     user_agent: str,
@@ -118,7 +118,7 @@ def track_click(
     time_limit=300,
     soft_time_limit=270,
 )
-def cleanup_expired_urls(self) -> dict[str, int]:
+def cleanup_expired_urls(self: Any) -> dict[str, str | int]:
     """Archive or deactivate expired URLs (periodic task).
 
     This task runs nightly via Celery Beat. It finds all URLs whose expires_at
@@ -157,7 +157,7 @@ def cleanup_expired_urls(self) -> dict[str, int]:
     time_limit=600,
     soft_time_limit=570,
 )
-def warm_cache_for_popular_urls(self, top_n: int = 100) -> dict[str, int]:
+def warm_cache_for_popular_urls(self: Any, top_n: int = 100) -> dict[str, str | int]:
     """Pre-populate cache with the most popular URLs (periodic task).
 
     This task can run hourly to ensure hot URLs are always cached.

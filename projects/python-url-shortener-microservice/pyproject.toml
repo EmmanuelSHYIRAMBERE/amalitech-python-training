@@ -26,6 +26,11 @@ ignore_missing_imports = true
 module = ["tests.*", "manage", "config.celery", "config"]
 ignore_errors = true
 
+[[tool.mypy.overrides]]
+module = ["shortener.tasks"]
+# @shared_task(bind=True) decorator is untyped in celery-types; suppress the cascade.
+disable_error_code = ["untyped-decorator"]
+
 [tool.django-stubs]
 django_settings_module = "config.settings"
 

@@ -109,7 +109,7 @@ def is_url_active_cached(short_code: str) -> bool:
     cached_value = cache.get(cache_key)
 
     if cached_value is not None:
-        return cached_value
+        return bool(cached_value)
 
     # Cache miss — fetch from DB.
     try:
@@ -134,7 +134,7 @@ def is_url_expired_cached(short_code: str) -> bool:
     cached_value = cache.get(cache_key)
 
     if cached_value is not None:
-        return cached_value
+        return bool(cached_value)
 
     # Cache miss — fetch from DB.
     try:
