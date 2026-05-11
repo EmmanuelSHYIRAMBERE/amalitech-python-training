@@ -6,11 +6,28 @@ New in Mod 7:
 """
 
 import pytest
+from django.core.cache import cache
+from pytest import FixtureRequest
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from shortener.models import URL, Tag
 from users.models import User
+
+
+@pytest.fixture(autouse=True)
+def disable_throttling(settings: FixtureRequest) -> None:
+    """Remove DRF throttle classes for all tests so rate limits don't interfere."""
+    settings.REST_FRAMEWORK = {  # type: ignore[attr-defined]
+        **settings.REST_FRAMEWORK,  # type: ignore[attr-defined]
+        "DEFAULT_THROTTLE_CLASSES": [],
+    }
+
+
+@pytest.fixture(autouse=True)
+def flush_cache() -> None:
+    """Clear Redis before each test so stale cache entries don't bleed across tests."""
+    cache.clear()
 
 
 @pytest.fixture
