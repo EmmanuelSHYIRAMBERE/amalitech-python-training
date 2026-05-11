@@ -5,8 +5,8 @@ Module 8: Enhanced health check that verifies both PostgreSQL and Redis.
 
 import logging
 
-from django.core.cache import cache
 from django.db import connection
+from django_redis import get_redis_connection
 from rest_framework.permissions import AllowAny
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -56,13 +56,11 @@ class HealthCheckView(APIView):
             http_status = 503
             logger.error("Health check: DB unreachable — %r", exc, exc_info=True)
 
-        # Check Redis.
+        # Check Redis via a direct PING — bypasses IGNORE_EXCEPTIONS so a silent
+        # cache failure doesn't produce a false "unreachable" reading.
         try:
-            # Set and get a test key to verify Redis is working.
-            cache.set("health_check", "ok", timeout=10)
-            value = cache.get("health_check")
-            if value != "ok":
-                raise RuntimeError("Redis returned unexpected value")
+            conn = get_redis_connection("default")
+            conn.ping()
             logger.debug("Health check: Redis reachable")
         except Exception as exc:
             redis_status = f"unreachable: {exc}"
