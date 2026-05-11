@@ -11,6 +11,7 @@ custom_exception_handler:
 
 import logging
 import time
+from collections.abc import Callable
 from typing import Any
 
 from django.http import HttpRequest, HttpResponse
@@ -41,7 +42,7 @@ class RequestLoggingMiddleware:
         }
     """
 
-    def __init__(self, get_response):
+    def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]) -> None:
         self.get_response = get_response
 
     def __call__(self, request: HttpRequest) -> HttpResponse:
@@ -55,7 +56,9 @@ class RequestLoggingMiddleware:
         duration_ms = int((time.time() - start_time) * 1000)
 
         # Extract user ID if authenticated.
-        user_id = getattr(request.user, "pk", None) if hasattr(request, "user") else None
+        user_id = (
+            getattr(request.user, "pk", None) if hasattr(request, "user") else None
+        )
 
         # Extract client IP.
         ip_address = self._get_client_ip(request)
@@ -109,13 +112,15 @@ class RequestLoggingMiddleware:
 
     def _get_client_ip(self, request: HttpRequest) -> str:
         """Extract the real client IP, respecting X-Forwarded-For from proxies."""
-        xff = request.META.get("HTTP_X_FORWARDED_FOR")
+        xff: str | None = request.META.get("HTTP_X_FORWARDED_FOR")
         if xff:
             return xff.split(",")[0].strip()
-        return request.META.get("REMOTE_ADDR", "0.0.0.0")
+        return str(request.META.get("REMOTE_ADDR", "0.0.0.0"))
 
 
-def custom_exception_handler(exc: Exception, context: dict[str, Any]) -> Response | None:
+def custom_exception_handler(
+    exc: Exception, context: dict[str, Any]
+) -> Response | None:
     """Custom DRF exception handler that logs all 500 errors.
 
     This wraps DRF's default exception_handler and adds structured logging
@@ -131,11 +136,11 @@ def custom_exception_handler(exc: Exception, context: dict[str, Any]) -> Respons
     # Call DRF's default handler first to get the standard error response.
     response = exception_handler(exc, context)
 
+    req: Request | None = context.get("request")
+    view = context.get("view")
+
     # If response is None, this is an unhandled exception (500 error).
     if response is None:
-        request: Request = context.get("request")
-        view = context.get("view")
-
         logger.error(
             "Unhandled exception in %s.%s: %r",
             view.__class__.__module__ if view else "unknown",
@@ -143,25 +148,26 @@ def custom_exception_handler(exc: Exception, context: dict[str, Any]) -> Respons
             exc,
             exc_info=True,
             extra={
-                "method": request.method if request else None,
-                "path": request.path if request else None,
-                "user_id": getattr(request.user, "pk", None)
-                if request and hasattr(request, "user")
-                else None,
+                "method": req.method if req else None,
+                "path": req.path if req else None,
+                "user_id": (
+                    getattr(req.user, "pk", None)
+                    if req and hasattr(req, "user")
+                    else None
+                ),
             },
         )
 
     # If response is not None but status >= 500, log it too.
     elif response.status_code >= 500:
-        request: Request = context.get("request")
         logger.error(
             "Server error %d: %r",
             response.status_code,
             exc,
             exc_info=True,
             extra={
-                "method": request.method if request else None,
-                "path": request.path if request else None,
+                "method": req.method if req else None,
+                "path": req.path if req else None,
                 "status": response.status_code,
             },
         )
