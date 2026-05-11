@@ -155,7 +155,8 @@ def test_redirect_returns_302(api_client: APIClient, created_url: URL) -> None:
 def test_redirect_location_header_is_original_url(
     api_client: APIClient, created_url: URL
 ) -> None:
-    response = api_client.get(f"/{created_url.short_code}/")
+    with patch("shortener.views.track_click.delay"):
+        response = api_client.get(f"/{created_url.short_code}/")
     assert response["Location"] == created_url.original_url
 
 
@@ -170,7 +171,8 @@ def test_redirect_uses_correct_original_url(user: User) -> None:
     target = "https://www.specific-target.com/path"
     URL.objects.create(original_url=target, short_code="tgt001", owner=user)
     client = APIClient()
-    response = client.get("/tgt001/")
+    with patch("shortener.views.track_click.delay"):
+        response = client.get("/tgt001/")
     assert response["Location"] == target
 
 
@@ -178,7 +180,8 @@ def test_redirect_uses_correct_original_url(user: User) -> None:
 def test_redirect_does_not_follow_redirect_by_default(
     api_client: APIClient, created_url: URL
 ) -> None:
-    response = api_client.get(f"/{created_url.short_code}/")
+    with patch("shortener.views.track_click.delay"):
+        response = api_client.get(f"/{created_url.short_code}/")
     assert response.status_code != status.HTTP_200_OK
 
 
