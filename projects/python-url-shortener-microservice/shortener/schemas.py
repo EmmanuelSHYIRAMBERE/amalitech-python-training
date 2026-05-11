@@ -191,7 +191,7 @@ class URLResponseDict(TypedDict):
 
 class HealthResponseDict(TypedDict):
     """Typed schema for the GET /health/ JSON response body.
-    
+
     Module 8: Added redis field to check cache health.
     """
 
