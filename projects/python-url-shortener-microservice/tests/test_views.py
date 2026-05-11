@@ -146,7 +146,8 @@ def test_create_url_short_url_is_absolute_uri(
 
 @pytest.mark.django_db
 def test_redirect_returns_302(api_client: APIClient, created_url: URL) -> None:
-    response = api_client.get(f"/{created_url.short_code}/")
+    with patch("shortener.views.track_click.delay"):
+        response = api_client.get(f"/{created_url.short_code}/")
     assert response.status_code == status.HTTP_302_FOUND
 
 
@@ -239,26 +240,28 @@ def test_redirect_expired_url_returns_404(api_client: APIClient, user: User) -> 
 def test_redirect_click_stores_user_agent(
     api_client: APIClient, created_url: URL
 ) -> None:
-    api_client.get(
-        f"/{created_url.short_code}/",
-        HTTP_USER_AGENT="TestBrowser/1.0",
-    )
-    click = Click.objects.first()
-    assert click is not None
-    assert click.user_agent == "TestBrowser/1.0"
+    """Module 8: user_agent is forwarded to the async Celery task."""
+    with patch("shortener.views.track_click.delay") as mock_task:
+        api_client.get(
+            f"/{created_url.short_code}/",
+            HTTP_USER_AGENT="TestBrowser/1.0",
+        )
+    mock_task.assert_called_once()
+    assert mock_task.call_args.kwargs["user_agent"] == "TestBrowser/1.0"
 
 
 @pytest.mark.django_db
 def test_redirect_click_stores_referrer(
     api_client: APIClient, created_url: URL
 ) -> None:
-    api_client.get(
-        f"/{created_url.short_code}/",
-        HTTP_REFERER="https://google.com",
-    )
-    click = Click.objects.first()
-    assert click is not None
-    assert click.referrer == "https://google.com"
+    """Module 8: referrer is forwarded to the async Celery task."""
+    with patch("shortener.views.track_click.delay") as mock_task:
+        api_client.get(
+            f"/{created_url.short_code}/",
+            HTTP_REFERER="https://google.com",
+        )
+    mock_task.assert_called_once()
+    assert mock_task.call_args.kwargs["referrer"] == "https://google.com"
 
 
 # ---------------------------------------------------------------------------
@@ -328,22 +331,12 @@ def test_create_url_raises_500_on_collision_exhaustion(
 
 
 @pytest.mark.django_db
-def test_redirect_click_and_count_are_atomic(
-    api_client: APIClient, created_url: URL, mocker
+def test_redirect_does_not_write_click_synchronously(
+    api_client: APIClient, created_url: URL
 ) -> None:
-    """If increment_click_count raises, the Click row must also be rolled back."""
-    mocker.patch.object(
-        created_url.__class__,
-        "increment_click_count",
-        side_effect=Exception("DB failure"),
-    )
-    mocker.patch(
-        "shortener.views.get_object_or_404",
-        return_value=created_url,
-    )
-    with pytest.raises(Exception, match="DB failure"):
+    """Module 8: RedirectView never writes Click rows — tracking is async via Celery."""
+    with patch("shortener.views.track_click.delay"):
         api_client.get(f"/{created_url.short_code}/")
-
     assert Click.objects.filter(url=created_url).count() == 0
 
 
