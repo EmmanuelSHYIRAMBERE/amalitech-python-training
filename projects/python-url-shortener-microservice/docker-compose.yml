@@ -46,14 +46,18 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      # Beat and worker wait for this before starting — ensures migrations
+      # have run before DatabaseScheduler tries to query celery_beat tables.
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8000/health/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
 
   # ── Celery Worker (processes async tasks) ─────────────────────────────────
   celery-worker:
     build: .
-    # -A config: use the Celery app defined in config/celery.py
-    # -Q default: process tasks from the 'default' queue
-    # --concurrency 2: 2 parallel worker processes
-    # --loglevel info: log task start/end/errors
     command: celery -A config worker -Q default,maintenance --concurrency 2 --loglevel info
     volumes:
       - .:/app
@@ -64,13 +68,17 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      web:
+        condition: service_healthy
 
   # ── Celery Beat (periodic task scheduler) ─────────────────────────────────
   celery-beat:
     build: .
     # DatabaseScheduler reads schedules from the django_celery_beat tables.
-    # This means you can add/edit schedules via Django admin without redeploying.
-    command: celery -A config beat --loglevel info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    # depends_on web so migrations have run before beat queries those tables.
+    command: >-
+      celery -A config beat --loglevel info
+      --scheduler django_celery_beat.schedulers:DatabaseScheduler
     volumes:
       - .:/app
     env_file:
@@ -79,6 +87,8 @@ services:
       db:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      web:
         condition: service_healthy
 
 volumes:

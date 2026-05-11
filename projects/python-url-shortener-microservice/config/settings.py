@@ -191,11 +191,20 @@ LOGGING = {
             "datefmt": "%Y-%m-%d %H:%M:%S",
         },
         # Structured JSON format for production log aggregation (Datadog, ELK, etc.).
-        "json": {
-            "()": "pythonjsonlogger.jsonlogger.JsonFormatter",
-            "format": "%(asctime)s %(levelname)s %(name)s %(message)s",
-            "datefmt": "%Y-%m-%dT%H:%M:%SZ",
-        },
+        # Falls back to verbose if python-json-logger is not installed locally.
+        "json": (
+            {
+                "()": "pythonjsonlogger.jsonlogger.JsonFormatter",
+                "format": "%(asctime)s %(levelname)s %(name)s %(message)s",
+                "datefmt": "%Y-%m-%dT%H:%M:%SZ",
+            }
+            if not DEBUG
+            else {
+                "format": "{asctime} [{levelname}] {name}: {message}",
+                "style": "{",
+                "datefmt": "%Y-%m-%d %H:%M:%S",
+            }
+        ),
     },
     "filters": {
         # Only emit log records at WARNING level or above (for the security handler).
@@ -214,7 +223,8 @@ LOGGING = {
             "filename": str(LOG_DIR / "app.log"),
             "when": "midnight",
             "backupCount": 7,
-            "formatter": "json",
+            # Use json formatter in production, verbose locally.
+            "formatter": "json" if not DEBUG else "verbose",
             "encoding": "utf-8",
         },
         # Separate handler for 500 errors and security warnings.
@@ -223,7 +233,7 @@ LOGGING = {
             "filename": str(LOG_DIR / "errors.log"),
             "when": "midnight",
             "backupCount": 30,
-            "formatter": "json",
+            "formatter": "json" if not DEBUG else "verbose",
             "encoding": "utf-8",
             "level": "ERROR",
         },
