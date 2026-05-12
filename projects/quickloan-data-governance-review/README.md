@@ -15,12 +15,12 @@ posture, and algorithmic fairness.
 
 ## Deliverables
 
-| File                                                                               | Description                                                                                           |
-| :--------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------- |
-| [Master Summary](deliverables/Master_Summary_QuickLoan_Governance_Review.md)       | Consolidated risk register, remediation timeline, and compliance reference table                      |
-| [D1 — Governance Review Card](deliverables/D1_Governance_Review_Card.md)           | Three risk findings (Data Quality, Legal & Compliance, Bias & Fairness) and the DARD reporting metric |
-| [D2 — Corrected Data Flow Diagram](deliverables/D2_Corrected_Data_Flow_Diagram.md) | Nine annotated corrections (C1–C9) to the original flawed pipeline                                    |
-| [D3 — Summary of Review Process](deliverables/D3_Summary_of_Review_Process.md)     | 283-word essay on methodology, lifecycle principles, and governance metric                            |
+| File                                                                  | Description                                                                                           |
+| :-------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------- |
+| [Master Summary](Master_Summary_QuickLoan_Governance_Review.md)       | Consolidated risk register, remediation timeline, and compliance reference table                      |
+| [D1 — Governance Review Card](D1_Governance_Review_Card.md)           | Three risk findings (Data Quality, Legal & Compliance, Bias & Fairness) and the DARD reporting metric |
+| [D2 — Corrected Data Flow Diagram](D2_Corrected_Data_Flow_Diagram.md) | Nine annotated corrections (C1–C9) to the original flawed pipeline                                    |
+| [D3 — Summary of Review Process](D3_Summary_of_Review_Process.md)     | 283-word essay on methodology, lifecycle principles, and governance metric                            |
 
 ## Risk Summary
 
