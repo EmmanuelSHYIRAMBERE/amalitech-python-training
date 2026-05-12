@@ -5,7 +5,7 @@ line-length = 100
 select = ["E", "F", "I"]
 
 [tool.ruff.lint.isort]
-known-third-party = ["django", "rest_framework", "drf_spectacular", "decouple"]
+known-third-party = ["django", "rest_framework", "rest_framework_simplejwt", "drf_spectacular", "decouple"]
 
 [tool.mypy]
 python_version = "3.11"
@@ -19,8 +19,17 @@ module = ["decouple", "decouple.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-module = ["tests.*", "manage"]
+module = ["celery", "celery.*", "django_celery_beat", "django_celery_beat.*", "django_celery_results", "django_celery_results.*", "django_redis", "django_redis.*", "pythonjsonlogger", "pythonjsonlogger.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["tests.*", "manage", "config.celery", "config"]
 ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = ["shortener.tasks"]
+# @shared_task(bind=True) decorator is untyped in celery-types; suppress the cascade.
+disable_error_code = ["untyped-decorator"]
 
 [tool.django-stubs]
 django_settings_module = "config.settings"
@@ -32,7 +41,7 @@ addopts = "-v --tb=short"
 testpaths = ["tests"]
 
 [tool.coverage.run]
-source = ["shortener", "core", "api"]
+source = ["shortener", "core", "api", "users"]
 omit = ["*/migrations/*", "manage.py"]
 
 [tool.coverage.report]

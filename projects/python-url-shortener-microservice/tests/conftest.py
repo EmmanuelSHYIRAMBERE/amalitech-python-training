@@ -1,17 +1,33 @@
-"""Shared pytest fixtures for the URL Shortener test suite — Module 6.
+"""Shared pytest fixtures for the URL Shortener test suite — Module 6 + 7.
 
-New fixtures:
-  user         — a standard free-tier User instance
-  premium_user — a premium-tier User instance
-  tag_marketing / tag_social — pre-seeded Tag instances
-  created_url  — a URL owned by `user` with known short_code
+New in Mod 7:
+  auth_client         — APIClient pre-loaded with a JWT Bearer token for `user`
+  premium_auth_client — APIClient pre-loaded with a JWT Bearer token for `premium_user`
 """
 
 import pytest
+from django.core.cache import cache
+from pytest import FixtureRequest
 from rest_framework.test import APIClient
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from shortener.models import URL, Tag
 from users.models import User
+
+
+@pytest.fixture(autouse=True)
+def disable_throttling(settings: FixtureRequest) -> None:
+    """Remove DRF throttle classes for all tests so rate limits don't interfere."""
+    settings.REST_FRAMEWORK = {  # type: ignore[attr-defined]
+        **settings.REST_FRAMEWORK,  # type: ignore[attr-defined]
+        "DEFAULT_THROTTLE_CLASSES": [],
+    }
+
+
+@pytest.fixture(autouse=True)
+def flush_cache() -> None:
+    """Clear Redis before each test so stale cache entries don't bleed across tests."""
+    cache.clear()
 
 
 @pytest.fixture
@@ -60,6 +76,24 @@ def tag_social(db: None) -> Tag:
     """Return a persisted Social tag."""
     tag, _ = Tag.objects.get_or_create(name="Social")
     return tag
+
+
+@pytest.fixture
+def auth_client(user: User) -> APIClient:
+    """Return an APIClient authenticated as the free-tier `user`."""
+    client = APIClient()
+    refresh = RefreshToken.for_user(user)
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {refresh.access_token}")
+    return client
+
+
+@pytest.fixture
+def premium_auth_client(premium_user: User) -> APIClient:
+    """Return an APIClient authenticated as `premium_user`."""
+    client = APIClient()
+    refresh = RefreshToken.for_user(premium_user)
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {refresh.access_token}")
+    return client
 
 
 @pytest.fixture

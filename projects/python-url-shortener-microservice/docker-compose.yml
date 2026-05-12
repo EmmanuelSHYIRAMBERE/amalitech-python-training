@@ -1,12 +1,13 @@
 services:
+  # ── PostgreSQL ─────────────────────────────────────────────────────────────
   db:
     image: postgres:15
     environment:
       POSTGRES_DB: ${DB_NAME:-urlshortener}
       POSTGRES_USER: ${DB_USER:-postgres}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
     ports:
-      - "5435:5432"
+      - "${DB_EXTERNAL_PORT:-5435}:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
     healthcheck:
@@ -14,11 +15,24 @@ services:
       interval: 5s
       retries: 5
 
+  # ── Redis (Cache + Celery Broker) ──────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    # Persist data to disk so cache survives restarts.
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 5
+
+  # ── Django Web Application ─────────────────────────────────────────────────
   web:
     build: .
-    command: >
-      sh -c "python manage.py migrate --noinput &&
-             gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 2"
+    command: "${WEB_CMD:-sh -c 'python manage.py migrate --noinput && gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 2'}"
     volumes:
       - .:/app
     ports:
@@ -28,6 +42,51 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      # Beat and worker wait for this before starting — ensures migrations
+      # have run before DatabaseScheduler tries to query celery_beat tables.
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/', timeout=4)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+
+  # ── Celery Worker (processes async tasks) ─────────────────────────────────
+  celery-worker:
+    build: .
+    command: "${CELERY_WORKER_CMD:-celery -A config worker -Q default,maintenance --concurrency 2 --loglevel info}"
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+
+  # ── Celery Beat (periodic task scheduler) ─────────────────────────────────
+  celery-beat:
+    build: .
+    # DatabaseScheduler reads schedules from the django_celery_beat tables.
+    # depends_on web so migrations have run before beat queries those tables.
+    command: "${CELERY_BEAT_CMD:-celery -A config beat --loglevel info --scheduler django_celery_beat.schedulers:DatabaseScheduler}"
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      web:
+        condition: service_healthy
 
 volumes:
   pg_data:
+  redis_data:

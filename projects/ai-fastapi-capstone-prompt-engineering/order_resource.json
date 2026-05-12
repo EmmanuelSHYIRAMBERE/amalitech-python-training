@@ -1,0 +1,214 @@
+{
+  "resource": "Order",
+  "base_path": "/orders",
+  "description": "Manages customer orders in the e-commerce backend",
+  "fields": {
+    "request": {
+      "create": {
+        "customer_id": {
+          "type": "integer",
+          "required": true,
+          "validation": {
+            "gt": 0,
+            "description": "Must reference an existing customer"
+          }
+        },
+        "items": {
+          "type": "array",
+          "required": true,
+          "validation": {
+            "min_items": 1,
+            "description": "At least one order item is required"
+          },
+          "items_schema": {
+            "product_id": {
+              "type": "integer",
+              "required": true,
+              "validation": { "gt": 0 }
+            },
+            "quantity": {
+              "type": "integer",
+              "required": true,
+              "validation": { "ge": 1, "le": 100 }
+            },
+            "unit_price": {
+              "type": "float",
+              "required": true,
+              "validation": { "gt": 0.0 }
+            }
+          }
+        },
+        "shipping_address": {
+          "type": "string",
+          "required": true,
+          "validation": {
+            "min_length": 10,
+            "max_length": 255
+          }
+        },
+        "notes": {
+          "type": "string",
+          "required": false,
+          "validation": {
+            "max_length": 500
+          }
+        }
+      },
+      "update": {
+        "status": {
+          "type": "enum",
+          "required": true,
+          "values": ["pending", "confirmed", "shipped", "delivered", "cancelled"],
+          "validation": {
+            "description": "Only forward status transitions are allowed"
+          }
+        },
+        "shipping_address": {
+          "type": "string",
+          "required": false,
+          "validation": {
+            "min_length": 10,
+            "max_length": 255,
+            "description": "Only updatable when status is pending"
+          }
+        },
+        "notes": {
+          "type": "string",
+          "required": false,
+          "validation": {
+            "max_length": 500
+          }
+        }
+      }
+    },
+    "response": {
+      "id": { "type": "integer" },
+      "customer_id": { "type": "integer" },
+      "status": {
+        "type": "enum",
+        "values": ["pending", "confirmed", "shipped", "delivered", "cancelled"]
+      },
+      "items": {
+        "type": "array",
+        "items_schema": {
+          "product_id": { "type": "integer" },
+          "quantity": { "type": "integer" },
+          "unit_price": { "type": "float" },
+          "subtotal": { "type": "float" }
+        }
+      },
+      "total_price": { "type": "float" },
+      "shipping_address": { "type": "string" },
+      "notes": { "type": "string", "nullable": true },
+      "created_at": { "type": "datetime", "format": "ISO 8601" },
+      "updated_at": { "type": "datetime", "format": "ISO 8601" }
+    }
+  },
+  "endpoints": [
+    {
+      "id": "create_order",
+      "method": "POST",
+      "path": "/orders",
+      "summary": "Create a new order",
+      "request_body": "request.create",
+      "responses": {
+        "201": {
+          "description": "Order successfully created",
+          "body": "response"
+        },
+        "422": {
+          "description": "Validation error — invalid or missing fields"
+        },
+        "404": {
+          "description": "Customer or product not found"
+        }
+      }
+    },
+    {
+      "id": "list_orders",
+      "method": "GET",
+      "path": "/orders",
+      "summary": "Retrieve a paginated list of orders",
+      "query_params": {
+        "skip": { "type": "integer", "default": 0, "validation": { "ge": 0 } },
+        "limit": { "type": "integer", "default": 20, "validation": { "ge": 1, "le": 100 } },
+        "status": { "type": "enum", "required": false, "values": ["pending", "confirmed", "shipped", "delivered", "cancelled"] },
+        "customer_id": { "type": "integer", "required": false, "validation": { "gt": 0 } }
+      },
+      "responses": {
+        "200": {
+          "description": "Paginated list of orders",
+          "body": {
+            "total": "integer",
+            "skip": "integer",
+            "limit": "integer",
+            "items": "array of response"
+          }
+        }
+      }
+    },
+    {
+      "id": "get_order",
+      "method": "GET",
+      "path": "/orders/{order_id}",
+      "summary": "Retrieve a single order by ID",
+      "path_params": {
+        "order_id": { "type": "integer", "validation": { "gt": 0 } }
+      },
+      "responses": {
+        "200": {
+          "description": "Order found",
+          "body": "response"
+        },
+        "404": {
+          "description": "Order not found"
+        }
+      }
+    },
+    {
+      "id": "update_order",
+      "method": "PATCH",
+      "path": "/orders/{order_id}",
+      "summary": "Update order status or details",
+      "path_params": {
+        "order_id": { "type": "integer", "validation": { "gt": 0 } }
+      },
+      "request_body": "request.update",
+      "responses": {
+        "200": {
+          "description": "Order successfully updated",
+          "body": "response"
+        },
+        "404": {
+          "description": "Order not found"
+        },
+        "409": {
+          "description": "Invalid status transition"
+        },
+        "422": {
+          "description": "Validation error"
+        }
+      }
+    },
+    {
+      "id": "delete_order",
+      "method": "DELETE",
+      "path": "/orders/{order_id}",
+      "summary": "Cancel and delete an order",
+      "path_params": {
+        "order_id": { "type": "integer", "validation": { "gt": 0 } }
+      },
+      "responses": {
+        "204": {
+          "description": "Order successfully deleted"
+        },
+        "404": {
+          "description": "Order not found"
+        },
+        "409": {
+          "description": "Cannot delete an order that has been shipped or delivered"
+        }
+      }
+    }
+  ]
+}

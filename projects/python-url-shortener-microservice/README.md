@@ -9,38 +9,44 @@
 
 ![CI Mod 5](https://github.com/EmmanuelSHYIRAMBERE/amalitech-python-training/actions/workflows/python-url-shortener-mod5.yml/badge.svg)
 ![CI Mod 6](https://github.com/EmmanuelSHYIRAMBERE/amalitech-python-training/actions/workflows/python-url-shortener-mod6.yml/badge.svg)
+![CI Mod 7](https://github.com/EmmanuelSHYIRAMBERE/amalitech-python-training/actions/workflows/python-url-shortener-mod7.yml/badge.svg)
 
 ---
 
 ## About
 
-|                |                                                              |
-| -------------- | ------------------------------------------------------------ |
-| **Trainee**    | Emmanuel SHYIRAMBERE                                         |
-| **Modules**    | Module 5 — Foundation & Containerization · Module 6 — ORM & Data Access Layer |
-| **Stack**      | Python 3.11 · Django 5.0 · DRF · PostgreSQL 15 · Docker     |
-| **Tests**      | 123 passing                                                  |
+|             |                                                                                                                           |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------- |
+| **Trainee** | Emmanuel SHYIRAMBERE                                                                                                      |
+| **Modules** | Module 5 — Foundation & Containerization · Module 6 — ORM & Data Access Layer · Module 7 — Authentication & Authorization |
+| **Stack**   | Python 3.11 · Django 5.0 · DRF · PostgreSQL 15 · Docker                                                                   |
+| **Tests**   | 123 passing + auth/RBAC coverage                                                                                          |
 
 ---
 
 ## Architecture
 
 ```
-┌──────────────────────────────────────────────────────────────┐
-│                        Docker Compose                        │
-│                                                              │
-│  ┌───────────────────────┐      ┌──────────────────────────┐ │
-│  │    web (Django 5)     │─────▶│   db (PostgreSQL 15)     │ │
-│  │    gunicorn :8000     │      │   :5435 (host-mapped)    │ │
-│  └───────────────────────┘      └──────────────────────────┘ │
-└──────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────────────┐
+│                                Docker Compose                                       │
+│                                                                                      │
+│  ┌───────────────────────┐      ┌──────────────────────────┐      ┌─────────────────┐  │
+│  │    web (Django 5)     │─────▶│   db (PostgreSQL 15)     │      │ auth & API      │  │
+│  │    gunicorn :8000     │      │   :5435 (host-mapped)    │      │ logic           │  │
+│  └───────────────────────┘      └──────────────────────────┘      └─────────────────┘  │
+└──────────────────────────────────────────────────────────────────────────────────────┘
 
 Request flow:
-  POST /api/v1/urls/          →  URLCreateView  →  URL.objects.create()
-  GET  /<short_code>/         →  RedirectView   →  Click.objects.create()  →  302
-  GET  /api/v1/analytics/<>/  →  URLAnalyticsView  →  annotate(Count)
-  GET  /health/               →  HealthCheckView   →  connection.ensure_connection()
-  GET  /api/docs/             →  Swagger UI (drf-spectacular)
+  POST /api/v1/auth/register/   →  RegisterView  →  User.objects.create_user()
+  POST /api/v1/auth/login/      →  LoginView     →  authenticate() + JWT tokens
+  POST /api/v1/auth/refresh/    →  TokenRefreshView → refresh token rotation
+  POST /api/v1/urls/            →  URLCreateView  →  owner=request.user → URL.objects.create()
+  GET  /api/v1/urls/list/       →  URLListView    →  URLs owned by authenticated user
+  GET  /api/v1/urls/<short_code>/ → URLDetailView  →  object permission / owner checks
+  GET  /api/v1/analytics/<short_code>/ → URLAnalyticsView → Premium-only analytics
+  GET  /<short_code>/           →  RedirectView   →  Click.objects.create()  →  302
+  GET  /health/                 →  HealthCheckView →  connection.ensure_connection()
+  GET  /api/docs/               →  Swagger UI (drf-spectacular)
 ```
 
 ---
@@ -50,13 +56,15 @@ Request flow:
 ```
 url-shortener-microservice/
 ├── config/
-│   ├── settings.py          # python-decouple config, AUTH_USER_MODEL, LOGGING
+│   ├── settings.py          # python-decouple config, AUTH_USER_MODEL, LOGGING, JWT + DRF defaults
 │   ├── urls.py              # root router + Swagger endpoints
 │   ├── wsgi.py              # gunicorn entry point
 │   └── asgi.py              # uvicorn entry point (available)
 │
-├── users/                   # Mod 6 — custom User model
+├── users/                   # authentication + custom User model
 │   ├── models.py            # User(AbstractUser) + is_premium + tier
+│   ├── serializers.py       # RegisterSerializer + UserProfileSerializer
+│   ├── views.py             # RegisterView, LoginView, TokenRefreshView
 │   ├── apps.py
 │   └── migrations/
 │       └── 0001_initial.py
@@ -66,9 +74,11 @@ url-shortener-microservice/
 │   ├── generators.py        # BaseShortCodeGenerator (ABC) + SecureShortCodeGenerator
 │   ├── protocols.py         # ShortCodeGenerator Protocol (PEP 544)
 │   ├── schemas.py           # ShortenRequest, ShortenResult, ClickResult dataclasses
-│   ├── serializers.py       # URLCreate/Response/Analytics + Tag + Click serializers
+│   ├── serializers.py       # URLCreate/Response/Analytics + tier validation
 │   ├── validators.py        # compiled regex validators (short_code + URL scheme)
-│   ├── views.py             # URLCreateView + RedirectView + URLAnalyticsView
+│   ├── permissions.py       # IsOwnerOrReadOnly, IsPremiumUser
+│   ├── throttles.py         # LoginRateThrottle (5/min)
+│   ├── views.py             # URLCreateView, URLListView, URLDetailView, RedirectView, URLAnalyticsView
 │   ├── urls.py              # /<short_code>/ redirect route
 │   └── migrations/
 │       ├── 0001_initial.py
@@ -81,10 +91,11 @@ url-shortener-microservice/
 │   └── urls.py
 │
 ├── api/
-│   └── urls.py              # /api/v1/ versioned routes (urls + analytics)
+│   └── urls.py              # /api/v1/ versioned routes (auth + urls + analytics)
 │
 ├── tests/
-│   ├── conftest.py          # fixtures: api_client, user, premium_user, tags, created_url
+│   ├── conftest.py          # fixtures: api_client, auth_client, premium_auth_client, user, tags, created_url
+│   ├── test_auth.py         # auth, JWT, RBAC, tiered access, login rate-limiting
 │   ├── test_health.py       # 5 tests — health check endpoint
 │   ├── test_models.py       # 39 tests — User, Tag, URL, Click, URLManager, aggregation
 │   ├── test_serializers.py  # 21 tests — all serializers including analytics
@@ -98,7 +109,7 @@ url-shortener-microservice/
 ├── .env.example
 ├── .pre-commit-config.yaml  # ruff + black + mypy hooks
 ├── pyproject.toml           # ruff + mypy + pytest + coverage config
-└── requirements.txt
+└── requirements.txt         # + djangorestframework-simplejwt>=5.3
 ```
 
 ---
@@ -164,17 +175,17 @@ cp .env.example .env
 
 Edit `.env`:
 
-| Variable        | Description                                          | Example               |
-| --------------- | ---------------------------------------------------- | --------------------- |
-| `SECRET_KEY`    | Django secret key                                    | `django-insecure-...` |
-| `DEBUG`         | Debug mode                                           | `True`                |
-| `ALLOWED_HOSTS` | Comma-separated hosts                                | `localhost,127.0.0.1` |
-| `DB_NAME`       | PostgreSQL database name                             | `urlshortener`        |
-| `DB_USER`       | PostgreSQL user                                      | `postgres`            |
-| `DB_PASSWORD`   | PostgreSQL password                                  | `admin321`            |
-| `DB_HOST`       | `db` inside Docker Compose · `localhost` locally     | `localhost`           |
-| `DB_PORT`       | `5432` inside Docker · `5435` locally (host-mapped)  | `5435`                |
-| `LOG_LEVEL`     | `DEBUG` / `INFO` / `WARNING`                         | `INFO`                |
+| Variable        | Description                                         | Example               |
+| --------------- | --------------------------------------------------- | --------------------- |
+| `SECRET_KEY`    | Django secret key                                   | `django-insecure-...` |
+| `DEBUG`         | Debug mode                                          | `True`                |
+| `ALLOWED_HOSTS` | Comma-separated hosts                               | `localhost,127.0.0.1` |
+| `DB_NAME`       | PostgreSQL database name                            | `urlshortener`        |
+| `DB_USER`       | PostgreSQL user                                     | `postgres`            |
+| `DB_PASSWORD`   | PostgreSQL password                                 | `admin321`            |
+| `DB_HOST`       | `db` inside Docker Compose · `localhost` locally    | `localhost`           |
+| `DB_PORT`       | `5432` inside Docker · `5435` locally (host-mapped) | `5435`                |
+| `LOG_LEVEL`     | `DEBUG` / `INFO` / `WARNING`                        | `INFO`                |
 
 ### 3. Run with Docker (recommended)
 
@@ -209,15 +220,28 @@ Hooks: **ruff** (lint + import order) · **black** (formatting) · **mypy** (str
 
 ## API Endpoints
 
+### Auth & Security (Mod 7)
+
+| Method   | Endpoint                          | Description                    | Auth Required    |
+| -------- | --------------------------------- | ------------------------------ | ---------------- |
+| `POST`   | `/api/v1/auth/register/`          | Register a new user            | No               |
+| `POST`   | `/api/v1/auth/login/`             | Obtain access + refresh tokens | No               |
+| `POST`   | `/api/v1/auth/refresh/`           | Rotate and refresh JWT tokens  | No               |
+| `GET`    | `/api/v1/urls/list/`              | List current user's URLs       | Bearer           |
+| `GET`    | `/api/v1/urls/<short_code>/`      | Retrieve a URL resource        | Bearer           |
+| `PUT`    | `/api/v1/urls/<short_code>/`      | Update a URL (owner only)      | Bearer           |
+| `DELETE` | `/api/v1/urls/<short_code>/`      | Soft-delete a URL (owner only) | Bearer           |
+| `GET`    | `/api/v1/analytics/<short_code>/` | Premium-only analytics         | Bearer + Premium |
+
 ### Core
 
-| Method | Endpoint           | Description                              | Status |
-| ------ | ------------------ | ---------------------------------------- | ------ |
-| `POST` | `/api/v1/urls/`    | Shorten a URL (accepts tags + alias)     | 201    |
-| `GET`  | `/<short_code>/`   | Redirect to original URL                 | 302    |
-| `GET`  | `/health/`         | DB connectivity health check             | 200    |
-| `GET`  | `/api/docs/`       | Swagger UI                               | 200    |
-| `GET`  | `/api/schema/`     | Raw OpenAPI schema (JSON/YAML)           | 200    |
+| Method | Endpoint         | Description                    | Status |
+| ------ | ---------------- | ------------------------------ | ------ |
+| `POST` | `/api/v1/urls/`  | Shorten a URL (authenticated)  | 201    |
+| `GET`  | `/<short_code>/` | Redirect to original URL       | 302    |
+| `GET`  | `/health/`       | DB connectivity health check   | 200    |
+| `GET`  | `/api/docs/`     | Swagger UI                     | 200    |
+| `GET`  | `/api/schema/`   | Raw OpenAPI schema (JSON/YAML) | 200    |
 
 ### Analytics (Mod 6)
 
@@ -229,12 +253,79 @@ Hooks: **ruff** (lint + import order) · **black** (formatting) · **mypy** (str
 
 ## Usage Examples
 
-### Shorten a URL
+### Register a new user
+
+```bash
+curl -X POST http://localhost:8000/api/v1/auth/register/ \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "emash",
+    "email": "emash@example.com",
+    "password": "StrongPass123!",
+    "password2": "StrongPass123!"
+  }'
+```
+
+Response `201 Created`:
+
+```json
+{
+  "id": 1,
+  "username": "emash",
+  "email": "emash@example.com",
+  "is_premium": false,
+  "tier": "Free"
+}
+```
+
+### Login and obtain JWT tokens
+
+```bash
+curl -X POST http://localhost:8000/api/v1/auth/login/ \
+  -H "Content-Type: application/json" \
+  -d '{"username": "emash", "password": "StrongPass123!"}'
+```
+
+Response `200 OK`:
+
+```json
+{
+  "access": "<jwt-access-token>",
+  "refresh": "<jwt-refresh-token>",
+  "user": {
+    "id": 1,
+    "username": "emash",
+    "email": "emash@example.com",
+    "is_premium": false,
+    "tier": "Free"
+  }
+}
+```
+
+### Refresh JWT tokens (Mod 7)
+
+```bash
+curl -X POST http://localhost:8000/api/v1/auth/refresh/ \
+  -H "Content-Type: application/json" \
+  -d '{"refresh": "<jwt-refresh-token>"}'
+```
+
+Response `200 OK`:
+
+```json
+{
+  "access": "<new-jwt-access-token>",
+  "refresh": "<new-jwt-refresh-token>"
+}
+```
+
+### Create a short URL (authenticated)
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/urls/ \
+  -H "Authorization: Bearer <access-token>" \
   -H "Content-Type: application/json" \
-  -d '{"original_url": "https://www.example.com/very/long/path"}'
+  -d '{"original_url": "https://example.com/very/long/path"}'
 ```
 
 Response `201 Created`:
@@ -242,7 +333,7 @@ Response `201 Created`:
 ```json
 {
   "short_code": "aB3xYz",
-  "original_url": "https://www.example.com/very/long/path",
+  "original_url": "https://example.com/very/long/path",
   "short_url": "http://localhost:8000/aB3xYz/",
   "custom_alias": null,
   "tags": [],
@@ -250,9 +341,6 @@ Response `201 Created`:
   "is_active": true,
   "is_expired": false,
   "expires_at": null,
-  "title": null,
-  "description": null,
-  "favicon": null,
   "created_at": "2025-01-01T12:00:00Z"
 }
 ```
@@ -261,6 +349,7 @@ Response `201 Created`:
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/urls/ \
+  -H "Authorization: Bearer <access-token>" \
   -H "Content-Type: application/json" \
   -d '{
     "original_url": "https://www.example.com/campaign",
@@ -294,8 +383,8 @@ Response `200 OK`:
   "expires_at": null,
   "created_at": "2025-01-01T12:00:00Z",
   "clicks_by_country": [
-    {"country": "RW", "total": 2},
-    {"country": "US", "total": 1}
+    { "country": "RW", "total": 2 },
+    { "country": "US", "total": 1 }
   ],
   "recent_clicks": [
     {
@@ -311,6 +400,73 @@ Response `200 OK`:
 }
 ```
 
+### Free user attempts custom alias — rejected
+
+```bash
+curl -X POST http://localhost:8000/api/v1/urls/ \
+  -H "Authorization: Bearer <free-user-token>" \
+  -H "Content-Type: application/json" \
+  -d '{"original_url": "https://example.com", "custom_alias": "my-shop"}'
+```
+
+Response `400 Bad Request`:
+
+```json
+{
+  "custom_alias": ["Custom aliases are available to Premium users only."]
+}
+```
+
+### Free user hits quota — rejected
+
+```bash
+# After creating 10 active URLs...
+curl -X POST http://localhost:8000/api/v1/urls/ \
+  -H "Authorization: Bearer <free-user-token>" \
+  -H "Content-Type: application/json" \
+  -d '{"original_url": "https://eleventh.com"}'
+```
+
+Response `400 Bad Request`:
+
+```json
+{
+  "non_field_errors": [
+    "Free users may have at most 10 active URLs. Upgrade to Premium for unlimited links."
+  ]
+}
+```
+
+### Analytics — free user blocked
+
+```bash
+curl http://localhost:8000/api/v1/analytics/aB3xYz/ \
+  -H "Authorization: Bearer <free-user-token>"
+```
+
+Response `403 Forbidden`:
+
+```json
+{
+  "detail": "This feature is available to Premium users only."
+}
+```
+
+### Soft-delete by non-owner — blocked
+
+```bash
+curl -X DELETE http://localhost:8000/api/v1/urls/aB3xYz/ \
+  -H "Authorization: Bearer <different-user-token>"
+```
+
+Response `403 Forbidden`:
+
+```json
+{
+  "detail": "You do not have permission to modify another user's link."
+}
+```
+
 ### Health check
 
 ```bash
@@ -323,7 +479,7 @@ curl http://localhost:8000/health/
 ## Running Tests
 
 ```bash
-# Full suite (123 tests)
+# Full suite (123 tests + auth coverage)
 pytest
 
 # With coverage report
@@ -341,13 +497,14 @@ open htmlcov/index.html       # macOS
 
 Test breakdown:
 
-| File                  | Tests | Covers                                                          |
-| --------------------- | ----- | --------------------------------------------------------------- |
-| `test_health.py`      | 5     | `GET /health/` — 200, fields, DB error propagation             |
-| `test_models.py`      | 39    | User, Tag, URL, Click, URLManager, N+1 queries, aggregation     |
-| `test_serializers.py` | 21    | All serializers — validation, creation, tags, analytics output  |
-| `test_views.py`       | 31    | All views — create, redirect, click logging, analytics, 404s    |
-| **Total**             | **123** |                                                               |
+| File                  | Tests   | Covers                                                           |
+| --------------------- | ------- | ---------------------------------------------------------------- |
+| `test_auth.py`        | 30      | Auth, JWT login, register, refresh, RBAC, tier rules, throttling |
+| `test_health.py`      | 5       | `GET /health/` — 200, fields, DB error propagation               |
+| `test_models.py`      | 39      | User, Tag, URL, Click, URLManager, N+1 queries, aggregation      |
+| `test_serializers.py` | 21      | All serializers — validation, creation, tags, analytics output   |
+| `test_views.py`       | 31      | All views — create, redirect, click logging, analytics, 404s     |
+| **Total**             | **126** |                                                                  |
 
 ---
 
@@ -427,6 +584,24 @@ Configured in `pyproject.toml` with `strict = true`, `django-stubs==6.0.3`, and 
 - [x] **`URLAnalyticsSerializer`** — aggregated stats with `clicks_by_country` + `recent_clicks`
 - [x] **123 tests passing** — full coverage of all Mod 6 models, serializers, views, and query patterns
 - [x] **CI workflow** — 5-job pipeline with coverage threshold enforcement and artifact uploads
+
+---
+
+## Module 7 Checklist — Authentication & Authorization
+
+- [x] `djangorestframework-simplejwt` installed and configured
+- [x] JWT Authentication wired as default DRF auth backend
+- [x] `AllowAny` explicitly set for `/auth/*`, `/health/`, and `/<short_code>/`
+- [x] `RegisterView`, `LoginView`, and `TokenRefreshView` implemented
+- [x] `LoginRateThrottle` configured for 5 attempts/minute
+- [x] `IsOwnerOrReadOnly` custom permission prevents cross-user edits/deletes
+- [x] `IsPremiumUser` custom permission gates analytics access
+- [x] Free tier capped at 10 active URLs
+- [x] Free tier denied custom aliases
+- [x] Premium tier allowed unlimited URLs and custom aliases
+- [x] Soft-delete via `is_active=False` preserves analytics history
+- [x] Swagger UI shows BearerAuth and retains unauthenticated public docs
+- [x] `users/` app auth behavior covered in `tests/test_auth.py`
 
 ---
 
@@ -593,6 +768,106 @@ class ClickResult:
 class HealthResponseDict(TypedDict):
     status: str
     db: str
+```
+
+### JWT Authentication & Token Rotation (Mod 7)
+
+`djangorestframework-simplejwt` is configured with access token lifetime of 60 minutes
+and refresh token lifetime of 7 days. `ROTATE_REFRESH_TOKENS = True` means every
+refresh call issues a brand-new refresh token and blacklists the old one, preventing
+token replay attacks.
+
+```python
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME":  timedelta(minutes=60),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "ROTATE_REFRESH_TOKENS":  True,
+    "BLACKLIST_AFTER_ROTATION": True,
+    "AUTH_HEADER_TYPES": ("Bearer",),
+}
+```
+
+All write operations (`POST`, `PUT`, `DELETE`) globally require `IsAuthenticated`
+unless a view explicitly overrides `permission_classes`. This is enforced at
+`config/settings.py` via `DEFAULT_PERMISSION_CLASSES`.
+
+### Custom Permissions (Mod 7)
+
+#### `IsOwnerOrReadOnly`
+
+Allows safe HTTP methods (GET, HEAD, OPTIONS) for any authenticated user.
+Mutating methods (PUT, DELETE) only allowed if `obj.owner == request.user`.
+
+```python
+class IsOwnerOrReadOnly(BasePermission):
+    message = "You do not have permission to modify another user's link."
+
+    def has_object_permission(self, request, view, obj: URL) -> bool:
+        if request.method in SAFE_METHODS:
+            return True
+        return obj.owner == request.user
+```
+
+#### `IsPremiumUser`
+
+Blocks non-premium users with `HTTP 403`. Applied to `URLAnalyticsView`
+to gate the analytics endpoint.
+
+```python
+class IsPremiumUser(BasePermission):
+    message = "This feature is available to Premium users only."
+
+    def has_permission(self, request, view) -> bool:
+        return bool(
+            request.user
+            and request.user.is_authenticated
+            and request.user.is_premium
+        )
+```
+
+### Rate Limiting (Mod 7)
+
+`LoginRateThrottle` limits the login endpoint to **5 attempts per minute**
+per IP address, mitigating brute-force attacks.
+
+```python
+class LoginRateThrottle(AnonRateThrottle):
+    scope = "login"   # maps to DEFAULT_THROTTLE_RATES["login"] = "5/minute"
+```
+
+### Tier-Based Business Rules (Mod 7)
+
+Tier enforcement lives in `URLCreateSerializer.validate()` so validation errors
+are serialized as structured 400 responses.
+
+| Rule               | Free                           | Premium    |
+| ------------------ | ------------------------------ | ---------- |
+| Active URL quota   | Max 10 — `HTTP 400` on 11th    | Unlimited  |
+| Custom alias       | `HTTP 400` with field error    | Allowed    |
+| Analytics endpoint | `HTTP 403` via `IsPremiumUser` | `HTTP 200` |
+
+```python
+FREE_TIER_URL_LIMIT = 10
+
+def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+    request = self.context.get("request")
+    user    = getattr(request, "user", None)
+
+    if user and user.is_authenticated:
+        # Rule 1 — custom alias is premium-only
+        if attrs.get("custom_alias") and not user.is_premium:
+            raise serializers.ValidationError(
+                {"custom_alias": "Custom aliases are available to Premium users only."}
+            )
+        # Rule 2 — free tier quota
+        if not user.is_premium:
+            active_count = URL.objects.filter(owner=user, is_active=True).count()
+            if active_count >= FREE_TIER_URL_LIMIT:
+                raise serializers.ValidationError(
+                    f"Free users may have at most {FREE_TIER_URL_LIMIT} active URLs. "
+                    "Upgrade to Premium for unlimited links."
+                )
+    return attrs
 ```
 
 ---
