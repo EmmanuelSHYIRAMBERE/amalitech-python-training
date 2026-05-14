@@ -44,6 +44,9 @@ INSTALLED_APPS = [
     # Module 8: Celery result backend + beat scheduler
     "django_celery_results",
     "django_celery_beat",
+    # Module 9: CORS headers + URL Preview microservice
+    "corsheaders",
+    "url_preview",
     "core",
     "users",
     "shortener",
@@ -54,6 +57,8 @@ AUTH_USER_MODEL = "users.User"
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    # Module 9: CorsMiddleware must come before CommonMiddleware.
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
     # Module 8: structured error logging middleware
     "shortener.middleware.RequestLoggingMiddleware",
@@ -123,6 +128,8 @@ CELERY_ENABLE_UTC = True
 CELERY_TASK_ROUTES = {
     "shortener.tasks.track_click": {"queue": "default"},
     "shortener.tasks.cleanup_expired_urls": {"queue": "maintenance"},
+    # Module 9: preview fetches run on the default queue.
+    "shortener.tasks.fetch_url_preview": {"queue": "default"},
 }
 
 # Retry policy — tasks retry up to 3 times with exponential backoff.
@@ -168,10 +175,40 @@ SPECTACULAR_SETTINGS = {
     "TITLE": "URL Shortener API",
     "DESCRIPTION": (
         "Enterprise-Grade URL Shortener Microservice "
-        "— Module 8: Advanced Optimization & Production Readiness"
+        "— Module 9: Microservices Essentials"
     ),
-    "VERSION": "4.0.0",
+    "VERSION": "5.0.0",
 }
+
+# ---------------------------------------------------------------------------
+# Module 9: CORS Configuration
+# Allows a React (or any SPA) frontend to call this API from a browser.
+# ---------------------------------------------------------------------------
+CORS_ALLOWED_ORIGINS: list[str] = config(
+    "CORS_ALLOWED_ORIGINS",
+    default="http://localhost:3000,http://127.0.0.1:3000",
+    cast=Csv(),
+)
+CORS_ALLOW_CREDENTIALS = True
+CORS_EXPOSE_HEADERS = ["Authorization"]
+CORS_ALLOW_HEADERS = [
+    "accept",
+    "accept-encoding",
+    "authorization",
+    "content-type",
+    "dnt",
+    "origin",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
+]
+
+# ---------------------------------------------------------------------------
+# Module 9: Preview Service Configuration
+# ---------------------------------------------------------------------------
+# Empty string = same-process fallback (default for single-container deployments).
+# Set to e.g. http://preview-service:8001 in a multi-container deployment.
+PREVIEW_SERVICE_URL: str = config("PREVIEW_SERVICE_URL", default="")
 
 # ---------------------------------------------------------------------------
 # Module 8: Structured JSON Logging
@@ -272,6 +309,17 @@ LOGGING = {
             "propagate": False,
         },
         "celery.task": {
+            "handlers": ["console", "file", "error_file"],
+            "level": LOG_LEVEL,
+            "propagate": False,
+        },
+        # Module 9: preview service logging.
+        "url_preview": {
+            "handlers": ["console", "file", "error_file"],
+            "level": LOG_LEVEL,
+            "propagate": False,
+        },
+        "shortener.preview_client": {
             "handlers": ["console", "file", "error_file"],
             "level": LOG_LEVEL,
             "propagate": False,
