@@ -6,8 +6,11 @@ WORKDIR /app
 RUN apk add --no-cache gcc musl-dev libpq-dev
 
 COPY requirements.txt .
-RUN pip install --upgrade pip && \
-    pip install --no-cache-dir --prefix=/install -r requirements.txt
+RUN pip install --upgrade pip --trusted-host pypi.org --trusted-host files.pythonhosted.org && \
+    pip install --no-cache-dir --prefix=/install \
+        --trusted-host pypi.org \
+        --trusted-host files.pythonhosted.org \
+        -r requirements.txt
 
 # ── Stage 2: runtime ──────────────────────────────────────────────────────────
 FROM python:3.11-alpine

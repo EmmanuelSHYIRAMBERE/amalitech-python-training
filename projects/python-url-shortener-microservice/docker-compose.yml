@@ -7,7 +7,7 @@ services:
       POSTGRES_USER: ${DB_USER:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
     ports:
-      - "${DB_EXTERNAL_PORT:-5435}:5432"
+      - "${DB_PORT:-5435}:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
     healthcheck:
@@ -52,7 +52,13 @@ services:
     healthcheck:
       # Beat and worker wait for this before starting — ensures migrations
       # have run before DatabaseScheduler tries to query celery_beat tables.
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/', timeout=4)"]
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/', timeout=4)",
+        ]
       interval: 10s
       timeout: 5s
       retries: 6
