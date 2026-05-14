@@ -283,9 +283,7 @@ def test_list_urls_filter_by_tag(user: User) -> None:
 
 @pytest.mark.django_db
 def test_list_urls_filter_by_nonexistent_tag_returns_empty(user: User) -> None:
-    URL.objects.create(
-        original_url="https://a.com", short_code="tag003", owner=user
-    )
+    URL.objects.create(original_url="https://a.com", short_code="tag003", owner=user)
     client = auth_client(user)
     response = client.get("/api/v1/urls/list/?tag=DoesNotExist")
     assert response.status_code == status.HTTP_200_OK
