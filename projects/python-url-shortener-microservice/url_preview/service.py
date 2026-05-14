@@ -17,9 +17,11 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass, field
+from typing import cast
 from urllib.parse import urljoin, urlparse
 
 import httpx
+from django.core.cache import cache
 from tenacity import (
     RetryError,
     retry,
@@ -34,8 +36,8 @@ logger = logging.getLogger(__name__)
 # Value object
 # ---------------------------------------------------------------------------
 
-CONNECT_TIMEOUT = 5.0   # seconds to establish TCP connection
-READ_TIMEOUT    = 10.0  # seconds to read the response body
+CONNECT_TIMEOUT = 5.0  # seconds to establish TCP connection
+READ_TIMEOUT = 10.0  # seconds to read the response body
 
 
 @dataclass(frozen=True)
@@ -89,7 +91,10 @@ def _extract_title(html: str) -> str | None:
 
 def _extract_description(html: str) -> str | None:
     m = _META_DESC_RE.search(html) or _META_DESC_RE2.search(html)
-    return m.group(1).strip() or None if m else None
+    if m is None:
+        return None
+    stripped = m.group(1).strip()
+    return stripped if stripped else None
 
 
 def _extract_favicon(html: str, base_url: str) -> str | None:
@@ -97,7 +102,7 @@ def _extract_favicon(html: str, base_url: str) -> str | None:
     if m:
         href = m.group(1).strip()
         # Resolve relative paths against the base URL.
-        return urljoin(base_url, href)
+        return cast(str, urljoin(base_url, href))
     # Fall back to the conventional /favicon.ico path.
     parsed = urlparse(base_url)
     return f"{parsed.scheme}://{parsed.netloc}/favicon.ico"
@@ -107,8 +112,8 @@ def _extract_favicon(html: str, base_url: str) -> str | None:
 # Circuit breaker (Redis-backed)
 # ---------------------------------------------------------------------------
 
-_CIRCUIT_FAILURE_THRESHOLD = 5    # failures before opening the circuit
-_CIRCUIT_RESET_TTL         = 300  # seconds before the circuit resets (5 min)
+_CIRCUIT_FAILURE_THRESHOLD = 5  # failures before opening the circuit
+_CIRCUIT_RESET_TTL = 300  # seconds before the circuit resets (5 min)
 
 
 def _circuit_key(domain: str) -> str:
@@ -118,7 +123,6 @@ def _circuit_key(domain: str) -> str:
 def _is_circuit_open(domain: str) -> bool:
     """Return True if the circuit breaker is open for this domain."""
     try:
-        from django.core.cache import cache
         count = cache.get(_circuit_key(domain), 0)
         return int(count) >= _CIRCUIT_FAILURE_THRESHOLD
     except Exception:
@@ -128,7 +132,6 @@ def _is_circuit_open(domain: str) -> bool:
 def _record_failure(domain: str) -> None:
     """Increment the failure counter for this domain."""
     try:
-        from django.core.cache import cache
         key = _circuit_key(domain)
         current = cache.get(key, 0)
         cache.set(key, int(current) + 1, timeout=_CIRCUIT_RESET_TTL)
@@ -139,7 +142,6 @@ def _record_failure(domain: str) -> None:
 def _record_success(domain: str) -> None:
     """Reset the failure counter on a successful fetch."""
     try:
-        from django.core.cache import cache
         cache.delete(_circuit_key(domain))
     except Exception:
         pass
@@ -148,6 +150,7 @@ def _record_success(domain: str) -> None:
 # ---------------------------------------------------------------------------
 # HTTP fetch with retry
 # ---------------------------------------------------------------------------
+
 
 @retry(
     retry=retry_if_exception_type((httpx.TimeoutException, httpx.NetworkError)),
@@ -172,7 +175,9 @@ def _fetch_html(url: str) -> str:
         "Accept-Language": "en-US,en;q=0.9",
     }
     with httpx.Client(
-        timeout=httpx.Timeout(connect=CONNECT_TIMEOUT, read=READ_TIMEOUT, write=5.0, pool=5.0),
+        timeout=httpx.Timeout(
+            connect=CONNECT_TIMEOUT, read=READ_TIMEOUT, write=5.0, pool=5.0
+        ),
         follow_redirects=True,
         max_redirects=5,
     ) as client:
@@ -184,6 +189,7 @@ def _fetch_html(url: str) -> str:
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
 
 def fetch_preview(url: str) -> PreviewResult:
     """Fetch title, description, and favicon for the given URL.
@@ -219,9 +225,9 @@ def fetch_preview(url: str) -> PreviewResult:
 
     try:
         html = _fetch_html(url)
-        title       = _extract_title(html)
+        title = _extract_title(html)
         description = _extract_description(html)
-        favicon     = _extract_favicon(html, url)
+        favicon = _extract_favicon(html, url)
 
         _record_success(domain)
         logger.info(
@@ -230,7 +236,9 @@ def fetch_preview(url: str) -> PreviewResult:
             title,
             favicon,
         )
-        return PreviewResult(url=url, title=title, description=description, favicon=favicon)
+        return PreviewResult(
+            url=url, title=title, description=description, favicon=favicon
+        )
 
     except RetryError as exc:
         _record_failure(domain)
