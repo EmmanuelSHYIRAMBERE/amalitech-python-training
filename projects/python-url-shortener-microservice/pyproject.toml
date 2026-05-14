@@ -19,7 +19,7 @@ module = ["decouple", "decouple.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-module = ["celery", "celery.*", "django_celery_beat", "django_celery_beat.*", "django_celery_results", "django_celery_results.*", "django_redis", "django_redis.*", "pythonjsonlogger", "pythonjsonlogger.*"]
+module = ["celery", "celery.*", "django_celery_beat", "django_celery_beat.*", "django_celery_results", "django_celery_results.*", "django_redis", "django_redis.*", "pythonjsonlogger", "pythonjsonlogger.*", "httpx", "httpx.*", "tenacity", "tenacity.*", "corsheaders", "corsheaders.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
@@ -41,7 +41,7 @@ addopts = "-v --tb=short"
 testpaths = ["tests"]
 
 [tool.coverage.run]
-source = ["shortener", "core", "api", "users"]
+source = ["shortener", "core", "api", "users", "url_preview"]
 omit = ["*/migrations/*", "manage.py"]
 
 [tool.coverage.report]
