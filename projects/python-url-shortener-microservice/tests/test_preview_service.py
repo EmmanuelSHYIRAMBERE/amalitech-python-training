@@ -12,8 +12,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from url_preview.service import (
-    PreviewResult,
     _CIRCUIT_FAILURE_THRESHOLD,
+    PreviewResult,
     _circuit_key,
     _extract_description,
     _extract_favicon,
@@ -23,7 +23,6 @@ from url_preview.service import (
     _record_success,
     fetch_preview,
 )
-
 
 # ---------------------------------------------------------------------------
 # PreviewResult value object
@@ -195,7 +194,9 @@ def test_fetch_preview_handles_http_error() -> None:
 
     mock_response = MagicMock()
     mock_response.status_code = 404
-    exc = httpx.HTTPStatusError("Not Found", request=MagicMock(), response=mock_response)
+    exc = httpx.HTTPStatusError(
+        "Not Found", request=MagicMock(), response=mock_response
+    )
 
     with (
         patch("url_preview.service._is_circuit_open", return_value=False),

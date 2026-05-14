@@ -14,7 +14,6 @@ from rest_framework.test import APIClient
 from url_preview.service import PreviewResult
 from users.models import User
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

@@ -9,10 +9,7 @@ Covers:
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from url_preview.service import PreviewResult
-
 
 # ---------------------------------------------------------------------------
 # Same-process fallback (PREVIEW_SERVICE_URL not configured)
@@ -25,7 +22,9 @@ def test_get_url_preview_uses_direct_fallback_when_no_service_url() -> None:
 
     with (
         patch("shortener.preview_client.PREVIEW_SERVICE_URL", ""),
-        patch("shortener.preview_client.fetch_preview", return_value=expected) as mock_fetch,
+        patch(
+            "shortener.preview_client.fetch_preview", return_value=expected
+        ) as mock_fetch,
     ):
         from shortener.preview_client import get_url_preview
 
@@ -93,7 +92,9 @@ def test_get_url_preview_degrades_on_http_error() -> None:
 
     mock_response = MagicMock()
     mock_response.status_code = 503
-    exc = httpx.HTTPStatusError("Service Unavailable", request=MagicMock(), response=mock_response)
+    exc = httpx.HTTPStatusError(
+        "Service Unavailable", request=MagicMock(), response=mock_response
+    )
 
     with (
         patch("shortener.preview_client.PREVIEW_SERVICE_URL", "http://preview:8001"),

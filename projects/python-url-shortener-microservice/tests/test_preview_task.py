@@ -16,7 +16,6 @@ from shortener.tasks import fetch_url_preview
 from url_preview.service import PreviewResult
 from users.models import User
 
-
 # ---------------------------------------------------------------------------
 # fetch_url_preview task — direct execution
 # ---------------------------------------------------------------------------
