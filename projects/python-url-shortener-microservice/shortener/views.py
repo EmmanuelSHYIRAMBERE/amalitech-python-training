@@ -12,7 +12,7 @@ import logging
 
 from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status
 from rest_framework.exceptions import NotFound
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -86,13 +86,13 @@ class URLListView(APIView):
         responses={200: URLResponseSerializer(many=True)},
         summary="List my shortened URLs",
         parameters=[
-            {
-                "name": "tag",
-                "in": "query",
-                "description": "Filter URLs by tag name (e.g. ?tag=Marketing)",
-                "required": False,
-                "schema": {"type": "string"},
-            }
+            OpenApiParameter(
+                name="tag",
+                location=OpenApiParameter.QUERY,
+                description="Filter URLs by tag name (e.g. ?tag=Marketing)",
+                required=False,
+                type=str,
+            )
         ],
     )
     def get(self, request: Request) -> Response:
@@ -104,9 +104,7 @@ class URLListView(APIView):
         tag_name: str | None = request.query_params.get("tag")
         if tag_name:
             qs = qs.filter(tags__name=tag_name)
-        serializer = URLResponseSerializer(
-            qs, many=True, context={"request": request}
-        )
+        serializer = URLResponseSerializer(qs, many=True, context={"request": request})
         return Response(serializer.data)
 
 
