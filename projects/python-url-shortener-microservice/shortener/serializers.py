@@ -19,6 +19,7 @@ from .exceptions import ShortCodeCollisionError
 from .generators import default_generator
 from .models import URL, Click, Tag
 from .protocols import ShortCodeGenerator
+from .tasks import fetch_url_preview
 from .validators import validate_url_scheme
 
 FREE_TIER_URL_LIMIT = 10
@@ -205,14 +206,13 @@ class URLCreateSerializer(serializers.ModelSerializer[URL]):
     def _queue_preview(self, url: URL) -> None:
         """Queue the fetch_url_preview Celery task for a newly created URL."""
         try:
-            from .tasks import fetch_url_preview
             request: Request | None = self.context.get("request")
             # Forward the access token so the preview service can authenticate.
             token = ""
             if request:
                 auth_header: str = request.META.get("HTTP_AUTHORIZATION", "")
                 if auth_header.startswith("Bearer "):
-                    token = auth_header[len("Bearer "):]
+                    token = auth_header[len("Bearer ") :]
             fetch_url_preview.delay(
                 url_id=url.pk,
                 original_url=url.original_url,
