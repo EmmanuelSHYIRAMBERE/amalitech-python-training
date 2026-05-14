@@ -74,22 +74,38 @@ class URLCreateView(APIView):
 
 
 class URLListView(APIView):
-    """GET /api/v1/urls/list/ — list the authenticated user's URLs."""
+    """GET /api/v1/urls/list/ — list the authenticated user's URLs.
+
+    Supports optional tag filtering via ?tag=<name> query parameter.
+    Results are paginated via DRF's default PageNumberPagination.
+    """
 
     permission_classes = [IsAuthenticated]
 
     @extend_schema(
         responses={200: URLResponseSerializer(many=True)},
         summary="List my shortened URLs",
+        parameters=[
+            {
+                "name": "tag",
+                "in": "query",
+                "description": "Filter URLs by tag name (e.g. ?tag=Marketing)",
+                "required": False,
+                "schema": {"type": "string"},
+            }
+        ],
     )
     def get(self, request: Request) -> Response:
-        urls = (
+        qs = (
             URL.objects.filter(owner_id=request.user.pk)
             .prefetch_related("tags")
             .order_by("-created_at")
         )
+        tag_name: str | None = request.query_params.get("tag")
+        if tag_name:
+            qs = qs.filter(tags__name=tag_name)
         serializer = URLResponseSerializer(
-            urls, many=True, context={"request": request}
+            qs, many=True, context={"request": request}
         )
         return Response(serializer.data)
 
