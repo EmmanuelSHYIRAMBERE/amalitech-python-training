@@ -18,6 +18,11 @@ django-celery-results>=2.5
 # Structured Logging
 python-json-logger>=2.0
 
+# Module 9: HTTP client + retry + CORS
+httpx>=0.27
+tenacity>=8.2
+django-cors-headers>=4.3
+
 # Testing
 pytest>=8.0
 pytest-django>=4.8
