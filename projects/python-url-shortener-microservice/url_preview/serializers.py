@@ -12,8 +12,8 @@ class PreviewRequestSerializer(serializers.Serializer[dict]):  # type: ignore[ty
 class PreviewResponseSerializer(serializers.Serializer[dict]):  # type: ignore[type-arg]
     """Output: scraped metadata from the destination page."""
 
-    url         = serializers.URLField()
-    title       = serializers.CharField(allow_null=True)
+    url = serializers.URLField()
+    title = serializers.CharField(allow_null=True)
     description = serializers.CharField(allow_null=True)
-    favicon     = serializers.URLField(allow_null=True, allow_blank=True)
-    error       = serializers.CharField(allow_null=True, required=False)
+    favicon = serializers.URLField(allow_null=True, allow_blank=True)
+    error = serializers.CharField(allow_null=True, required=False)

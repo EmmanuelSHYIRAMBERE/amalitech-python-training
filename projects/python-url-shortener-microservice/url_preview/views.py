@@ -10,6 +10,7 @@ Inter-service communication pattern:
   This simulates a real microservice boundary.
 """
 
+import dataclasses
 import logging
 
 from drf_spectacular.utils import extend_schema
@@ -49,10 +50,12 @@ class PreviewFetchView(APIView):
         serializer.is_valid(raise_exception=True)
         url = serializer.validated_data["url"]
 
-        logger.info("Preview fetch requested: url=%r user=%r", url, request.user.username)
+        logger.info(
+            "Preview fetch requested: url=%r user=%r", url, request.user.username
+        )
         result = fetch_preview(url)
 
-        return Response(PreviewResponseSerializer(result).data)
+        return Response(PreviewResponseSerializer(dataclasses.asdict(result)).data)
 
 
 class PreviewHealthView(APIView):
