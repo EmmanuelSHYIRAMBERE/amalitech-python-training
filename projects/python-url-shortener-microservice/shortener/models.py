@@ -209,10 +209,11 @@ class URL(TimeStampedModel):
         help_text="Optional expiry. Null means the link never expires.",
     )
 
-    # Fields populated by the Mod 9 URL Preview service — nullable here.
-    title = models.CharField(max_length=255, null=True, blank=True)
-    description = models.TextField(null=True, blank=True)
-    favicon = models.URLField(max_length=512, null=True, blank=True)
+    # Fields populated by the Mod 9 URL Preview service.
+    # unique=True per spec — two URLs cannot share the same title/description/favicon.
+    title = models.CharField(max_length=255, null=True, blank=True, unique=True)
+    description = models.TextField(null=True, blank=True, unique=True)
+    favicon = models.URLField(max_length=512, null=True, blank=True, unique=True)
 
     class Meta:
         ordering = ["-created_at"]
