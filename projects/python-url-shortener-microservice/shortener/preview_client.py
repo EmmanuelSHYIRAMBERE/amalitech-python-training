@@ -50,14 +50,15 @@ _TIMEOUT = httpx.Timeout(connect=3.0, read=15.0, write=5.0, pool=5.0)
     stop=stop_after_attempt(2),
     reraise=False,
 )
-def _call_preview_service(url: str, token: str) -> dict:
+def _call_preview_service(url: str, token: str) -> dict[str, str | None]:
     """Make an HTTP POST to the preview microservice endpoint."""
     endpoint = f"{PREVIEW_SERVICE_URL.rstrip('/')}/api/v1/preview/fetch/"
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
     with httpx.Client(timeout=_TIMEOUT) as client:
         response = client.post(endpoint, json={"url": url}, headers=headers)
         response.raise_for_status()
-        return response.json()
+        data: dict[str, str | None] = response.json()
+        return data
 
 
 def get_url_preview(url: str, access_token: str = "") -> PreviewResult:
@@ -91,7 +92,7 @@ def get_url_preview(url: str, access_token: str = "") -> PreviewResult:
             data.get("title"),
         )
         return PreviewResult(
-            url=data.get("url", url),
+            url=data.get("url") or url,
             title=data.get("title"),
             description=data.get("description"),
             favicon=data.get("favicon"),
@@ -110,7 +111,9 @@ def get_url_preview(url: str, access_token: str = "") -> PreviewResult:
             url,
             exc.response.status_code,
         )
-        return PreviewResult(url=url, error=f"Preview service HTTP {exc.response.status_code}")
+        return PreviewResult(
+            url=url, error=f"Preview service HTTP {exc.response.status_code}"
+        )
     except Exception as exc:
         logger.error(
             "Preview service unexpected error: url=%r error=%r",

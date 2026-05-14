@@ -17,6 +17,7 @@ from django.db.models import F
 from django.utils import timezone
 
 from .models import URL, Click
+from .preview_client import get_url_preview
 
 # Module 9 task route is defined in settings.CELERY_TASK_ROUTES.
 
@@ -202,8 +203,6 @@ def fetch_url_preview(
     Returns:
         Dict with task status and the fetched metadata fields.
     """
-    from .preview_client import get_url_preview
-
     logger.info(
         "fetch_url_preview task started: url_id=%d original_url=%r",
         url_id,
@@ -211,6 +210,10 @@ def fetch_url_preview(
     )
 
     try:
+        if not URL.objects.filter(pk=url_id).exists():
+            logger.warning("fetch_url_preview: URL id=%d no longer exists", url_id)
+            return {"status": "url_deleted", "url_id": url_id}
+
         result = get_url_preview(original_url, access_token=access_token)
 
         # Only update fields that were successfully fetched.
@@ -244,10 +247,6 @@ def fetch_url_preview(
             "favicon": result.favicon,
             "error": result.error,
         }
-
-    except URL.DoesNotExist:
-        logger.warning("fetch_url_preview: URL id=%d no longer exists", url_id)
-        return {"status": "url_deleted", "url_id": url_id}
 
     except Exception as exc:
         logger.error(
