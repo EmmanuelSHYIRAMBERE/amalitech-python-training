@@ -10,6 +10,7 @@ Module 8 additions:
 
 import logging
 
+import httpx
 from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiParameter, extend_schema
@@ -40,6 +41,31 @@ def _get_client_ip(request: Request) -> str:
     if xff:
         return xff.split(",")[0].strip()
     return str(request.META.get("REMOTE_ADDR", "0.0.0.0"))
+
+
+_PRIVATE_IP_PREFIXES = ("127.", "10.", "192.168.", "::1", "172.")
+
+
+def _geolocate_ip(ip: str) -> tuple[str | None, str | None]:
+    """Return (country, city) for the given IP using ip-api.com (free, no key).
+
+    Returns (None, None) for private/loopback IPs and on any error so the
+    redirect is never delayed by a failed lookup.
+    """
+    if any(ip.startswith(p) for p in _PRIVATE_IP_PREFIXES):
+        return None, None
+    try:
+        resp = httpx.get(
+            f"http://ip-api.com/json/{ip}",
+            params={"fields": "country,city,status"},
+            timeout=1.5,
+        )
+        data = resp.json()
+        if data.get("status") == "success":
+            return data.get("country") or None, data.get("city") or None
+    except Exception:
+        pass
+    return None, None
 
 
 class URLCreateView(APIView):
@@ -218,11 +244,15 @@ class RedirectView(APIView):
 
         # Step 4: Queue async click tracking (write-behind pattern).
         # The view does NOT wait for this — it returns immediately.
+        ip = _get_client_ip(request)
+        country, city = _geolocate_ip(ip)
         track_click.delay(
             url_id=url.pk,
-            ip_address=_get_client_ip(request),
+            ip_address=ip,
             user_agent=request.META.get("HTTP_USER_AGENT", ""),
             referrer=request.META.get("HTTP_REFERER") or None,
+            country=country,
+            city=city,
         )
 
         logger.info(
