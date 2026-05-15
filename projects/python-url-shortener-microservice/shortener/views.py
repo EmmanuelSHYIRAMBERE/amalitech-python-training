@@ -46,18 +46,39 @@ def _get_client_ip(request: Request) -> str:
 _PRIVATE_IP_PREFIXES = ("127.", "10.", "192.168.", "::1", "172.")
 
 
-def _geolocate_ip(ip: str) -> tuple[str | None, str | None]:
-    """Return (country, city) for the given IP using ip-api.com (free, no key).
+def _is_private_ip(ip: str) -> bool:
+    return any(ip.startswith(p) for p in _PRIVATE_IP_PREFIXES)
 
-    Returns (None, None) for private/loopback IPs and on any error so the
-    redirect is never delayed by a failed lookup.
-    """
-    if any(ip.startswith(p) for p in _PRIVATE_IP_PREFIXES):
-        return None, None
+
+def _lookup_geo(ip: str) -> tuple[str | None, str | None]:
+    """Call ip-api.com for the given IP. Returns (country, city) or (None, None)."""
     try:
         resp = httpx.get(
             f"http://ip-api.com/json/{ip}",
             params={"fields": "country,city,status"},
+            timeout=1.5,
+        )
+        data = resp.json()
+        if data.get("status") == "success":
+            return data.get("country") or None, data.get("city") or None
+    except Exception:
+        pass
+    return None, None
+
+
+def _geolocate_ip(ip: str) -> tuple[str | None, str | None]:
+    """Return (country, city) for a client IP.
+
+    If the client IP is private (Docker bridge, LAN, loopback) fall back to
+    the host's public IP so local development still gets real geo data.
+    """
+    if not _is_private_ip(ip):
+        return _lookup_geo(ip)
+    # Private IP — try to resolve the host machine's public IP instead.
+    try:
+        resp = httpx.get(
+            "http://ip-api.com/json/",
+            params={"fields": "country,city,status,query"},
             timeout=1.5,
         )
         data = resp.json()
