@@ -210,10 +210,9 @@ class URL(TimeStampedModel):
     )
 
     # Fields populated by the Mod 9 URL Preview service.
-    # unique=True per spec — two URLs cannot share the same title/description/favicon.
-    title = models.CharField(max_length=255, null=True, blank=True, unique=True)
-    description = models.TextField(null=True, blank=True, unique=True)
-    favicon = models.URLField(max_length=512, null=True, blank=True, unique=True)
+    title = models.CharField(max_length=255, null=True, blank=True)
+    description = models.TextField(null=True, blank=True)
+    favicon = models.URLField(max_length=512, null=True, blank=True)
 
     class Meta:
         ordering = ["-created_at"]
