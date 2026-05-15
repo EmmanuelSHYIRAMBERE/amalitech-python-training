@@ -39,6 +39,7 @@ class HealthCheckView(APIView):
     """
 
     permission_classes = [AllowAny]
+    throttle_classes: list[type] = []
 
     def get(self, request: Request) -> Response:
         db_status = "reachable"
