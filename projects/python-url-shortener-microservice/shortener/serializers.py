@@ -1,16 +1,8 @@
-"""DRF serializers for the shortener app — Module 6 + Module 7.
+"""DRF serializers for the shortener app — Module 6 + Module 7 + Module 9.
 
-New in Mod 6:
-  - TagSerializer          : read-only tag representation.
-  - URLCreateSerializer    : accepts tags (by name) and optional custom_alias.
-  - URLResponseSerializer  : exposes all new URL fields including tags.
-  - ClickSerializer        : read-only analytics row.
-  - URLAnalyticsSerializer : aggregated stats per URL (clicks by country).
-
-New in Mod 7:
-  - URLCreateSerializer.validate() : enforces tier-based business rules
-    (free user quota + no custom_alias for free tier).
-  - URLCreateSerializer.update()   : supports partial PUT from URLDetailView.
+New in Mod 9:
+  - URLCreateSerializer.create() : queues fetch_url_preview Celery task
+    after a URL is saved so title/description/favicon are populated async.
 """
 
 import logging
@@ -27,6 +19,7 @@ from .exceptions import ShortCodeCollisionError
 from .generators import default_generator
 from .models import URL, Click, Tag
 from .protocols import ShortCodeGenerator
+from .tasks import fetch_url_preview
 from .validators import validate_url_scheme
 
 FREE_TIER_URL_LIMIT = 10
@@ -203,7 +196,32 @@ class URLCreateSerializer(serializers.ModelSerializer[URL]):
             raise ShortCodeCollisionError(attempts=_max_attempts)
 
         assert url is not None  # guaranteed by the else-break above
+
+        # Module 9: Queue async preview enrichment (write-behind).
+        # The create response is returned immediately; this task runs in the
+        # background and updates title/description/favicon once ready.
+        self._queue_preview(url)
         return url
+
+    def _queue_preview(self, url: URL) -> None:
+        """Queue the fetch_url_preview Celery task for a newly created URL."""
+        try:
+            request: Request | None = self.context.get("request")
+            # Forward the access token so the preview service can authenticate.
+            token = ""
+            if request:
+                auth_header: str = request.META.get("HTTP_AUTHORIZATION", "")
+                if auth_header.startswith("Bearer "):
+                    token = auth_header[len("Bearer ") :]
+            fetch_url_preview.delay(
+                url_id=url.pk,
+                original_url=url.original_url,
+                access_token=token,
+            )
+            logger.debug("Queued fetch_url_preview for url_id=%d", url.pk)
+        except Exception as exc:  # pragma: no cover
+            # Never let a task-queuing failure break the create response.
+            logger.warning("Could not queue fetch_url_preview: %r", exc)
 
     def update(self, instance: URL, validated_data: dict[str, Any]) -> URL:
         """Partial update — used by URLDetailView PUT.

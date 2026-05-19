@@ -1,16 +1,11 @@
-"""Celery tasks for the URL Shortener — Module 8.
+"""Celery tasks for the URL Shortener — Module 8 + Module 9.
+
+Module 9 additions:
+  - fetch_url_preview: async task that calls the URL Preview service
+    after a short URL is created and stores title/description/favicon
+    on the URL model.
 
 All tasks are defined here and auto-discovered by Celery via autodiscover_tasks().
-
-Task Naming Convention:
-  - Use descriptive names: track_click, cleanup_expired_urls
-  - Suffix with _task if ambiguous: send_email_task
-
-Task Best Practices:
-  - Keep tasks idempotent (safe to run multiple times)
-  - Validate all arguments (never trust queued data)
-  - Use explicit timeouts to prevent hanging workers
-  - Log task start/end for debugging
 """
 
 import logging
@@ -22,6 +17,9 @@ from django.db.models import F
 from django.utils import timezone
 
 from .models import URL, Click
+from .preview_client import get_url_preview
+
+# Module 9 task route is defined in settings.CELERY_TASK_ROUTES.
 
 logger = logging.getLogger(__name__)
 
@@ -174,3 +172,87 @@ def warm_cache_for_popular_urls(self: Any, top_n: int = 100) -> dict[str, str | 
     warm_cache(top_n=top_n)
     logger.info("warm_cache_for_popular_urls task completed")
     return {"status": "success", "cached_count": top_n}
+
+
+@shared_task(
+    bind=True,
+    max_retries=2,
+    default_retry_delay=30,
+    time_limit=60,
+    soft_time_limit=55,
+)
+def fetch_url_preview(
+    self: Any,
+    url_id: int,
+    original_url: str,
+    access_token: str = "",
+) -> dict[str, str | int | None]:
+    """Fetch title, description, and favicon for a newly created short URL.
+
+    Module 9 — async preview enrichment (write-behind pattern).
+
+    Called by URLCreateView immediately after a URL is saved. The create
+    response is returned to the client right away; this task runs in the
+    background and updates the URL record once the preview is ready.
+
+    Args:
+        url_id: PK of the URL model instance to enrich.
+        original_url: The destination URL to scrape metadata from.
+        access_token: JWT token forwarded for inter-service auth.
+
+    Returns:
+        Dict with task status and the fetched metadata fields.
+    """
+    logger.info(
+        "fetch_url_preview task started: url_id=%d original_url=%r",
+        url_id,
+        original_url,
+    )
+
+    try:
+        if not URL.objects.filter(pk=url_id).exists():
+            logger.warning("fetch_url_preview: URL id=%d no longer exists", url_id)
+            return {"status": "url_deleted", "url_id": url_id}
+
+        result = get_url_preview(original_url, access_token=access_token)
+
+        # Only update fields that were successfully fetched.
+        update_fields: dict[str, str | None] = {}
+        if result.title:
+            update_fields["title"] = result.title
+        if result.description:
+            update_fields["description"] = result.description
+        if result.favicon:
+            update_fields["favicon"] = result.favicon
+
+        if update_fields:
+            URL.objects.filter(pk=url_id).update(**update_fields)
+            logger.info(
+                "fetch_url_preview task completed: url_id=%d fields=%r",
+                url_id,
+                list(update_fields.keys()),
+            )
+        else:
+            logger.info(
+                "fetch_url_preview task: no metadata fetched for url_id=%d error=%r",
+                url_id,
+                result.error,
+            )
+
+        return {
+            "status": "success" if update_fields else "no_metadata",
+            "url_id": url_id,
+            "title": result.title,
+            "description": result.description,
+            "favicon": result.favicon,
+            "error": result.error,
+        }
+
+    except Exception as exc:
+        logger.error(
+            "fetch_url_preview task failed: url_id=%d error=%r — retrying",
+            url_id,
+            exc,
+            exc_info=True,
+        )
+        raise self.retry(exc=exc)

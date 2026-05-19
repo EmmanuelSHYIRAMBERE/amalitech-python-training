@@ -10,9 +10,10 @@ Module 8 additions:
 
 import logging
 
+import httpx
 from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status
 from rest_framework.exceptions import NotFound
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -40,6 +41,52 @@ def _get_client_ip(request: Request) -> str:
     if xff:
         return xff.split(",")[0].strip()
     return str(request.META.get("REMOTE_ADDR", "0.0.0.0"))
+
+
+_PRIVATE_IP_PREFIXES = ("127.", "10.", "192.168.", "::1", "172.")
+
+
+def _is_private_ip(ip: str) -> bool:
+    return any(ip.startswith(p) for p in _PRIVATE_IP_PREFIXES)
+
+
+def _lookup_geo(ip: str) -> tuple[str | None, str | None]:
+    """Call ip-api.com for the given IP. Returns (country, city) or (None, None)."""
+    try:
+        resp = httpx.get(
+            f"http://ip-api.com/json/{ip}",
+            params={"fields": "country,city,status"},
+            timeout=1.5,
+        )
+        data = resp.json()
+        if data.get("status") == "success":
+            return data.get("country") or None, data.get("city") or None
+    except Exception:
+        pass
+    return None, None
+
+
+def _geolocate_ip(ip: str) -> tuple[str | None, str | None]:
+    """Return (country, city) for a client IP.
+
+    If the client IP is private (Docker bridge, LAN, loopback) fall back to
+    the host's public IP so local development still gets real geo data.
+    """
+    if not _is_private_ip(ip):
+        return _lookup_geo(ip)
+    # Private IP — try to resolve the host machine's public IP instead.
+    try:
+        resp = httpx.get(
+            "http://ip-api.com/json/",
+            params={"fields": "country,city,status,query"},
+            timeout=1.5,
+        )
+        data = resp.json()
+        if data.get("status") == "success":
+            return data.get("country") or None, data.get("city") or None
+    except Exception:
+        pass
+    return None, None
 
 
 class URLCreateView(APIView):
@@ -74,23 +121,37 @@ class URLCreateView(APIView):
 
 
 class URLListView(APIView):
-    """GET /api/v1/urls/list/ — list the authenticated user's URLs."""
+    """GET /api/v1/urls/list/ — list the authenticated user's URLs.
+
+    Supports optional tag filtering via ?tag=<name> query parameter.
+    Results are paginated via DRF's default PageNumberPagination.
+    """
 
     permission_classes = [IsAuthenticated]
 
     @extend_schema(
         responses={200: URLResponseSerializer(many=True)},
         summary="List my shortened URLs",
+        parameters=[
+            OpenApiParameter(
+                name="tag",
+                location=OpenApiParameter.QUERY,
+                description="Filter URLs by tag name (e.g. ?tag=Marketing)",
+                required=False,
+                type=str,
+            )
+        ],
     )
     def get(self, request: Request) -> Response:
-        urls = (
+        qs = (
             URL.objects.filter(owner_id=request.user.pk)
             .prefetch_related("tags")
             .order_by("-created_at")
         )
-        serializer = URLResponseSerializer(
-            urls, many=True, context={"request": request}
-        )
+        tag_name: str | None = request.query_params.get("tag")
+        if tag_name:
+            qs = qs.filter(tags__name=tag_name)
+        serializer = URLResponseSerializer(qs, many=True, context={"request": request})
         return Response(serializer.data)
 
 
@@ -204,11 +265,15 @@ class RedirectView(APIView):
 
         # Step 4: Queue async click tracking (write-behind pattern).
         # The view does NOT wait for this — it returns immediately.
+        ip = _get_client_ip(request)
+        country, city = _geolocate_ip(ip)
         track_click.delay(
             url_id=url.pk,
-            ip_address=_get_client_ip(request),
+            ip_address=ip,
             user_agent=request.META.get("HTTP_USER_AGENT", ""),
             referrer=request.META.get("HTTP_REFERER") or None,
+            country=country,
+            city=city,
         )
 
         logger.info(

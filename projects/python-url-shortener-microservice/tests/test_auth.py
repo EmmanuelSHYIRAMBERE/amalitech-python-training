@@ -262,6 +262,35 @@ def test_list_urls_returns_only_own_urls(user: User, premium_user: User) -> None
 
 
 @pytest.mark.django_db
+def test_list_urls_filter_by_tag(user: User) -> None:
+    """GET /api/v1/urls/list/?tag=Marketing returns only URLs with that tag."""
+    from shortener.models import Tag
+
+    tag, _ = Tag.objects.get_or_create(name="Marketing")
+    url_with_tag = URL.objects.create(
+        original_url="https://tagged.com", short_code="tag001", owner=user
+    )
+    url_with_tag.tags.add(tag)
+    URL.objects.create(
+        original_url="https://untagged.com", short_code="tag002", owner=user
+    )
+    client = auth_client(user)
+    response = client.get("/api/v1/urls/list/?tag=Marketing")
+    assert response.status_code == status.HTTP_200_OK
+    assert len(response.data) == 1
+    assert response.data[0]["short_code"] == "tag001"
+
+
+@pytest.mark.django_db
+def test_list_urls_filter_by_nonexistent_tag_returns_empty(user: User) -> None:
+    URL.objects.create(original_url="https://a.com", short_code="tag003", owner=user)
+    client = auth_client(user)
+    response = client.get("/api/v1/urls/list/?tag=DoesNotExist")
+    assert response.status_code == status.HTTP_200_OK
+    assert len(response.data) == 0
+
+
+@pytest.mark.django_db
 def test_list_urls_unauthenticated_returns_401(api_client: APIClient) -> None:
     response = api_client.get("/api/v1/urls/list/")
     assert response.status_code == status.HTTP_401_UNAUTHORIZED

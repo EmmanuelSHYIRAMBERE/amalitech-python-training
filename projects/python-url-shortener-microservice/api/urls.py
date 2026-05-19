@@ -10,4 +10,6 @@ urlpatterns = [
     path(
         "analytics/<slug:short_code>/", URLAnalyticsView.as_view(), name="url-analytics"
     ),
+    # Module 9: URL Preview microservice endpoints
+    path("preview/", include("url_preview.urls")),
 ]

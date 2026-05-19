@@ -37,3 +37,7 @@ repos:
           - django-redis
           - redis
           - python-json-logger
+          # Module 9
+          - httpx
+          - tenacity
+          - django-cors-headers

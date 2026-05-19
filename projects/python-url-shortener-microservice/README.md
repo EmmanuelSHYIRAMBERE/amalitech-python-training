@@ -5,11 +5,376 @@
 
 # URL Shortener Microservice
 
-> **Enterprise-Grade URL Shortener** · Django 5.0+ · DRF · PostgreSQL 15 · Docker
+> **Enterprise-Grade URL Shortener** · Django 5.0+ · DRF · PostgreSQL 15 · Redis · Celery · Docker
 
 ![CI Mod 5](https://github.com/EmmanuelSHYIRAMBERE/amalitech-python-training/actions/workflows/python-url-shortener-mod5.yml/badge.svg)
 ![CI Mod 6](https://github.com/EmmanuelSHYIRAMBERE/amalitech-python-training/actions/workflows/python-url-shortener-mod6.yml/badge.svg)
 ![CI Mod 7](https://github.com/EmmanuelSHYIRAMBERE/amalitech-python-training/actions/workflows/python-url-shortener-mod7.yml/badge.svg)
+
+---
+
+## About
+
+|             |                                                                                                                                                                                    |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Trainee** | Emmanuel SHYIRAMBERE                                                                                                                                                               |
+| **Modules** | Module 5 — Foundation · Module 6 — ORM · Module 7 — Auth · Module 8 — Performance · Module 9 — Microservices |
+| **Stack**   | Python 3.11 · Django 5.0 · DRF · PostgreSQL 15 · Redis 7 · Celery 5 · Docker                                                                                                      |
+| **Tests**   | 160+ passing across all modules                                                                                                                                                    |
+
+---
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────────────┐
+│                                  Docker Compose                                         │
+│                                                                                         │
+│  ┌──────────────────┐   ┌──────────────────┐   ┌──────────────┐   ┌──────────────────┐ │
+│  │  web (Django 5)  │──▶│ db (Postgres 15) │   │ redis:7      │   │ celery-worker    │ │
+│  │  gunicorn :8000  │   │ :5435            │   │ :6379        │   │ celery-beat      │ │
+│  └──────────────────┘   └──────────────────┘   └──────────────┘   └──────────────────┘ │
+└─────────────────────────────────────────────────────────────────────────────────────────┘
+
+Request flow (Module 9):
+  POST /api/v1/urls/
+    → URLCreateSerializer.create()  → URL saved → 201 returned immediately
+    → fetch_url_preview.delay()     → Celery worker
+          → preview_client.get_url_preview()
+                → PREVIEW_SERVICE_URL set?  YES → HTTP POST /api/v1/preview/fetch/
+                                            NO  → fetch_preview() same-process
+          → circuit breaker check per domain
+          → httpx GET + tenacity retry (3 attempts, exponential backoff)
+          → URL.objects.filter(pk=id).update(title=..., description=..., favicon=...)
+
+  GET /<short_code>/
+    → get_cached_url()  → Redis HIT → 302 immediately (~2ms)
+                        → Redis MISS → DB fetch → cache → 302 (~20ms)
+    → track_click.delay() → Celery worker → Click.objects.create() + F() increment
+```
+
+---
+
+## Project Structure
+
+```
+url-shortener-microservice/
+├── config/
+│   ├── settings.py          # decouple config, CORS, JWT, Celery, Redis, logging
+│   ├── celery.py            # Celery app + Beat schedule
+│   ├── urls.py              # root router + Swagger
+│   ├── wsgi.py / asgi.py
+│
+├── users/                   # Auth microservice
+│   ├── models.py            # User(AbstractUser) + is_premium + tier
+│   ├── serializers.py       # RegisterSerializer + UserProfileSerializer
+│   ├── views.py             # RegisterView, LoginView, TokenRefreshView
+│   └── urls.py
+│
+├── shortener/               # Core domain
+│   ├── models.py            # URL + Tag + Click + URLQuerySet + URLManager
+│   ├── generators.py        # BaseShortCodeGenerator (ABC) + SecureShortCodeGenerator
+│   ├── protocols.py         # ShortCodeGenerator Protocol (PEP 544)
+│   ├── schemas.py           # ShortenRequest, ShortenResult, ClickResult dataclasses
+│   ├── serializers.py       # URLCreate/Response/Analytics + tier validation + preview task
+│   ├── validators.py        # compiled regex validators
+│   ├── permissions.py       # IsOwnerOrReadOnly, IsPremiumUser
+│   ├── throttles.py         # LoginRateThrottle (5/min)
+│   ├── middleware.py        # RequestLoggingMiddleware + custom_exception_handler
+│   ├── cache.py             # cache-aside + invalidation + warm_cache
+│   ├── tasks.py             # track_click, cleanup_expired_urls, fetch_url_preview
+│   ├── preview_client.py    # inter-service HTTP client (Module 9)
+│   ├── exceptions.py        # ShortenerError hierarchy
+│   ├── views.py             # URLCreateView, URLListView(?tag=), URLDetailView,
+│   │                        # RedirectView, URLAnalyticsView
+│   └── migrations/
+│       ├── 0001_initial.py
+│       ├── 0002_mod6_schema.py
+│       ├── 0003_seed_default_tags.py
+│       └── 0004_mod9_unique_preview_fields.py
+│
+├── url_preview/             # URL Preview microservice (Module 9)
+│   ├── service.py           # fetch_preview() + HTML parsers + circuit breaker + retry
+│   ├── serializers.py       # PreviewRequest/ResponseSerializer
+│   ├── views.py             # PreviewFetchView + PreviewHealthView
+│   └── urls.py
+│
+├── core/
+│   ├── models.py            # TimeStampedModel abstract base
+│   ├── views.py             # GET /health/ — checks DB + Redis
+│   └── urls.py
+│
+├── api/
+│   └── urls.py              # /api/v1/ versioned routes
+│
+├── tests/                   # 160+ tests
+│   ├── conftest.py
+│   ├── test_auth.py         # auth, JWT, RBAC, tier rules, tag filter
+│   ├── test_health.py
+│   ├── test_models.py
+│   ├── test_serializers.py
+│   ├── test_views.py
+│   ├── test_cache.py
+│   ├── test_cache_invalidation.py
+│   ├── test_redirect_caching.py
+│   ├── test_tasks.py
+│   ├── test_cors.py         # Module 9
+│   ├── test_preview_service.py
+│   ├── test_preview_client.py
+│   ├── test_preview_views.py
+│   └── test_preview_task.py
+│
+├── Dockerfile               # multi-stage Alpine + non-root user
+├── docker-compose.yml       # web + db + redis + celery-worker + celery-beat
+├── .env.example
+├── .pre-commit-config.yaml  # ruff + black + mypy
+├── pyproject.toml
+└── requirements.txt
+```
+
+---
+
+## Database Schema
+
+```
+┌──────────────────┐         ┌──────────────────┐
+│   users_user     │         │  shortener_tag   │
+├──────────────────┤         ├──────────────────┤
+│ id (PK)          │         │ id (PK)          │
+│ username         │         │ name (unique)    │
+│ email (unique)   │         └────────┬─────────┘
+│ is_premium       │                  │ M2M
+│ tier             │                  │
+└────────┬─────────┘    ┌─────────────▼──────────────────┐
+         │ FK (owner)   │        shortener_url            │
+         └─────────────▶├────────────────────────────────┤
+                        │ id (PK)                        │
+                        │ original_url                   │
+                        │ short_code (unique, idx)       │
+                        │ custom_alias (unique, nullable)│
+                        │ owner FK → users_user          │
+                        │ click_count                    │
+                        │ is_active (idx)                │
+                        │ expires_at (idx)               │
+                        │ title (unique, nullable)       │ ← Module 9
+                        │ description (unique, nullable) │ ← Module 9
+                        │ favicon (unique, nullable)     │ ← Module 9
+                        │ created_at (idx)               │
+                        │ updated_at                     │
+                        └────────────┬───────────────────┘
+                                     │ FK
+                        ┌────────────▼───────────────────┐
+                        │      shortener_click           │
+                        ├────────────────────────────────┤
+                        │ id (PK)                        │
+                        │ url FK → shortener_url         │
+                        │ clicked_at (idx)               │
+                        │ ip_address                     │
+                        │ user_agent                     │
+                        │ country                        │
+                        │ city                           │
+                        │ referrer                       │
+                        └────────────────────────────────┘
+```
+
+---
+
+## Setup
+
+### 1. Clone and navigate
+
+```bash
+git clone https://github.com/EmmanuelSHYIRAMBERE/amalitech-python-training.git
+cd projects/python-url-shortener-microservice
+```
+
+### 2. Configure environment variables
+
+```bash
+cp .env.example .env
+```
+
+| Variable                  | Description                                         | Example                                    |
+| ------------------------- | --------------------------------------------------- | ------------------------------------------ |
+| `SECRET_KEY`              | Django secret key                                   | `django-insecure-...`                      |
+| `DEBUG`                   | Debug mode                                          | `True`                                     |
+| `ALLOWED_HOSTS`           | Comma-separated hosts                               | `localhost,127.0.0.1`                      |
+| `DB_NAME`                 | PostgreSQL database name                            | `urlshortener`                             |
+| `DB_USER`                 | PostgreSQL user                                     | `postgres`                                 |
+| `DB_PASSWORD`             | PostgreSQL password                                 | `admin321`                                 |
+| `DB_HOST`                 | `db` inside Docker · `localhost` locally            | `localhost`                                |
+| `DB_PORT`                 | `5432` inside Docker · `5435` locally               | `5435`                                     |
+| `REDIS_URL`               | Redis cache URL                                     | `redis://redis:6379/0`                     |
+| `CELERY_BROKER_URL`       | Celery broker URL                                   | `redis://redis:6379/1`                     |
+| `LOG_LEVEL`               | `DEBUG` / `INFO` / `WARNING`                        | `INFO`                                     |
+| `CORS_ALLOWED_ORIGINS`    | Comma-separated allowed frontend origins            | `http://localhost:3000`                    |
+| `PREVIEW_SERVICE_URL`     | URL Preview service base URL (empty = same-process) | `` (empty) or `http://preview-svc:8001`    |
+| `PREVIEW_SERVICE_TOKEN`   | Bearer token for inter-service auth                 | `<token>`                                  |
+
+### 3. Run with Docker (recommended)
+
+```bash
+docker compose up --build
+# App:     http://localhost:8000
+# Swagger: http://localhost:8000/api/docs/
+# Migrations + tag seeding run automatically on startup
+```
+
+### 4. Run locally (without Docker)
+
+```bash
+python -m venv .venv
+.venv\Scripts\activate        # Windows
+source .venv/bin/activate     # macOS / Linux
+
+pip install -r requirements.txt
+python manage.py migrate --noinput
+python manage.py runserver
+
+# In a separate terminal — Celery worker
+celery -A config worker -Q default,maintenance --loglevel info
+
+# In a separate terminal — Celery Beat
+celery -A config beat --loglevel info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+```
+
+### 5. Install pre-commit hooks
+
+```bash
+pre-commit install
+pre-commit run --all-files
+```
+
+---
+
+## API Endpoints
+
+### Authentication
+
+| Method | Endpoint                 | Description                    | Auth     |
+| ------ | ------------------------ | ------------------------------ | -------- |
+| `POST` | `/api/v1/auth/register/` | Register a new user            | No       |
+| `POST` | `/api/v1/auth/login/`    | Obtain access + refresh tokens | No       |
+| `POST` | `/api/v1/auth/refresh/`  | Rotate and refresh JWT tokens  | No       |
+
+### URL Operations
+
+| Method   | Endpoint                     | Description                              | Auth             |
+| -------- | ---------------------------- | ---------------------------------------- | ---------------- |
+| `POST`   | `/api/v1/urls/`              | Create a short link                      | Bearer           |
+| `GET`    | `/api/v1/urls/list/`         | List my URLs (supports `?tag=<name>`)    | Bearer           |
+| `GET`    | `/api/v1/urls/<short_code>/` | Retrieve a URL                           | Bearer           |
+| `PUT`    | `/api/v1/urls/<short_code>/` | Update a URL (owner only)                | Bearer           |
+| `DELETE` | `/api/v1/urls/<short_code>/` | Soft-delete a URL (owner only)           | Bearer           |
+
+### Public Interface
+
+| Method | Endpoint           | Description                                    | Status |
+| ------ | ------------------ | ---------------------------------------------- | ------ |
+| `GET`  | `/<short_code>/`   | Redirect → Redis cache-aside + async analytics | 302    |
+| `GET`  | `/health/`         | DB + Redis health check                        | 200    |
+| `GET`  | `/api/docs/`       | Swagger UI                                     | 200    |
+| `GET`  | `/api/schema/`     | Raw OpenAPI schema                             | 200    |
+
+### Analytics
+
+| Method | Endpoint                          | Description                              | Auth             |
+| ------ | --------------------------------- | ---------------------------------------- | ---------------- |
+| `GET`  | `/api/v1/analytics/<short_code>/` | Click stats by country (Premium only)    | Bearer + Premium |
+
+### URL Preview Microservice (Module 9)
+
+| Method | Endpoint                    | Description                              | Auth    |
+| ------ | --------------------------- | ---------------------------------------- | ------- |
+| `POST` | `/api/v1/preview/fetch/`    | Fetch title, description, favicon        | Bearer  |
+| `GET`  | `/api/v1/preview/health/`   | Preview service liveness check           | No      |
+
+---
+
+## Frontend (React) Integration — CORS
+
+The API is configured to accept requests from React dev servers out of the box:
+
+```javascript
+// React example — create a short URL
+const response = await fetch('http://localhost:8000/api/v1/urls/', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${accessToken}`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({ original_url: 'https://example.com' }),
+  credentials: 'include',  // required for CORS_ALLOW_CREDENTIALS=True
+});
+const data = await response.json();
+console.log(data.short_url);  // http://localhost:8000/aB3xYz/
+```
+
+Allowed origins are configured via `CORS_ALLOWED_ORIGINS` in `.env`.
+Add your production frontend URL (e.g. `https://myapp.com`) to that list.
+
+---
+
+## Running Tests
+
+```bash
+# Full suite
+pytest
+
+# With coverage
+coverage run -m pytest
+coverage report --show-missing
+coverage report --fail-under=80
+
+# HTML report
+coverage html
+start htmlcov/index.html   # Windows
+open htmlcov/index.html    # macOS
+```
+
+| File                      | Tests | Covers                                                        |
+| ------------------------- | ----- | ------------------------------------------------------------- |
+| `test_auth.py`            | 33    | Auth, JWT, RBAC, tier rules, tag filter                       |
+| `test_health.py`          | 7     | `/health/` — DB + Redis checks                                |
+| `test_models.py`          | 39    | User, Tag, URL, Click, URLManager, N+1, aggregation           |
+| `test_serializers.py`     | 21    | All serializers — validation, creation, tags, analytics       |
+| `test_views.py`           | 31    | All views — create, redirect, analytics, 404s                 |
+| `test_cache.py`           | 4     | Cache-aside pattern                                           |
+| `test_cache_invalidation` | 2     | PUT/DELETE invalidate cache                                   |
+| `test_redirect_caching`   | 6     | RedirectView cache + async task                               |
+| `test_tasks.py`           | 5     | track_click, cleanup_expired_urls                             |
+| `test_cors.py`            | 4     | CORS preflight + headers                                      |
+| `test_preview_service`    | 20    | fetch_preview, HTML parsers, circuit breaker                  |
+| `test_preview_client`     | 5     | Inter-service HTTP client + fallback                          |
+| `test_preview_views`      | 7     | PreviewFetchView + PreviewHealthView                          |
+| `test_preview_task`       | 6     | fetch_url_preview task + serializer wiring                    |
+| **Total**                 | **190** |                                                             |
+
+---
+
+## Module 9 Checklist — Microservices Essentials
+
+- [x] `url_preview` Django app — separate minimal microservice
+- [x] `url_preview.service.fetch_preview()` — httpx + stdlib HTML parsing
+- [x] Retry with exponential backoff — tenacity (3 attempts, 1s/2s/4s)
+- [x] Circuit breaker — Redis-backed per-domain failure counter (threshold=5, TTL=5min)
+- [x] `POST /api/v1/preview/fetch/` — authenticated preview endpoint
+- [x] `GET /api/v1/preview/health/` — liveness check
+- [x] `shortener/preview_client.py` — inter-service HTTP client
+- [x] Same-process fallback when `PREVIEW_SERVICE_URL` is not set
+- [x] `fetch_url_preview` Celery task — async write-behind enrichment
+- [x] JWT token forwarded for inter-service authentication
+- [x] `django-cors-headers` — `CORS_ALLOWED_ORIGINS`, `CORS_ALLOW_CREDENTIALS`
+- [x] API versioning at `/api/v1/`
+- [x] `GET /api/v1/urls/list/?tag=<name>` — tag-based filtering
+- [x] `URL.title`, `URL.description`, `URL.favicon` — `unique=True` per spec
+- [x] Migration `0004_mod9_unique_preview_fields` — unique constraints
+- [x] 42 new tests covering all Module 9 components
+
+---
+
+_Python 3.11+ · Django 5.0 · DRF · PostgreSQL 15 · Redis 7 · Celery 5 · AmaliTech Training Program_
+
 
 ---
 
