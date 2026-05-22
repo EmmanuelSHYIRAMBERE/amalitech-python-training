@@ -234,15 +234,15 @@ LOGGING = {
             "style": "{",
             "datefmt": "%Y-%m-%d %H:%M:%S",
         },
-        # Structured JSON format for production log aggregation (Datadog, ELK, etc.).
-        # Falls back to verbose if python-json-logger is not installed locally.
+        # Structured JSON format for all environments.
+        # Falls back to verbose if python-json-logger is not installed.
         "json": (
             {
                 "()": "pythonjsonlogger.jsonlogger.JsonFormatter",
                 "format": "%(asctime)s %(levelname)s %(name)s %(message)s",
                 "datefmt": "%Y-%m-%dT%H:%M:%SZ",
             }
-            if not DEBUG and _json_logger_available
+            if _json_logger_available
             else {
                 "format": "{asctime} [{levelname}] {name}: {message}",
                 "style": "{",
@@ -271,13 +271,13 @@ LOGGING = {
             "formatter": "json" if not DEBUG else "verbose",
             "encoding": "utf-8",
         },
-        # Separate handler for 500 errors and security warnings.
+        # Separate handler for 500 errors and security warnings — always JSON.
         "error_file": {
             "class": "logging.handlers.TimedRotatingFileHandler",
             "filename": str(LOG_DIR / "errors.log"),
             "when": "midnight",
             "backupCount": 30,
-            "formatter": "json" if not DEBUG else "verbose",
+            "formatter": "json",
             "encoding": "utf-8",
             "level": "ERROR",
         },
