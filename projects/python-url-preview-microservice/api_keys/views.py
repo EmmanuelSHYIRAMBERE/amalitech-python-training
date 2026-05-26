@@ -25,7 +25,11 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import APIKey
-from .serializers import APIKeyCreateSerializer, APIKeyListSerializer, APIKeyResponseSerializer
+from .serializers import (
+    APIKeyCreateSerializer,
+    APIKeyListSerializer,
+    APIKeyResponseSerializer,
+)
 
 logger = logging.getLogger(__name__)
 

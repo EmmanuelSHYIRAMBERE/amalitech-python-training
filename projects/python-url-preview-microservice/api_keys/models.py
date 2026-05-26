@@ -13,14 +13,12 @@ from __future__ import annotations
 import hashlib
 import logging
 import secrets
-from collections import Counter, defaultdict
+from collections import Counter
 from dataclasses import dataclass
-from typing import Optional
-
-from django.db import models
-from django.utils import timezone
 
 from core.models import TimeStampedModel
+from django.db import models
+from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
@@ -124,7 +122,7 @@ class APIKey(TimeStampedModel):
         return key, raw
 
     @classmethod
-    def authenticate(cls, raw_token: str) -> Optional[APIKey]:
+    def authenticate(cls, raw_token: str) -> APIKey | None:
         """Lookup a key by its token. Returns None if not found or revoked."""
         try:
             key = cls.objects.get(

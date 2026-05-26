@@ -24,7 +24,6 @@ from __future__ import annotations
 import logging
 import re
 from abc import ABC, abstractmethod
-from typing import Optional
 from urllib.parse import urljoin, urlparse
 
 import httpx
@@ -37,7 +36,6 @@ from tenacity import (
     wait_exponential,
 )
 
-from .exceptions import CircuitOpenError, FetchError
 from .schemas import PreviewResult
 
 logger = logging.getLogger(__name__)
@@ -81,21 +79,21 @@ _CIRCUIT_RESET_TTL = 300  # 5 minutes
 # ---------------------------------------------------------------------------
 
 
-def _extract_title(html: str) -> Optional[str]:
+def _extract_title(html: str) -> str | None:
     m = _TITLE_RE.search(html)
     if m:
         return re.sub(r"\s+", " ", m.group(1)).strip() or None
     return None
 
 
-def _extract_description(html: str) -> Optional[str]:
+def _extract_description(html: str) -> str | None:
     m = _META_DESC_RE.search(html) or _META_DESC_RE2.search(html)
     if m is None:
         return None
     return m.group(1).strip() or None
 
 
-def _extract_favicon(html: str, base_url: str) -> Optional[str]:
+def _extract_favicon(html: str, base_url: str) -> str | None:
     m = _LINK_ICON_RE.search(html) or _LINK_ICON_RE2.search(html)
     if m:
         return urljoin(base_url, m.group(1).strip())
@@ -256,7 +254,7 @@ _default_fetcher: AbstractFetcher = DefaultFetcher()
 def fetch_preview(
     url: str,
     *,
-    fetcher: Optional[AbstractFetcher] = None,
+    fetcher: AbstractFetcher | None = None,
 ) -> PreviewResult:
     """Public entry point — fetch preview metadata for ``url``.
 

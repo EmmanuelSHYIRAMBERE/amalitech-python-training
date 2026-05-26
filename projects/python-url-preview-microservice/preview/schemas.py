@@ -12,10 +12,9 @@ from __future__ import annotations
 
 import logging
 from collections import Counter, OrderedDict, defaultdict, deque
+from collections import Counter as CounterType
 from dataclasses import dataclass, field
-from datetime import datetime
-from typing import NamedTuple, Optional
-from typing import Counter as CounterType
+from typing import NamedTuple
 
 logger = logging.getLogger(__name__)
 
@@ -52,10 +51,10 @@ class PreviewResult:
     """
 
     url: str
-    title: Optional[str] = field(default=None)
-    description: Optional[str] = field(default=None)
-    favicon: Optional[str] = field(default=None)
-    error: Optional[str] = field(default=None)
+    title: str | None = field(default=None)
+    description: str | None = field(default=None)
+    favicon: str | None = field(default=None)
+    error: str | None = field(default=None)
 
     @property
     def is_success(self) -> bool:
@@ -63,7 +62,7 @@ class PreviewResult:
         return any([self.title, self.description, self.favicon])
 
     @property
-    def metadata_fields(self) -> dict[str, Optional[str]]:
+    def metadata_fields(self) -> dict[str, str | None]:
         """Return a dict of only the metadata fields (no url/error)."""
         return {
             "title": self.title,

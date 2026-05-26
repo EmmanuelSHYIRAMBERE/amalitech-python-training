@@ -14,7 +14,6 @@ Demonstrates:
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from drf_spectacular.extensions import OpenApiAuthenticationExtension
 from rest_framework.authentication import BaseAuthentication
@@ -31,7 +30,7 @@ class APIKeyAuthentication(BaseAuthentication):
 
     keyword = "Bearer"
 
-    def authenticate(self, request: Request) -> Optional[tuple[APIKey, str]]:
+    def authenticate(self, request: Request) -> tuple[APIKey, str] | None:
         """Return (api_key, token) or None if no token is present."""
         raw_token = self._extract_token(request)
         if raw_token is None:
@@ -54,7 +53,7 @@ class APIKeyAuthentication(BaseAuthentication):
     # Private helpers
     # ------------------------------------------------------------------
 
-    def _extract_token(self, request: Request) -> Optional[str]:
+    def _extract_token(self, request: Request) -> str | None:
         """Try Authorization header first, then X-API-Key header."""
         auth_header: str = request.META.get("HTTP_AUTHORIZATION", "")
         if auth_header.startswith(f"{self.keyword} "):
