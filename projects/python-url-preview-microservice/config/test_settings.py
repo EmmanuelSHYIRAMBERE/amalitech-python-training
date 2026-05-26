@@ -1,4 +1,5 @@
 """Test settings — extends production settings but uses SQLite + LocMemCache."""
+
 from config.settings import *  # noqa: F401, F403
 
 DATABASES = {

@@ -1,4 +1,5 @@
 """Initial migration — creates the APIKey table."""
+
 from __future__ import annotations
 
 from typing import ClassVar

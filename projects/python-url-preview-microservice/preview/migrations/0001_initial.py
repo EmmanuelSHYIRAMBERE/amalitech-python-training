@@ -6,6 +6,7 @@ and returns it without persisting anything. Circuit-breaker state lives in Redis
 This empty migration satisfies Django's migration framework requirement
 when INSTALLED_APPS includes 'preview'.
 """
+
 from __future__ import annotations
 
 from typing import ClassVar

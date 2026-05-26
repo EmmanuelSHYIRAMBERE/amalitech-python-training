@@ -1,4 +1,5 @@
 """Request logging middleware and custom exception handler."""
+
 from __future__ import annotations
 
 import logging
@@ -23,10 +24,9 @@ class RequestLoggingMiddleware:
         response: HttpResponse = self.get_response(request)
         duration_ms = round((time.monotonic() - start) * 1000)
 
-        ip = (
-            request.META.get("HTTP_X_FORWARDED_FOR", "").split(",")[0].strip()
-            or request.META.get("REMOTE_ADDR", "unknown")
-        )
+        ip = request.META.get("HTTP_X_FORWARDED_FOR", "").split(",")[
+            0
+        ].strip() or request.META.get("REMOTE_ADDR", "unknown")
 
         log_data = {
             "method": request.method,

@@ -19,6 +19,7 @@ Demonstrates:
 - Custom exceptions
 - SOLID: each function has one job
 """
+
 from __future__ import annotations
 
 import logging
@@ -197,9 +198,7 @@ class DefaultFetcher(AbstractFetcher):
                 domain,
                 url,
             )
-            return PreviewResult(
-                url=url, error=f"Circuit breaker open for {domain}"
-            )
+            return PreviewResult(url=url, error=f"Circuit breaker open for {domain}")
 
         try:
             html = _fetch_html(url)
@@ -223,9 +222,7 @@ class DefaultFetcher(AbstractFetcher):
             logger.warning(
                 "Preview fetch failed after retries: url=%r error=%r", url, exc
             )
-            return PreviewResult(
-                url=url, error=f"Fetch failed after retries: {exc}"
-            )
+            return PreviewResult(url=url, error=f"Fetch failed after retries: {exc}")
 
         except httpx.HTTPStatusError as exc:
             _record_failure(domain)

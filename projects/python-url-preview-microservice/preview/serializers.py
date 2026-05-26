@@ -3,6 +3,7 @@
 Contract: PreviewResponseSerializer must produce JSON identical to what
 shortener/preview_client.py in the url-shortener service expects.
 """
+
 from __future__ import annotations
 
 from rest_framework import serializers

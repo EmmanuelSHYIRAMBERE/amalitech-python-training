@@ -1,4 +1,5 @@
 """Abstract base model providing audit timestamps."""
+
 from django.db import models
 
 

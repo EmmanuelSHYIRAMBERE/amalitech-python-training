@@ -1,4 +1,5 @@
 """Health check endpoint — no auth required."""
+
 import logging
 
 from django.core.cache import cache

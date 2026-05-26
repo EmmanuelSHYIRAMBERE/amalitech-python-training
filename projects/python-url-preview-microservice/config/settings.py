@@ -5,6 +5,7 @@ This service has a SINGLE responsibility: fetch URL preview metadata
 
 It authenticates callers with API keys — no user accounts needed.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -21,7 +22,12 @@ try:
 except UndefinedValueError:
     import os
 
-    if os.environ.get("CI") or os.environ.get("PRE_COMMIT") or os.environ.get("PYTEST_CURRENT_TEST") or "pytest" in os.environ.get("_", ""):
+    if (
+        os.environ.get("CI")
+        or os.environ.get("PRE_COMMIT")
+        or os.environ.get("PYTEST_CURRENT_TEST")
+        or "pytest" in os.environ.get("_", "")
+    ):
         SECRET_KEY = "ci-dummy-secret-key-not-for-production"
     else:
         raise RuntimeError("SECRET_KEY is not set. Add it to your .env file.") from None
@@ -175,6 +181,7 @@ LOG_LEVEL: str = config("LOG_LEVEL", default="INFO")
 
 try:
     import pythonjsonlogger.jsonlogger  # noqa: F401
+
     _json_available = True
 except ImportError:
     _json_available = False

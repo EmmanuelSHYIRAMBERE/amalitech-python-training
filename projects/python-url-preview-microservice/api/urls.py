@@ -1,4 +1,5 @@
 """API v1 URL aggregator — all /api/v1/ routes live here."""
+
 from django.urls import include, path
 
 urlpatterns = [

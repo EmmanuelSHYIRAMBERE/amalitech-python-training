@@ -8,6 +8,7 @@ Demonstrates:
 - Numerical operations and loops in analytics
 - Type hints: Optional, Union, Dict, List
 """
+
 from __future__ import annotations
 
 import logging
@@ -100,9 +101,14 @@ class FetchStats:
 
     def record(self, result: PreviewResult, domain: str) -> None:
         """Record one fetch outcome."""
-        outcome = "success" if result.is_success else (
-            "circuit_open" if result.error and "circuit" in result.error.lower()
-            else "failure"
+        outcome = (
+            "success"
+            if result.is_success
+            else (
+                "circuit_open"
+                if result.error and "circuit" in result.error.lower()
+                else "failure"
+            )
         )
         self.outcome_counter[outcome] += 1
         self._domain_counter[domain] += 1

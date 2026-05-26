@@ -12,6 +12,7 @@ Demonstrates:
 - Structured logging
 - Graceful degradation — always returns 200 even on fetch failure
 """
+
 from __future__ import annotations
 
 import dataclasses
@@ -57,15 +58,11 @@ class PreviewFetchView(APIView):
 
         # Log which API key is making the request
         api_key_name = getattr(request.user, "name", "unknown")
-        logger.info(
-            "Preview fetch requested: url=%r api_key=%r", url, api_key_name
-        )
+        logger.info("Preview fetch requested: url=%r api_key=%r", url, api_key_name)
 
         result = fetch_preview(url)
 
-        return Response(
-            PreviewResponseSerializer(dataclasses.asdict(result)).data
-        )
+        return Response(PreviewResponseSerializer(dataclasses.asdict(result)).data)
 
 
 class PreviewHealthView(APIView):

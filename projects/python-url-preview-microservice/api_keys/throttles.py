@@ -1,4 +1,5 @@
 """Rate throttle scoped to the authenticated API key."""
+
 from __future__ import annotations
 
 from rest_framework.request import Request

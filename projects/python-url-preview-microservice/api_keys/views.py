@@ -13,6 +13,7 @@ Demonstrates:
 - Property-based admin check
 - Structured logging
 """
+
 from __future__ import annotations
 
 import logging
@@ -50,7 +51,9 @@ class APIKeyListCreateView(APIView):
         keys = APIKey.objects.all().order_by("-created_at")
         return Response(APIKeyListSerializer(keys, many=True).data)
 
-    @extend_schema(request=APIKeyCreateSerializer, responses={201: APIKeyResponseSerializer})
+    @extend_schema(
+        request=APIKeyCreateSerializer, responses={201: APIKeyResponseSerializer}
+    )
     def post(self, request: Request) -> Response:
         serializer = APIKeyCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -76,8 +79,6 @@ class APIKeyRevokeView(APIView):
         try:
             key = APIKey.objects.get(pk=pk)
         except APIKey.DoesNotExist:
-            return Response(
-                {"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
         key.revoke()
         return Response(status=status.HTTP_204_NO_CONTENT)

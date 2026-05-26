@@ -8,6 +8,7 @@ Demonstrates:
 - Counter/defaultdict for usage analytics
 - Numerical operations: usage counting, rate-limit calculations
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -73,9 +74,11 @@ class APIKeyStats:
             {
                 "date": day,
                 "count": count,
-                "percentage": round(
-                    count / self.total_requests * 100, 2
-                ) if self.total_requests > 0 else 0.0,
+                "percentage": (
+                    round(count / self.total_requests * 100, 2)
+                    if self.total_requests > 0
+                    else 0.0
+                ),
             }
             for day, count in sorted(self.requests_by_day.items(), reverse=True)
         ]
@@ -103,7 +106,9 @@ class APIKey(TimeStampedModel):
     class Meta:
         ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=["is_active", "token_hash"], name="apikey_active_hash_idx"),
+            models.Index(
+                fields=["is_active", "token_hash"], name="apikey_active_hash_idx"
+            ),
         ]
 
     # ------------------------------------------------------------------

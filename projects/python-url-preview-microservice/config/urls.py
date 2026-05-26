@@ -1,4 +1,5 @@
 """Root URL configuration for the URL Preview Microservice."""
+
 from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 

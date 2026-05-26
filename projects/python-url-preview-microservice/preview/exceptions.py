@@ -4,6 +4,7 @@ Demonstrates:
 - Structured exception hierarchy (OOP, open/closed principle)
 - Each subclass carries domain-specific context
 """
+
 from __future__ import annotations
 
 

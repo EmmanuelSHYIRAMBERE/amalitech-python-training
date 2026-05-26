@@ -11,6 +11,7 @@ Demonstrates:
 - @property for type annotation clarity
 - Pattern: authenticate() returns (principal, credential) tuple
 """
+
 from __future__ import annotations
 
 import logging
@@ -57,7 +58,7 @@ class APIKeyAuthentication(BaseAuthentication):
         """Try Authorization header first, then X-API-Key header."""
         auth_header: str = request.META.get("HTTP_AUTHORIZATION", "")
         if auth_header.startswith(f"{self.keyword} "):
-            return auth_header[len(self.keyword) + 1:].strip() or None
+            return auth_header[len(self.keyword) + 1 :].strip() or None
 
         x_api_key: str = request.META.get("HTTP_X_API_KEY", "")
         return x_api_key.strip() or None
