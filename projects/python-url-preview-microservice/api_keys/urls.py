@@ -3,6 +3,6 @@ from django.urls import path
 from .views import APIKeyListCreateView, APIKeyRevokeView
 
 urlpatterns = [
-    path("", APIKeyListCreateView.as_view(), name="apikey-list-create"),
-    path("<int:pk>/revoke/", APIKeyRevokeView.as_view(), name="apikey-revoke"),
+    path("", APIKeyListCreateView.as_view(), name="api-keys-list"),
+    path("<int:pk>/revoke/", APIKeyRevokeView.as_view(), name="api-keys-revoke"),
 ]
