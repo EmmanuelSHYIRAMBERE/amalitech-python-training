@@ -172,6 +172,7 @@ class URLDetailView(APIView):
     @extend_schema(responses={200: URLResponseSerializer}, summary="Retrieve a URL")
     def get(self, request: Request, short_code: str) -> Response:
         url = self._get_url(short_code)
+        self.check_object_permissions(request, url)
         return Response(URLResponseSerializer(url, context={"request": request}).data)
 
     @extend_schema(

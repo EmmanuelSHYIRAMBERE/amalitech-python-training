@@ -302,10 +302,20 @@ def test_list_urls_unauthenticated_returns_401(api_client: APIClient) -> None:
 
 
 @pytest.mark.django_db
-def test_detail_get_returns_200(user: User, created_url: URL) -> None:
+def test_detail_get_by_owner_returns_200(user: User, created_url: URL) -> None:
     client = auth_client(user)
     response = client.get(f"/api/v1/urls/{created_url.short_code}/")
     assert response.status_code == status.HTTP_200_OK
+
+
+@pytest.mark.django_db
+def test_detail_get_by_non_owner_returns_403(
+    premium_user: User, created_url: URL
+) -> None:
+    """A URL's detail must not be readable by another authenticated user."""
+    client = auth_client(premium_user)
+    response = client.get(f"/api/v1/urls/{created_url.short_code}/")
+    assert response.status_code == status.HTTP_403_FORBIDDEN
 
 
 @pytest.mark.django_db

@@ -15,24 +15,19 @@ SAFE_METHODS = ("GET", "HEAD", "OPTIONS")
 
 
 class IsOwnerOrReadOnly(BasePermission):
-    """Allow any authenticated user to read; only the owner may write.
+    """Only the owner of a URL may read or modify it.
 
-    Attach to detail views (URLDetailView).  The view must pass the URL
-    instance as ``self.get_object()`` so ``has_object_permission`` is called.
+    Attach to detail views (URLDetailView). The view must call
+    ``check_object_permissions(request, url)`` so ``has_object_permission``
+    is enforced.
     """
 
-    message = "You do not have permission to modify another user's link."
+    message = "You do not have permission to access another user's link."
 
     def has_permission(self, request: Request, view: APIView) -> bool:
-        return bool(
-            request.method in SAFE_METHODS
-            or request.user
-            and request.user.is_authenticated
-        )
+        return bool(request.user and request.user.is_authenticated)
 
     def has_object_permission(self, request: Request, view: APIView, obj: URL) -> bool:
-        if request.method in SAFE_METHODS:
-            return True
         return obj.owner == request.user
 
 
