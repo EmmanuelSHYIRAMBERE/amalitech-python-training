@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import logging
 
+from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 from rest_framework.request import Request
@@ -40,10 +41,12 @@ class APIKeyListCreateView(APIView):
     permission_classes = [AllowAny]
     throttle_classes: list = []
 
+    @extend_schema(responses=APIKeyListSerializer(many=True))
     def get(self, request: Request) -> Response:
         keys = APIKey.objects.all().order_by("-created_at")
         return Response(APIKeyListSerializer(keys, many=True).data)
 
+    @extend_schema(request=APIKeyCreateSerializer, responses={201: APIKeyResponseSerializer})
     def post(self, request: Request) -> Response:
         serializer = APIKeyCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
