@@ -19,7 +19,11 @@ class HealthCheckView(APIView):
     throttle_classes: list = []
 
     def get(self, request: Request) -> Response:
-        result: dict[str, str] = {"db": "ok", "redis": "ok", "status": "ok"}
+        result: dict[str, str] = {
+            "db": "reachable",
+            "redis": "reachable",
+            "status": "ok",
+        }
         http_status = 200
 
         try:
