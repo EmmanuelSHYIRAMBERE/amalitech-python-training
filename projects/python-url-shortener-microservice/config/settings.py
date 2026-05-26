@@ -44,9 +44,8 @@ INSTALLED_APPS = [
     # Module 8: Celery result backend + beat scheduler
     "django_celery_results",
     "django_celery_beat",
-    # Module 9: CORS headers + URL Preview microservice
+    # Module 9: CORS headers
     "corsheaders",
-    "url_preview",
     "core",
     "users",
     "shortener",
@@ -128,7 +127,6 @@ CELERY_ENABLE_UTC = True
 CELERY_TASK_ROUTES = {
     "shortener.tasks.track_click": {"queue": "default"},
     "shortener.tasks.cleanup_expired_urls": {"queue": "maintenance"},
-    # Module 9: preview fetches run on the default queue.
     "shortener.tasks.fetch_url_preview": {"queue": "default"},
 }
 
@@ -309,12 +307,6 @@ LOGGING = {
             "propagate": False,
         },
         "celery.task": {
-            "handlers": ["console", "file", "error_file"],
-            "level": LOG_LEVEL,
-            "propagate": False,
-        },
-        # Module 9: preview service logging.
-        "url_preview": {
             "handlers": ["console", "file", "error_file"],
             "level": LOG_LEVEL,
             "propagate": False,

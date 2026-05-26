@@ -1,22 +1,18 @@
 """HTTP client for inter-service communication with the URL Preview service.
 
-The shortener app uses this module to call the preview microservice via HTTP,
-simulating a real distributed architecture where services communicate over
-the network rather than sharing code directly.
-
-In development / single-container deployments the preview service is hosted
-in the same Django process, so the base URL points to localhost.
-In a multi-container deployment each service would have its own hostname.
+The shortener app uses this module to call the preview microservice via HTTP.
+The preview microservice runs as a separate service (python-url-preview-microservice)
+and is accessed over the network using the configured PREVIEW_SERVICE_URL.
 
 Configuration (via .env):
-  PREVIEW_SERVICE_URL  — base URL of the preview service
-                         default: http://localhost:8000
+  PREVIEW_SERVICE_URL  — base URL of the preview microservice
+                         e.g. http://preview-service:8001
   PREVIEW_SERVICE_TOKEN — Bearer token for authenticating to the preview service
-                          default: empty (uses the requesting user's token)
 """
 
 from __future__ import annotations
 
+import dataclasses
 import logging
 
 import httpx
@@ -29,12 +25,30 @@ from tenacity import (
     wait_exponential,
 )
 
-from url_preview.service import PreviewResult, fetch_preview
-
 logger = logging.getLogger(__name__)
 
+
+@dataclasses.dataclass(frozen=True)
+class PreviewResult:
+    """Metadata returned by the URL preview microservice.
+
+    All fields except ``url`` are nullable — the service may not always be
+    able to extract metadata (e.g. the page blocks crawlers, or the network
+    call fails).
+    """
+
+    url: str
+    title: str | None = None
+    description: str | None = None
+    favicon: str | None = None
+    error: str | None = None
+
+    @property
+    def is_success(self) -> bool:
+        return self.error is None
+
+
 # Base URL of the preview microservice.
-# In a real multi-service deployment this would be a separate hostname.
 PREVIEW_SERVICE_URL: str = config("PREVIEW_SERVICE_URL", default="")
 
 # Internal service-to-service auth token (optional).
@@ -64,24 +78,22 @@ def _call_preview_service(url: str, token: str) -> dict[str, str | None]:
 def get_url_preview(url: str, access_token: str = "") -> PreviewResult:
     """Fetch URL preview metadata via the preview microservice.
 
-    Strategy:
-      1. If PREVIEW_SERVICE_URL is configured, call the external HTTP endpoint.
-      2. Otherwise, call the service layer function directly (same-process fallback).
-         This keeps tests and single-container deployments simple.
+    Makes an HTTP POST to the preview microservice endpoint.
+    If PREVIEW_SERVICE_URL is not configured, returns a graceful error result
+    rather than attempting a local fallback.
 
     Args:
         url: The destination URL to fetch metadata for.
-        access_token: JWT Bearer token to authenticate the inter-service call.
+        access_token: Bearer token to authenticate the inter-service call.
 
     Returns:
         PreviewResult with title, description, favicon (all nullable).
     """
     token = access_token or PREVIEW_SERVICE_TOKEN
 
-    # Same-process fallback (default for single-container / test environments).
     if not PREVIEW_SERVICE_URL:
-        logger.debug("PREVIEW_SERVICE_URL not set — calling service layer directly")
-        return fetch_preview(url)
+        logger.warning("PREVIEW_SERVICE_URL is not configured — skipping preview fetch")
+        return PreviewResult(url=url, error="Preview service not configured")
 
     # Inter-service HTTP call.
     try:

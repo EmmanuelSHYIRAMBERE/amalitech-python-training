@@ -12,8 +12,8 @@ from unittest.mock import patch
 import pytest
 
 from shortener.models import URL
+from shortener.preview_client import PreviewResult
 from shortener.tasks import fetch_url_preview
-from url_preview.service import PreviewResult
 from users.models import User
 
 # ---------------------------------------------------------------------------
