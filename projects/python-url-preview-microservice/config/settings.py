@@ -126,10 +126,30 @@ SPECTACULAR_SETTINGS = {
     "DESCRIPTION": (
         "A standalone microservice that fetches title, description, and favicon "
         "from any URL. Authenticated via API keys. Implements circuit breaker, "
-        "exponential-backoff retry, and structured JSON logging."
+        "exponential-backoff retry, and structured JSON logging.\n\n"
+        "**How to authenticate:**\n"
+        "1. Use `POST /api/v1/keys/` to create an API key\n"
+        "2. Copy the `token` from the response\n"
+        "3. Click **Authorize** and enter: `Bearer <your-token>`"
     ),
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    # Adds the Authorize 🔒 button + security schemes to Swagger UI
+    "APPEND_COMPONENTS": {
+        "securitySchemes": {
+            "BearerAuth": {
+                "type": "http",
+                "scheme": "bearer",
+                "bearerFormat": "Token",
+                "description": "Enter your API token (from POST /api/v1/keys/)",
+            },
+        }
+    },
+    "SECURITY": [{"BearerAuth": []}],
+    "SWAGGER_UI_SETTINGS": {
+        "persistAuthorization": True,
+        "displayRequestDuration": True,
+    },
 }
 
 # ---------------------------------------------------------------------------
