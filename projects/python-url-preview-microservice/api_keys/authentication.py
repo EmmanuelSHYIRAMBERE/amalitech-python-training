@@ -16,6 +16,7 @@ from __future__ import annotations
 import logging
 from typing import Optional
 
+from drf_spectacular.extensions import OpenApiAuthenticationExtension
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.request import Request
@@ -61,3 +62,23 @@ class APIKeyAuthentication(BaseAuthentication):
 
         x_api_key: str = request.META.get("HTTP_X_API_KEY", "")
         return x_api_key.strip() or None
+
+
+# ---------------------------------------------------------------------------
+# drf-spectacular extension — tells Swagger UI how to display auth
+# Registers BearerAuth + ApiKeyHeader so the Authorize 🔒 button appears
+# ---------------------------------------------------------------------------
+class APIKeyAuthenticationScheme(OpenApiAuthenticationExtension):
+    target_class = "api_keys.authentication.APIKeyAuthentication"
+    name = "BearerAuth"
+
+    def get_security_requirement(self, auto_schema):  # type: ignore[override]
+        return [{"BearerAuth": []}]
+
+    def get_security_definition(self, auto_schema):  # type: ignore[override]
+        return {
+            "type": "http",
+            "scheme": "bearer",
+            "bearerFormat": "Token",
+            "description": "Enter your API token (from POST /api/v1/keys/)",
+        }
