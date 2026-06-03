@@ -123,7 +123,7 @@ CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TIMEZONE = "UTC"
 CELERY_ENABLE_UTC = True
 
-# Task routing — separate queues for different priority levels.
+# Task routing — separate Cqueues for different priority levels.
 CELERY_TASK_ROUTES = {
     "shortener.tasks.track_click": {"queue": "default"},
     "shortener.tasks.cleanup_expired_urls": {"queue": "maintenance"},
