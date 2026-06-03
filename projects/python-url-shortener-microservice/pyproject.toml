@@ -31,6 +31,11 @@ module = ["shortener.tasks"]
 # @shared_task(bind=True) decorator is untyped in celery-types; suppress the cascade.
 disable_error_code = ["untyped-decorator"]
 
+[[tool.mypy.overrides]]
+module = ["shortener.preview_client"]
+# pybreaker has no typed stubs; subclassing CircuitBreakerListener triggers [misc].
+disable_error_code = ["misc"]
+
 [tool.django-stubs]
 django_settings_module = "config.settings"
 
