@@ -13,7 +13,12 @@ try:
 except UndefinedValueError:
     import os
 
-    if os.environ.get("CI") or os.environ.get("PRE_COMMIT"):
+    if (
+        os.environ.get("CI")
+        or os.environ.get("PRE_COMMIT")
+        or os.environ.get("PYTEST_CURRENT_TEST")
+        or "pytest" in os.environ.get("_", "")
+    ):
         SECRET_KEY = "ci-dummy-secret-key-not-for-production"
     else:
         raise RuntimeError("SECRET_KEY is not set. Add it to your .env file.")
