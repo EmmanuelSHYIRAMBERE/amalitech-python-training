@@ -54,7 +54,7 @@ def generate_rental_summary(*rentals, **kwargs) -> Dict[str, Any]:
     """
     total_revenue = sum(r.total_cost for r in rentals)
     active_rentals = sum(1 for r in rentals if not r.is_returned)
-    
+
     summary = {
         "total_rentals": len(rentals),
         "active_rentals": active_rentals,

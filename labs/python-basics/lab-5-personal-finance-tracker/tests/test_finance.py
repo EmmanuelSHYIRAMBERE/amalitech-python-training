@@ -80,53 +80,53 @@ def test_investment_account_holdings():
 def test_account_balance_calculation():
     """Test account balance calculation with transactions."""
     account = CheckingAccount("ACC001", "Checking", 1000.0)
-    
+
     t1 = Transaction("T001", 500.0, TransactionType.INCOME,
                     TransactionCategory.SALARY, "Salary")
     t2 = Transaction("T002", 200.0, TransactionType.EXPENSE,
                     TransactionCategory.FOOD, "Groceries")
-    
+
     account.add_transaction(t1)
     account.add_transaction(t2)
-    
+
     assert account.balance == 1300.0  # 1000 + 500 - 200
 
 def test_account_transaction_filtering():
     """Test filtering transactions by type."""
     account = CheckingAccount("ACC001", "Checking", 1000.0)
-    
+
     t1 = Transaction("T001", 500.0, TransactionType.INCOME,
                     TransactionCategory.SALARY, "Salary")
     t2 = Transaction("T002", 200.0, TransactionType.EXPENSE,
                     TransactionCategory.FOOD, "Groceries")
     t3 = Transaction("T003", 100.0, TransactionType.EXPENSE,
                     TransactionCategory.TRANSPORT, "Gas")
-    
+
     account.add_transaction(t1)
     account.add_transaction(t2)
     account.add_transaction(t3)
-    
+
     income_transactions = account.get_transactions_by_type(TransactionType.INCOME)
     expense_transactions = account.get_transactions_by_type(TransactionType.EXPENSE)
-    
+
     assert len(income_transactions) == 1
     assert len(expense_transactions) == 2
 
 def test_account_totals():
     """Test account income and expense totals."""
     account = CheckingAccount("ACC001", "Checking", 1000.0)
-    
+
     t1 = Transaction("T001", 500.0, TransactionType.INCOME,
                     TransactionCategory.SALARY, "Salary")
     t2 = Transaction("T002", 200.0, TransactionType.EXPENSE,
                     TransactionCategory.FOOD, "Groceries")
     t3 = Transaction("T003", 300.0, TransactionType.INCOME,
                     TransactionCategory.FREELANCE, "Freelance")
-    
+
     account.add_transaction(t1)
     account.add_transaction(t2)
     account.add_transaction(t3)
-    
+
     assert account.get_total_income() == 800.0
     assert account.get_total_expenses() == 200.0
 
@@ -135,7 +135,7 @@ def test_account_equality():
     acc1 = CheckingAccount("ACC001", "Checking", 1000.0)
     acc2 = CheckingAccount("ACC001", "Different Name", 2000.0)
     acc3 = CheckingAccount("ACC002", "Checking", 1000.0)
-    
+
     assert acc1 == acc2  # Same ID
     assert acc1 != acc3  # Different ID
 
@@ -143,7 +143,7 @@ def test_account_addition():
     """Test account addition operator."""
     acc1 = CheckingAccount("ACC001", "Checking", 1000.0)
     acc2 = SavingsAccount("ACC002", "Savings", 5000.0)
-    
+
     total = acc1 + acc2
     assert total == 6000.0
 

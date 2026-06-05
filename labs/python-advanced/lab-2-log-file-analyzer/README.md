@@ -72,7 +72,7 @@ Breaks `01/Jan/2024:08:30:45 +0000` into `day`, `month`, `year`, `hour`, `minute
 
 ### Cleaning
 
-`QUERY_STRIP` (`\?.*$`) removes query strings before URL grouping.  
+`QUERY_STRIP` (`\?.*$`) removes query strings before URL grouping.
 `MULTI_SLASH` (`/{2,}`) normalises repeated slashes.
 
 ---

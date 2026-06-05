@@ -10,10 +10,10 @@ from src.models.employee import Employee
 def calculate_total_payroll(employees: List[Employee]) -> float:
     """
     Calculate total payroll for all employees.
-    
+
     Args:
         employees: List of Employee objects
-        
+
     Returns:
         Total net pay for all employees
     """
@@ -23,10 +23,10 @@ def calculate_total_payroll(employees: List[Employee]) -> float:
 def calculate_average_salary(employees: List[Employee]) -> float:
     """
     Calculate average net salary across all employees.
-    
+
     Args:
         employees: List of Employee objects
-        
+
     Returns:
         Average net pay
     """
@@ -38,10 +38,10 @@ def calculate_average_salary(employees: List[Employee]) -> float:
 def get_payroll_summary(employees: List[Employee]) -> Dict[str, float]:
     """
     Generate payroll summary statistics.
-    
+
     Args:
         employees: List of Employee objects
-        
+
     Returns:
         Dictionary with payroll statistics
     """
@@ -53,11 +53,11 @@ def get_payroll_summary(employees: List[Employee]) -> Dict[str, float]:
             'average_net': 0.0,
             'employee_count': 0
         }
-    
+
     total_gross = sum(emp.calculate_gross_pay() for emp in employees)
     total_tax = sum(emp.calculate_tax() for emp in employees)
     total_net = sum(emp.calculate_net_pay() for emp in employees)
-    
+
     return {
         'total_gross': total_gross,
         'total_tax': total_tax,
@@ -70,10 +70,10 @@ def get_payroll_summary(employees: List[Employee]) -> Dict[str, float]:
 def get_employees_by_type(employees: List[Employee]) -> Dict[str, List[Employee]]:
     """
     Group employees by their type.
-    
+
     Args:
         employees: List of Employee objects
-        
+
     Returns:
         Dictionary mapping employee types to lists of employees
     """
@@ -89,10 +89,10 @@ def get_employees_by_type(employees: List[Employee]) -> Dict[str, List[Employee]
 def calculate_tax_bracket_distribution(employees: List[Employee]) -> Dict[str, int]:
     """
     Calculate distribution of employees across tax brackets.
-    
+
     Args:
         employees: List of Employee objects
-        
+
     Returns:
         Dictionary with tax bracket counts
     """
@@ -101,7 +101,7 @@ def calculate_tax_bracket_distribution(employees: List[Employee]) -> Dict[str, i
         '10-20%': 0,
         '20%+': 0
     }
-    
+
     for emp in employees:
         rate = emp.tax_rate
         if rate < 0.10:
@@ -110,20 +110,20 @@ def calculate_tax_bracket_distribution(employees: List[Employee]) -> Dict[str, i
             brackets['10-20%'] += 1
         else:
             brackets['20%+'] += 1
-    
+
     return brackets
 
 
 def find_highest_paid(employees: List[Employee]) -> Employee:
     """
     Find the highest paid employee.
-    
+
     Args:
         employees: List of Employee objects
-        
+
     Returns:
         Employee with highest net pay
-        
+
     Raises:
         ValueError: If employee list is empty
     """
@@ -135,13 +135,13 @@ def find_highest_paid(employees: List[Employee]) -> Employee:
 def find_lowest_paid(employees: List[Employee]) -> Employee:
     """
     Find the lowest paid employee.
-    
+
     Args:
         employees: List of Employee objects
-        
+
     Returns:
         Employee with lowest net pay
-        
+
     Raises:
         ValueError: If employee list is empty
     """

@@ -35,7 +35,7 @@ def create_menu(options: List[str]) -> None:
     print("0. Exit")
     print("-"*60)
 
-def get_user_input(prompt: str, validator: Callable = None, 
+def get_user_input(prompt: str, validator: Callable = None,
                    error_msg: str = "Invalid input.") -> str:
     """Get user input with optional validation."""
     while True:
@@ -54,7 +54,7 @@ def calculate_statistics(values: List[float]) -> Dict[str, float]:
             "max": 0.0,
             "count": 0
         }
-    
+
     return {
         "total": sum(values),
         "average": sum(values) / len(values),
@@ -63,10 +63,10 @@ def calculate_statistics(values: List[float]) -> Dict[str, float]:
         "count": len(values)
     }
 
-def filter_by_date_range(items: List[Any], start_date: datetime, 
+def filter_by_date_range(items: List[Any], start_date: datetime,
                         end_date: datetime, date_attr: str = 'date') -> List[Any]:
     """Filter items by date range using comprehension."""
-    return [item for item in items 
+    return [item for item in items
             if start_date <= getattr(item, date_attr) <= end_date]
 
 def group_by_attribute(items: List[Any], attr: str) -> Dict[Any, List[Any]]:
@@ -83,7 +83,7 @@ def calculate_monthly_average(transactions: List[Any], months: int = 12) -> floa
     """Calculate monthly average from transactions."""
     if not transactions or months <= 0:
         return 0.0
-    
+
     total = sum(t.amount for t in transactions)
     return total / months
 
@@ -109,7 +109,7 @@ def calculate_budget_variance(actual: float, budgeted: float) -> Dict[str, Any]:
     """Calculate budget variance."""
     variance = actual - budgeted
     variance_percentage = (variance / budgeted * 100) if budgeted != 0 else 0
-    
+
     return {
         "actual": actual,
         "budgeted": budgeted,
@@ -121,20 +121,20 @@ def calculate_budget_variance(actual: float, budgeted: float) -> Dict[str, Any]:
 def generate_financial_summary(*accounts, **options) -> Dict[str, Any]:
     """
     Generate financial summary using *args and **kwargs.
-    
+
     Args:
         *accounts: Variable number of account objects
         **options: Additional options
             - include_details: bool
             - period: str
-    
+
     Returns:
         Dictionary with financial summary
     """
     total_balance = sum(acc.balance for acc in accounts)
     total_income = sum(acc.get_total_income() for acc in accounts)
     total_expenses = sum(acc.get_total_expenses() for acc in accounts)
-    
+
     summary = {
         "total_accounts": len(accounts),
         "total_balance": total_balance,
@@ -145,7 +145,7 @@ def generate_financial_summary(*accounts, **options) -> Dict[str, Any]:
         "period": options.get("period", "All Time"),
         "generated_at": datetime.now().isoformat()
     }
-    
+
     if options.get("include_details", False):
         summary["accounts"] = [
             {
@@ -155,7 +155,7 @@ def generate_financial_summary(*accounts, **options) -> Dict[str, Any]:
             }
             for acc in accounts
         ]
-    
+
     return summary
 
 def calculate_expense_breakdown(transactions: List[Any]) -> Dict[str, float]:
@@ -176,12 +176,12 @@ def find_largest_transactions(transactions: List[Any], n: int = 5) -> List[Any]:
 def calculate_spending_trend(transactions: List[Any], days: int = 30) -> Dict[str, float]:
     """Calculate spending trend over specified days."""
     cutoff_date = datetime.now() - timedelta(days=days)
-    recent_transactions = [t for t in transactions 
+    recent_transactions = [t for t in transactions
                           if t.date >= cutoff_date]
-    
+
     if not recent_transactions:
         return {"daily_average": 0.0, "total": 0.0, "days": days}
-    
+
     total = sum(t.amount for t in recent_transactions)
     return {
         "daily_average": total / days,
