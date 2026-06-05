@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import dataclasses
 import logging
+import os
 import threading
 from typing import Any
 from urllib.parse import urlparse
@@ -73,6 +74,9 @@ class PreviewResult:
 # ---------------------------------------------------------------------------
 
 # Base URL of the preview microservice.
+# Read at module load for test/type-checking visibility — get_url_preview
+# re-reads via config() at call time so Celery forked workers always use
+# the current environment value without requiring a full worker restart.
 PREVIEW_SERVICE_URL: str = config("PREVIEW_SERVICE_URL", default="")
 
 # Internal service-to-service auth token (optional).
@@ -154,17 +158,26 @@ def _get_breaker(domain: str) -> pybreaker.CircuitBreaker:
     stop=stop_after_attempt(2),
     reraise=False,
 )
-def _call_preview_service(url: str, token: str) -> dict[str, str | None]:
+def _call_preview_service(
+    url: str, token: str, service_url: str = ""
+) -> dict[str, str | None]:
     """POST to /api/v1/preview/fetch/ with retry on transient network errors.
 
     Retried only for TimeoutException and NetworkError (transient).
     HTTPStatusError (4xx/5xx) is NOT retried — the server explicitly rejected.
 
+    Args:
+        url:         Destination URL whose preview metadata to fetch.
+        token:       Bearer token for authenticating to the preview service.
+        service_url: Base URL of the preview microservice.  Falls back to
+                     the module-level PREVIEW_SERVICE_URL when not supplied.
+
     Raises:
         RetryError: when all retry attempts for transient errors are exhausted.
         httpx.HTTPStatusError: on 4xx/5xx responses.
     """
-    endpoint = f"{PREVIEW_SERVICE_URL.rstrip('/')}/api/v1/preview/fetch/"
+    base = service_url or PREVIEW_SERVICE_URL
+    endpoint = f"{base.rstrip('/')}/api/v1/preview/fetch/"
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
     with httpx.Client(timeout=_TIMEOUT) as client:
         response = client.post(endpoint, json={"url": url}, headers=headers)
@@ -194,9 +207,17 @@ def get_url_preview(url: str, access_token: str = "") -> PreviewResult:
     Returns:
         PreviewResult — always. Never raises.
     """
-    token = access_token or PREVIEW_SERVICE_TOKEN
+    # Re-read from OS environment at call time — Celery ForkPoolWorkers inherit
+    # module-level constants AND decouple's internal config cache from the
+    # parent process at fork time.  os.environ is never cached, so it always
+    # reflects the container's live environment variables regardless of when
+    # the worker subprocess was forked.
+    token = access_token or os.environ.get(
+        "PREVIEW_SERVICE_TOKEN", PREVIEW_SERVICE_TOKEN
+    )
+    service_url = os.environ.get("PREVIEW_SERVICE_URL", PREVIEW_SERVICE_URL)
 
-    if not PREVIEW_SERVICE_URL:
+    if not service_url:
         logger.warning("PREVIEW_SERVICE_URL is not configured — skipping preview fetch")
         return PreviewResult(url=url, error="Preview service not configured")
 
@@ -207,7 +228,9 @@ def get_url_preview(url: str, access_token: str = "") -> PreviewResult:
         # The circuit breaker wraps the retrying HTTP call.
         # If the circuit is open pybreaker raises CircuitBreakerError immediately
         # without executing the callable at all.
-        data: dict[str, str | None] = breaker.call(_call_preview_service, url, token)
+        data: dict[str, str | None] = breaker.call(
+            _call_preview_service, url, token, service_url
+        )
 
         logger.info(
             "Preview fetched: url=%r title=%r domain=%r state=%s",
