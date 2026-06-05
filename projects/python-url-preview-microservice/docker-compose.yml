@@ -43,6 +43,7 @@ services:
     build: .
     command: >
       sh -c "python manage.py migrate --noinput &&
+             python manage.py ensure_service_api_key &&
              gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 2"
     ports:
       - "${WEB_PORT:-8001}:8000"
@@ -54,6 +55,9 @@ services:
       DB_HOST: db
       DB_PORT: "5432"
       REDIS_URL: redis://redis:6379/0
+    networks:
+      - default
+      - microservices-net
     depends_on:
       db:
         condition: service_healthy
@@ -69,3 +73,7 @@ services:
 volumes:
   pg_data:
   redis_data:
+
+networks:
+  microservices-net:
+    external: true
