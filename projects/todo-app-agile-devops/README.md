@@ -1,6 +1,6 @@
 # Todo App — Agile & DevOps Project
 
-A simple Todo List web application built as part of an Agile & DevOps training project.  
+A simple Todo List web application built as part of an Agile & DevOps training project.
 This project demonstrates iterative development, testing, CI/CD pipelines, and basic logging/monitoring.
 
 ---

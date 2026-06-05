@@ -37,7 +37,7 @@ def filter_overdue(resources: List[LibraryResource]) -> List[LibraryResource]:
     return [r for r in resources if r.is_overdue()]
 
 
-def filter_by_year_range(resources: List[LibraryResource], 
+def filter_by_year_range(resources: List[LibraryResource],
                          start_year: int, end_year: int) -> List[LibraryResource]:
     """Filter resources by year range using list comprehension."""
     return [r for r in resources if start_year <= r.year <= end_year]
@@ -48,7 +48,7 @@ def get_unique_authors(resources: List[LibraryResource]) -> List[str]:
     return sorted(list({r.author for r in resources}))
 
 
-def get_resources_by_author(resources: List[LibraryResource], 
+def get_resources_by_author(resources: List[LibraryResource],
                             author: str) -> List[LibraryResource]:
     """Get all resources by specific author using list comprehension."""
     return [r for r in resources if r.author.lower() == author.lower()]

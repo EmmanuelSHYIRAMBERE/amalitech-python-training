@@ -10,10 +10,10 @@ from typing import Callable
 def validate_email(email: str) -> bool:
     """
     Validate email format.
-    
+
     Args:
         email: Email string to validate
-        
+
     Returns:
         True if valid, False otherwise
     """
@@ -24,10 +24,10 @@ def validate_email(email: str) -> bool:
 def format_currency(amount: float) -> str:
     """
     Format amount as currency.
-    
+
     Args:
         amount: Amount to format
-        
+
     Returns:
         Formatted currency string
     """
@@ -37,12 +37,12 @@ def format_currency(amount: float) -> str:
 def get_user_input(prompt: str, validator: Callable = None, error_msg: str = None) -> str:
     """
     Get validated user input.
-    
+
     Args:
         prompt: Input prompt message
         validator: Optional validation function
         error_msg: Optional error message for validation failure
-        
+
     Returns:
         Validated user input
     """
@@ -62,7 +62,7 @@ def get_user_input(prompt: str, validator: Callable = None, error_msg: str = Non
 def create_menu(options: list):
     """
     Display a numbered menu.
-    
+
     Args:
         options: List of menu option strings
     """

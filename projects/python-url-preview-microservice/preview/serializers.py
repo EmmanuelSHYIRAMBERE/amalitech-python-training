@@ -1,16 +1,22 @@
-"""Serializers for the URL Preview microservice — Module 9."""
+"""Serializers for the preview endpoints.
+
+Contract: PreviewResponseSerializer must produce JSON identical to what
+shortener/preview_client.py in the url-shortener service expects.
+"""
+
+from __future__ import annotations
 
 from rest_framework import serializers
 
 
-class PreviewRequestSerializer(serializers.Serializer[dict]):  # type: ignore[type-arg]
+class PreviewRequestSerializer(serializers.Serializer):
     """Input: the URL to fetch preview metadata for."""
 
     url = serializers.URLField()
 
 
-class PreviewResponseSerializer(serializers.Serializer[dict]):  # type: ignore[type-arg]
-    """Output: scraped metadata from the destination page."""
+class PreviewResponseSerializer(serializers.Serializer):
+    """Output: scraped metadata — matches PreviewResult dataclass shape."""
 
     url = serializers.URLField()
     title = serializers.CharField(allow_null=True)

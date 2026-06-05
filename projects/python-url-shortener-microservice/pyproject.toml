@@ -19,7 +19,7 @@ module = ["decouple", "decouple.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-module = ["celery", "celery.*", "django_celery_beat", "django_celery_beat.*", "django_celery_results", "django_celery_results.*", "django_redis", "django_redis.*", "pythonjsonlogger", "pythonjsonlogger.*", "httpx", "httpx.*", "tenacity", "tenacity.*", "corsheaders", "corsheaders.*"]
+module = ["celery", "celery.*", "django_celery_beat", "django_celery_beat.*", "django_celery_results", "django_celery_results.*", "django_redis", "django_redis.*", "pythonjsonlogger", "pythonjsonlogger.*", "httpx", "httpx.*", "tenacity", "tenacity.*", "corsheaders", "corsheaders.*", "pybreaker", "pybreaker.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
@@ -31,17 +31,22 @@ module = ["shortener.tasks"]
 # @shared_task(bind=True) decorator is untyped in celery-types; suppress the cascade.
 disable_error_code = ["untyped-decorator"]
 
+[[tool.mypy.overrides]]
+module = ["shortener.preview_client"]
+# pybreaker has no typed stubs; subclassing CircuitBreakerListener triggers [misc].
+disable_error_code = ["misc"]
+
 [tool.django-stubs]
 django_settings_module = "config.settings"
 
 [tool.pytest.ini_options]
-DJANGO_SETTINGS_MODULE = "config.settings"
+DJANGO_SETTINGS_MODULE = "config.test_settings"
 pythonpath = ["."]
 addopts = "-v --tb=short"
 testpaths = ["tests"]
 
 [tool.coverage.run]
-source = ["shortener", "core", "api", "users", "url_preview"]
+source = ["shortener", "core", "api", "users"]
 omit = ["*/migrations/*", "manage.py"]
 
 [tool.coverage.report]

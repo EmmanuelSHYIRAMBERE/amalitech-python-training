@@ -16,6 +16,7 @@ from typing import Any
 
 from django.core.cache import cache
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 
 from .models import URL
 
@@ -63,16 +64,24 @@ def get_cached_url(short_code: str) -> URL | None:
     cached_data: dict[str, Any] | None = cache.get(cache_key)
     if cached_data is not None:
         logger.debug("Cache HIT for short_code=%r", short_code)
-        # Reconstruct the URL instance from cached dict.
-        # We don't cache the full ORM object (not serializable).
-        try:
-            url = URL.objects.get(pk=cached_data["id"])
-            return url
-        except URL.DoesNotExist:
-            # Stale cache entry — the URL was deleted.
-            cache.delete(cache_key)
-            logger.warning("Stale cache entry for short_code=%r — deleted", short_code)
+
+        # Negative cache entry — short_code is known not to exist.
+        if cached_data.get("id") is None:
             return None
+
+        # Reconstruct an unsaved URL instance from the cached dict.
+        # No DB query needed — all required fields are stored in the cache.
+        expires_at = None
+        if cached_data.get("expires_at"):
+            expires_at = parse_datetime(cached_data["expires_at"])
+
+        return URL(
+            pk=cached_data["id"],
+            short_code=cached_data["short_code"],
+            original_url=cached_data["original_url"],
+            is_active=cached_data["is_active"],
+            expires_at=expires_at,
+        )
 
     # Cache miss — fetch from DB.
     logger.debug("Cache MISS for short_code=%r", short_code)

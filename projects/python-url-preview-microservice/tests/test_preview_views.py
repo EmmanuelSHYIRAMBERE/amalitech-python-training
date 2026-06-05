@@ -1,9 +1,10 @@
-"""Tests for url_preview views — Module 9.
+"""Tests for preview views — TDD workflow.
 
-Covers:
-  POST /api/v1/preview/fetch/   — authenticated preview fetch
-  GET  /api/v1/preview/health/  — public liveness check
+Covers POST /api/v1/preview/fetch/ and GET /api/v1/preview/health/.
+Contract is identical to what the url-shortener's test_preview_views.py
+validates, so both services stay compatible.
 """
+from __future__ import annotations
 
 from unittest.mock import patch
 
@@ -11,25 +12,11 @@ import pytest
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from url_preview.service import PreviewResult
-from users.models import User
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-
-def _auth_client(user: User) -> APIClient:
-    from rest_framework_simplejwt.tokens import RefreshToken
-
-    client = APIClient()
-    refresh = RefreshToken.for_user(user)
-    client.credentials(HTTP_AUTHORIZATION=f"Bearer {refresh.access_token}")
-    return client
+from preview.schemas import PreviewResult
 
 
 # ---------------------------------------------------------------------------
-# GET /api/v1/preview/health/
+# GET /api/v1/preview/health/ — no auth
 # ---------------------------------------------------------------------------
 
 
@@ -57,14 +44,13 @@ def test_preview_fetch_requires_authentication(api_client: APIClient) -> None:
 
 
 # ---------------------------------------------------------------------------
-# POST /api/v1/preview/fetch/ — validation
+# POST /api/v1/preview/fetch/ — input validation
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.django_db
-def test_preview_fetch_rejects_invalid_url(user: User) -> None:
-    client = _auth_client(user)
-    response = client.post(
+def test_preview_fetch_rejects_invalid_url(auth_client: APIClient) -> None:
+    response = auth_client.post(
         "/api/v1/preview/fetch/",
         {"url": "not-a-url"},
         format="json",
@@ -74,9 +60,8 @@ def test_preview_fetch_rejects_invalid_url(user: User) -> None:
 
 
 @pytest.mark.django_db
-def test_preview_fetch_rejects_missing_url(user: User) -> None:
-    client = _auth_client(user)
-    response = client.post("/api/v1/preview/fetch/", {}, format="json")
+def test_preview_fetch_rejects_missing_url(auth_client: APIClient) -> None:
+    response = auth_client.post("/api/v1/preview/fetch/", {}, format="json")
     assert response.status_code == status.HTTP_400_BAD_REQUEST
 
 
@@ -86,17 +71,15 @@ def test_preview_fetch_rejects_missing_url(user: User) -> None:
 
 
 @pytest.mark.django_db
-def test_preview_fetch_returns_200_with_metadata(user: User) -> None:
+def test_preview_fetch_returns_200_with_metadata(auth_client: APIClient) -> None:
     expected = PreviewResult(
         url="https://example.com",
         title="Example Domain",
         description="An example website.",
         favicon="https://example.com/favicon.ico",
     )
-    client = _auth_client(user)
-
-    with patch("url_preview.views.fetch_preview", return_value=expected):
-        response = client.post(
+    with patch("preview.views.fetch_preview", return_value=expected):
+        response = auth_client.post(
             "/api/v1/preview/fetch/",
             {"url": "https://example.com"},
             format="json",
@@ -109,16 +92,16 @@ def test_preview_fetch_returns_200_with_metadata(user: User) -> None:
 
 
 @pytest.mark.django_db
-def test_preview_fetch_returns_200_with_null_fields_on_failure(user: User) -> None:
-    """Graceful degradation: returns 200 with null fields when fetch fails."""
+def test_preview_fetch_returns_200_with_null_fields_on_failure(
+    auth_client: APIClient,
+) -> None:
+    """Graceful degradation — always 200, error reported in response body."""
     expected = PreviewResult(
         url="https://example.com",
         error="Circuit breaker open for example.com",
     )
-    client = _auth_client(user)
-
-    with patch("url_preview.views.fetch_preview", return_value=expected):
-        response = client.post(
+    with patch("preview.views.fetch_preview", return_value=expected):
+        response = auth_client.post(
             "/api/v1/preview/fetch/",
             {"url": "https://example.com"},
             format="json",
@@ -130,12 +113,12 @@ def test_preview_fetch_returns_200_with_null_fields_on_failure(user: User) -> No
 
 
 @pytest.mark.django_db
-def test_preview_fetch_response_contains_expected_fields(user: User) -> None:
+def test_preview_fetch_response_contains_expected_fields(
+    auth_client: APIClient,
+) -> None:
     expected = PreviewResult(url="https://example.com", title="T")
-    client = _auth_client(user)
-
-    with patch("url_preview.views.fetch_preview", return_value=expected):
-        response = client.post(
+    with patch("preview.views.fetch_preview", return_value=expected):
+        response = auth_client.post(
             "/api/v1/preview/fetch/",
             {"url": "https://example.com"},
             format="json",

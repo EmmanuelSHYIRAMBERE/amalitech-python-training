@@ -32,8 +32,6 @@ jobs:
 
   # ───────────────────────────────────────────────────────────────────────────
   # Job 1 — Lint & Format
-  # Mod 9 new files: url_preview/service.py, url_preview/views.py,
-  # url_preview/serializers.py, shortener/preview_client.py
   # ───────────────────────────────────────────────────────────────────────────
   lint:
     name: Lint & Format Check
@@ -54,11 +52,10 @@ jobs:
         run: pip install -r requirements.txt ruff black
 
       - name: Ruff — lint
-        # Mod 9 adds url_preview/ and shortener/preview_client.py
-        run: ruff check config/ shortener/ api/ core/ users/ url_preview/
+        run: ruff check config/ shortener/ api/ core/ users/
 
       - name: Black — format check
-        run: black --check config/ shortener/ api/ core/ users/ url_preview/
+        run: black --check config/ shortener/ api/ core/ users/
 
   # ───────────────────────────────────────────────────────────────────────────
   # Job 2 — Type Check (mypy)
@@ -88,7 +85,7 @@ jobs:
           mypy
           --ignore-missing-imports
           --explicit-package-bases
-          config/ shortener/ api/ core/ users/ url_preview/
+          config/ shortener/ api/ core/ users/
 
   # ───────────────────────────────────────────────────────────────────────────
   # Job 3 — Docker Build
@@ -107,14 +104,6 @@ jobs:
 
   # ───────────────────────────────────────────────────────────────────────────
   # Job 4 — Django System Check
-  # Mod 9 additions verified here:
-  #   - corsheaders and url_preview in INSTALLED_APPS
-  #   - CorsMiddleware registered before CommonMiddleware
-  #   - CORS_ALLOWED_ORIGINS configured
-  #   - PREVIEW_SERVICE_URL setting present
-  #   - /api/v1/preview/fetch/ and /api/v1/preview/health/ URL names resolve
-  #   - Migration 0004 (unique preview fields) applied cleanly
-  #   - fetch_url_preview task route registered in CELERY_TASK_ROUTES
   # ───────────────────────────────────────────────────────────────────────────
   django-check:
     name: Django System Check
@@ -200,15 +189,6 @@ jobs:
           print('OK — corsheaders in INSTALLED_APPS')
           "
 
-      - name: Verify url_preview is in INSTALLED_APPS
-        run: |
-          python manage.py shell -c "
-          from django.conf import settings
-          assert 'url_preview' in settings.INSTALLED_APPS, \
-              'url_preview missing from INSTALLED_APPS'
-          print('OK — url_preview in INSTALLED_APPS')
-          "
-
       - name: Verify CorsMiddleware is registered before CommonMiddleware
         run: |
           python manage.py shell -c "
@@ -250,18 +230,6 @@ jobs:
           print(f'OK — {key} routes to queue={routes[key][\"queue\"]}')
           "
 
-      - name: Verify preview URL patterns are registered
-        run: |
-          python manage.py shell -c "
-          from django.urls import reverse, NoReverseMatch
-          for name in ['preview-fetch', 'preview-health']:
-              try:
-                  url = reverse(name)
-                  print(f'OK — {name} resolves to {url}')
-              except NoReverseMatch as e:
-                  raise AssertionError(f'URL name not found: {name}') from e
-          "
-
       - name: Verify default tags were seeded
         run: |
           python manage.py shell -c "
@@ -286,19 +254,6 @@ jobs:
       - name: Generate OpenAPI schema
         run: python manage.py spectacular --file schema.yml
 
-      - name: Verify preview endpoints appear in OpenAPI schema
-        run: |
-          python -c "
-          import yaml
-          with open('schema.yml') as f:
-              schema = yaml.safe_load(f)
-          paths = schema.get('paths', {})
-          preview_paths = [p for p in paths if 'preview' in p]
-          assert len(preview_paths) >= 1, \
-              f'No preview paths found in schema. Got: {list(paths.keys())}'
-          print(f'OK — preview paths in schema: {preview_paths}')
-          "
-
       - name: Verify JWT security scheme in schema
         run: |
           python -c "
@@ -320,15 +275,11 @@ jobs:
 
   # ───────────────────────────────────────────────────────────────────────────
   # Job 5 — Pytest & Coverage
-  # Runs the full test suite (~190 tests) against live Postgres + Redis.
+  # Runs the full test suite against live Postgres + Redis.
   # Mod 9 new test files:
-  #   - tests/test_preview_service.py   — 20 tests (service layer, circuit breaker)
-  #   - tests/test_preview_client.py    —  5 tests (inter-service HTTP client)
-  #   - tests/test_preview_views.py     —  7 tests (PreviewFetchView, health)
-  #   - tests/test_preview_task.py      —  6 tests (fetch_url_preview task)
-  #   - tests/test_cors.py              —  4 tests (CORS headers)
-  #   - tests/test_auth.py              — +3 tests (tag filter)
-  # url_preview/ added to coverage sources in pyproject.toml.
+  #   - tests/test_preview_client.py    — inter-service HTTP client
+  #   - tests/test_preview_task.py      — fetch_url_preview Celery task
+  #   - tests/test_cors.py              — CORS headers
   # ───────────────────────────────────────────────────────────────────────────
   test:
     name: Pytest & Coverage
@@ -386,8 +337,6 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run pytest with coverage
-        # url_preview/ is now included in coverage.run.source (pyproject.toml).
-        # All preview tests mock httpx — no real HTTP calls are made in CI.
         run: coverage run -m pytest
 
       - name: Coverage report (terminal)
@@ -408,14 +357,10 @@ jobs:
 
   # ───────────────────────────────────────────────────────────────────────────
   # Job 6 — Smoke Test
-  # Spins up Django dev server + Redis and exercises the full request cycle
-  # including all Mod 9 additions:
+  # Spins up Django dev server + Redis and exercises the full request cycle:
   #   - CORS preflight returns 200 from allowed origin
   #   - Access-Control-Allow-Origin header present on responses
-  #   - GET /api/v1/preview/health/ returns {"status":"ok","service":"url-preview"}
-  #   - POST /api/v1/preview/fetch/ requires auth (401 without token)
-  #   - POST /api/v1/preview/fetch/ returns 200 with metadata fields
-  #   - GET /api/v1/urls/list/?tag=Marketing filters correctly
+  #   - GET /api/v1/urls/list/?tag=Technology filters correctly
   #   - All Mod 8 smoke tests still pass (health, auth, create, redirect)
   # ───────────────────────────────────────────────────────────────────────────
   smoke-test:
@@ -521,29 +466,6 @@ jobs:
           echo "$HEADER" | grep -q "localhost:3000" || \
             (echo "FAIL: Access-Control-Allow-Origin header missing or wrong" && exit 1)
 
-      # ── Preview Service ────────────────────────────────────────────────────
-
-      - name: Smoke test — preview health returns ok (200, no auth)
-        run: |
-          RESPONSE=$(curl -s http://localhost:8000/api/v1/preview/health/)
-          echo "Preview health response: $RESPONSE"
-          python -c "
-          import json
-          data = json.loads('$RESPONSE')
-          assert data['status']  == 'ok',          f'status: {data[\"status\"]}'
-          assert data['service'] == 'url-preview',  f'service: {data[\"service\"]}'
-          print('OK — preview health: status=ok, service=url-preview')
-          "
-
-      - name: Smoke test — preview fetch requires auth (401 without token)
-        run: |
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-            -X POST http://localhost:8000/api/v1/preview/fetch/ \
-            -H "Content-Type: application/json" \
-            -d '{"url":"https://example.com"}')
-          echo "Unauthenticated preview fetch status: $STATUS"
-          [ "$STATUS" = "401" ] || (echo "FAIL: expected 401, got $STATUS" && exit 1)
-
       # ── Auth ──────────────────────────────────────────────────────────────
 
       - name: Smoke test — register a new user (201)
@@ -581,25 +503,6 @@ jobs:
             -d "{\"refresh\":\"$REFRESH_TOKEN\"}")
           echo "Token refresh status: $STATUS"
           [ "$STATUS" = "200" ] || (echo "FAIL: expected 200, got $STATUS" && exit 1)
-
-      # ── Preview fetch (authenticated) ─────────────────────────────────────
-
-      - name: Smoke test — preview fetch returns 200 with metadata fields
-        run: |
-          RESPONSE=$(curl -s \
-            -X POST http://localhost:8000/api/v1/preview/fetch/ \
-            -H "Authorization: Bearer $ACCESS_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{"url":"https://example.com"}')
-          echo "Preview fetch response: $RESPONSE"
-          python -c "
-          import json
-          data = json.loads('$RESPONSE')
-          for field in ['url', 'title', 'description', 'favicon']:
-              assert field in data, f'Missing field: {field}. Got: {list(data.keys())}'
-          print(f'OK — preview fields present: {list(data.keys())}')
-          print(f'     title={data[\"title\"]!r}')
-          "
 
       # ── URL Operations ─────────────────────────────────────────────────────
 

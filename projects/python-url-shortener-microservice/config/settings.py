@@ -13,7 +13,12 @@ try:
 except UndefinedValueError:
     import os
 
-    if os.environ.get("CI") or os.environ.get("PRE_COMMIT"):
+    if (
+        os.environ.get("CI")
+        or os.environ.get("PRE_COMMIT")
+        or os.environ.get("PYTEST_CURRENT_TEST")
+        or "pytest" in os.environ.get("_", "")
+    ):
         SECRET_KEY = "ci-dummy-secret-key-not-for-production"
     else:
         raise RuntimeError("SECRET_KEY is not set. Add it to your .env file.")
@@ -44,9 +49,8 @@ INSTALLED_APPS = [
     # Module 8: Celery result backend + beat scheduler
     "django_celery_results",
     "django_celery_beat",
-    # Module 9: CORS headers + URL Preview microservice
+    # Module 9: CORS headers
     "corsheaders",
-    "url_preview",
     "core",
     "users",
     "shortener",
@@ -124,11 +128,10 @@ CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TIMEZONE = "UTC"
 CELERY_ENABLE_UTC = True
 
-# Task routing — separate queues for different priority levels.
+# Task routing — separate Cqueues for different priority levels.
 CELERY_TASK_ROUTES = {
     "shortener.tasks.track_click": {"queue": "default"},
     "shortener.tasks.cleanup_expired_urls": {"queue": "maintenance"},
-    # Module 9: preview fetches run on the default queue.
     "shortener.tasks.fetch_url_preview": {"queue": "default"},
 }
 
@@ -234,15 +237,15 @@ LOGGING = {
             "style": "{",
             "datefmt": "%Y-%m-%d %H:%M:%S",
         },
-        # Structured JSON format for production log aggregation (Datadog, ELK, etc.).
-        # Falls back to verbose if python-json-logger is not installed locally.
+        # Structured JSON format for all environments.
+        # Falls back to verbose if python-json-logger is not installed.
         "json": (
             {
                 "()": "pythonjsonlogger.jsonlogger.JsonFormatter",
                 "format": "%(asctime)s %(levelname)s %(name)s %(message)s",
                 "datefmt": "%Y-%m-%dT%H:%M:%SZ",
             }
-            if not DEBUG and _json_logger_available
+            if _json_logger_available
             else {
                 "format": "{asctime} [{levelname}] {name}: {message}",
                 "style": "{",
@@ -271,13 +274,13 @@ LOGGING = {
             "formatter": "json" if not DEBUG else "verbose",
             "encoding": "utf-8",
         },
-        # Separate handler for 500 errors and security warnings.
+        # Separate handler for 500 errors and security warnings — always JSON.
         "error_file": {
             "class": "logging.handlers.TimedRotatingFileHandler",
             "filename": str(LOG_DIR / "errors.log"),
             "when": "midnight",
             "backupCount": 30,
-            "formatter": "json" if not DEBUG else "verbose",
+            "formatter": "json",
             "encoding": "utf-8",
             "level": "ERROR",
         },
@@ -309,12 +312,6 @@ LOGGING = {
             "propagate": False,
         },
         "celery.task": {
-            "handlers": ["console", "file", "error_file"],
-            "level": LOG_LEVEL,
-            "propagate": False,
-        },
-        # Module 9: preview service logging.
-        "url_preview": {
             "handlers": ["console", "file", "error_file"],
             "level": LOG_LEVEL,
             "propagate": False,

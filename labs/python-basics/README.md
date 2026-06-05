@@ -5,7 +5,7 @@ A comprehensive collection of Python programming labs demonstrating Object-Orien
 ## Labs Overview
 
 ### Lab 1: Student Course Management System
-**Status:** Complete  
+**Status:** Complete
 **Topics:** OOP Fundamentals, Classes, Inheritance, File I/O
 
 A console-based application for managing students, courses, and enrollments in an educational institution.
@@ -23,7 +23,7 @@ A console-based application for managing students, courses, and enrollments in a
 ---
 
 ### Lab 2: Employee Payroll Tracker
-**Status:** Complete  
+**Status:** Complete
 **Topics:** Inheritance, Polymorphism, Property Decorators, Modular Functions
 
 A comprehensive payroll management system for computing pay slips across multiple employee categories.
@@ -42,7 +42,7 @@ A comprehensive payroll management system for computing pay slips across multipl
 ---
 
 ### Lab 3: Library Inventory Application
-**Status:** Complete  
+**Status:** Complete
 **Topics:** Abstract Base Classes, File I/O, List Comprehensions, JSON Persistence
 
 A library management system for tracking books, eBooks, audiobooks, and borrowers.
@@ -61,7 +61,7 @@ A library management system for tracking books, eBooks, audiobooks, and borrower
 ---
 
 ### Lab 4: Vehicle Rental System
-**Status:** Complete  
+**Status:** Complete
 **Topics:** Inheritance, Polymorphism, Abstract Base Classes, Property Decorators
 
 A vehicle rental management system supporting cars, trucks, and bikes with dynamic pricing.
@@ -80,7 +80,7 @@ A vehicle rental management system supporting cars, trucks, and bikes with dynam
 ---
 
 ### Lab 5: Personal Finance Tracker
-**Status:** Complete  
+**Status:** Complete
 **Topics:** Operator Overloading, Property Decorators, JSON Storage, Exception Handling
 
 A personal finance management application for tracking accounts, transactions, and savings goals.
@@ -340,4 +340,3 @@ For questions or issues:
 ---
 
 **Happy Coding!**
-

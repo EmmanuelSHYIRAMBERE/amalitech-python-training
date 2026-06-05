@@ -61,17 +61,17 @@ def test_bike_premium_pricing():
     """Test bike premium pricing for larger engines."""
     small_bike = Bike("V008", "Honda", "CBR150", 2022, 150)
     large_bike = Bike("V009", "Harley", "Street 750", 2021, 750)
-    
+
     small_cost = small_bike.calculate_rental_cost(1)
     large_cost = large_bike.calculate_rental_cost(1)
-    
+
     assert large_cost > small_cost
 
 def test_rental_creation():
     """Test rental object creation."""
     car = Car("V010", "BMW", "X5", 2023)
     rental = Rental("R001", car, "Bob Smith", "bob@example.com", 5)
-    
+
     assert rental.rental_id == "R001"
     assert rental.customer_name == "Bob Smith"
     assert rental.rental_days == 5
@@ -82,7 +82,7 @@ def test_rental_return():
     """Test rental return process."""
     car = Car("V011", "Audi", "A4", 2022)
     rental = Rental("R002", car, "Charlie", "charlie@example.com", 3)
-    
+
     final_cost = rental.complete_return()
     assert rental.is_returned == True
     assert final_cost == rental.total_cost
