@@ -191,7 +191,9 @@ def _call_preview_service(
 # ---------------------------------------------------------------------------
 
 
-def get_url_preview(url: str, access_token: str = "") -> PreviewResult:
+def get_url_preview(
+    url: str, access_token: str = ""
+) -> PreviewResult:  # noqa: ARG001 (kept for backward compat)
     """Fetch URL preview metadata via the preview microservice.
 
     Resiliency layers applied (outermost first):
@@ -200,9 +202,10 @@ def get_url_preview(url: str, access_token: str = "") -> PreviewResult:
       3. Graceful degradation — all exception paths return PreviewResult.
 
     Args:
-        url: The destination URL whose metadata should be fetched.
-        access_token: JWT Bearer token forwarded from the original request.
-            Falls back to the static PREVIEW_SERVICE_TOKEN when empty.
+        url:          The destination URL whose metadata should be fetched.
+        access_token: Unused — kept for backward compatibility with callers
+                      that forward a user JWT.  The preview microservice uses
+                      API key authentication; only PREVIEW_SERVICE_TOKEN is sent.
 
     Returns:
         PreviewResult — always. Never raises.
@@ -212,9 +215,12 @@ def get_url_preview(url: str, access_token: str = "") -> PreviewResult:
     # parent process at fork time.  os.environ is never cached, so it always
     # reflects the container's live environment variables regardless of when
     # the worker subprocess was forked.
-    token = access_token or os.environ.get(
-        "PREVIEW_SERVICE_TOKEN", PREVIEW_SERVICE_TOKEN
-    )
+    #
+    # The preview microservice uses API key authentication — always use the
+    # static service-to-service token.  The caller-supplied access_token is
+    # a user JWT and is intentionally ignored here; it would be rejected by
+    # the preview service's APIKeyAuthentication backend.
+    token = os.environ.get("PREVIEW_SERVICE_TOKEN", PREVIEW_SERVICE_TOKEN)
     service_url = os.environ.get("PREVIEW_SERVICE_URL", PREVIEW_SERVICE_URL)
 
     if not service_url:
