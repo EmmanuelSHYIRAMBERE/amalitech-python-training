@@ -122,11 +122,18 @@ def test_get_url_preview_returns_metadata_on_success() -> None:
     assert result.error is None
 
 
-def test_get_url_preview_uses_access_token_over_service_token() -> None:
-    """access_token parameter takes priority over PREVIEW_SERVICE_TOKEN."""
+def test_get_url_preview_always_uses_service_token_ignores_access_token() -> None:
+    """access_token is ignored — PREVIEW_SERVICE_TOKEN is always used.
+
+    The preview microservice uses API key auth; forwarding a caller JWT
+    would always result in 401.  get_url_preview reads PREVIEW_SERVICE_TOKEN
+    from os.environ regardless of the access_token argument.
+    """
     captured: dict[str, str] = {}
 
-    def _fake_call(url: str, token: str) -> dict[str, str | None]:
+    def _fake_call(
+        url: str, token: str, service_url: str = ""
+    ) -> dict[str, str | None]:
         captured["token"] = token
         return {
             "url": url,
@@ -139,21 +146,31 @@ def test_get_url_preview_uses_access_token_over_service_token() -> None:
     breaker = _make_breaker()
     with (
         patch("shortener.preview_client.PREVIEW_SERVICE_URL", "http://preview:8001"),
-        patch("shortener.preview_client.PREVIEW_SERVICE_TOKEN", "static-tok"),
+        patch.dict(
+            "os.environ",
+            {
+                "PREVIEW_SERVICE_TOKEN": "static-tok",
+                "PREVIEW_SERVICE_URL": "http://preview:8001",
+            },
+        ),
         patch("shortener.preview_client._call_preview_service", side_effect=_fake_call),
         patch("shortener.preview_client._get_breaker", return_value=breaker),
     ):
         from shortener.preview_client import get_url_preview
 
+        # Even with an explicit access_token, the service token is used.
         get_url_preview("https://example.com", access_token="user-jwt")
 
-    assert captured["token"] == "user-jwt"
+    assert captured["token"] == "static-tok"
 
 
-def test_get_url_preview_falls_back_to_service_token_when_no_access_token() -> None:
+def test_get_url_preview_uses_service_token_from_os_environ() -> None:
+    """PREVIEW_SERVICE_TOKEN is read from os.environ at call time."""
     captured: dict[str, str] = {}
 
-    def _fake_call(url: str, token: str) -> dict[str, str | None]:
+    def _fake_call(
+        url: str, token: str, service_url: str = ""
+    ) -> dict[str, str | None]:
         captured["token"] = token
         return {
             "url": url,
@@ -165,8 +182,13 @@ def test_get_url_preview_falls_back_to_service_token_when_no_access_token() -> N
 
     breaker = _make_breaker()
     with (
-        patch("shortener.preview_client.PREVIEW_SERVICE_URL", "http://preview:8001"),
-        patch("shortener.preview_client.PREVIEW_SERVICE_TOKEN", "static-tok"),
+        patch.dict(
+            "os.environ",
+            {
+                "PREVIEW_SERVICE_TOKEN": "static-tok",
+                "PREVIEW_SERVICE_URL": "http://preview:8001",
+            },
+        ),
         patch("shortener.preview_client._call_preview_service", side_effect=_fake_call),
         patch("shortener.preview_client._get_breaker", return_value=breaker),
     ):
