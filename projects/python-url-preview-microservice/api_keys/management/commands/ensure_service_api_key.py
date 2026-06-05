@@ -48,9 +48,7 @@ class Command(BaseCommand):
             key = APIKey(name=name, token_hash=token_hash, is_active=True)
             key.save()
             self.stdout.write(
-                self.style.SUCCESS(
-                    f"API key '{name}' created with supplied token."
-                )
+                self.style.SUCCESS(f"API key '{name}' created with supplied token.")
             )
         else:
             # Generate a fresh random token and print it so the caller can
