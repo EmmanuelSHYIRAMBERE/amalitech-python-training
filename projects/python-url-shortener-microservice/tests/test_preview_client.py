@@ -24,6 +24,15 @@ from tenacity import RetryError
 # Helpers
 # ---------------------------------------------------------------------------
 
+# get_url_preview reads PREVIEW_SERVICE_URL and PREVIEW_SERVICE_TOKEN from
+# os.environ at call time (not from module-level constants) so that Celery
+# ForkPoolWorkers always use the live values.  Tests must patch os.environ
+# rather than the module-level constants.
+_PREVIEW_ENV = {
+    "PREVIEW_SERVICE_URL": "http://preview:8001",
+    "PREVIEW_SERVICE_TOKEN": "test-token",
+}
+
 
 def _make_breaker(
     fail_max: int = 3, reset_timeout: int = 60
@@ -104,7 +113,7 @@ def test_get_url_preview_returns_metadata_on_success() -> None:
     breaker = _make_breaker()
 
     with (
-        patch("shortener.preview_client.PREVIEW_SERVICE_URL", "http://preview:8001"),
+        patch.dict("os.environ", _PREVIEW_ENV),
         patch(
             "shortener.preview_client._call_preview_service",
             return_value=service_response,
@@ -145,7 +154,6 @@ def test_get_url_preview_always_uses_service_token_ignores_access_token() -> Non
 
     breaker = _make_breaker()
     with (
-        patch("shortener.preview_client.PREVIEW_SERVICE_URL", "http://preview:8001"),
         patch.dict(
             "os.environ",
             {
@@ -209,7 +217,7 @@ def test_get_url_preview_degrades_on_retry_error() -> None:
     breaker = _make_breaker()
 
     with (
-        patch("shortener.preview_client.PREVIEW_SERVICE_URL", "http://preview:8001"),
+        patch.dict("os.environ", _PREVIEW_ENV),
         patch(
             "shortener.preview_client._call_preview_service",
             side_effect=RetryError(MagicMock()),
@@ -234,7 +242,7 @@ def test_get_url_preview_degrades_on_http_4xx() -> None:
 
     breaker = _make_breaker()
     with (
-        patch("shortener.preview_client.PREVIEW_SERVICE_URL", "http://preview:8001"),
+        patch.dict("os.environ", _PREVIEW_ENV),
         patch("shortener.preview_client._call_preview_service", side_effect=exc),
         patch("shortener.preview_client._get_breaker", return_value=breaker),
     ):
@@ -255,7 +263,7 @@ def test_get_url_preview_degrades_on_http_5xx() -> None:
 
     breaker = _make_breaker()
     with (
-        patch("shortener.preview_client.PREVIEW_SERVICE_URL", "http://preview:8001"),
+        patch.dict("os.environ", _PREVIEW_ENV),
         patch("shortener.preview_client._call_preview_service", side_effect=exc),
         patch("shortener.preview_client._get_breaker", return_value=breaker),
     ):
@@ -270,7 +278,7 @@ def test_get_url_preview_degrades_on_http_5xx() -> None:
 def test_get_url_preview_degrades_on_unexpected_exception() -> None:
     breaker = _make_breaker()
     with (
-        patch("shortener.preview_client.PREVIEW_SERVICE_URL", "http://preview:8001"),
+        patch.dict("os.environ", _PREVIEW_ENV),
         patch(
             "shortener.preview_client._call_preview_service",
             side_effect=RuntimeError("unexpected"),
@@ -302,7 +310,7 @@ def test_circuit_breaker_opens_after_fail_max_consecutive_failures() -> None:
     )
 
     with (
-        patch("shortener.preview_client.PREVIEW_SERVICE_URL", "http://preview:8001"),
+        patch.dict("os.environ", _PREVIEW_ENV),
         patch("shortener.preview_client._call_preview_service", side_effect=http_exc),
         patch("shortener.preview_client._get_breaker", return_value=breaker),
     ):
@@ -328,7 +336,7 @@ def test_circuit_breaker_open_returns_immediately_without_http_call() -> None:
     assert breaker.current_state == pybreaker.STATE_OPEN
 
     with (
-        patch("shortener.preview_client.PREVIEW_SERVICE_URL", "http://preview:8001"),
+        patch.dict("os.environ", _PREVIEW_ENV),
         patch("shortener.preview_client._call_preview_service") as mock_call,
         patch("shortener.preview_client._get_breaker", return_value=breaker),
     ):
@@ -413,7 +421,7 @@ def test_domain_a_failure_does_not_open_domain_b_breaker() -> None:
         return breaker_a if "domain-a" in domain else breaker_b
 
     with (
-        patch("shortener.preview_client.PREVIEW_SERVICE_URL", "http://preview:8001"),
+        patch.dict("os.environ", _PREVIEW_ENV),
         patch("shortener.preview_client._call_preview_service", side_effect=http_exc),
         patch("shortener.preview_client._get_breaker", side_effect=_domain_breaker),
     ):
@@ -465,7 +473,7 @@ def test_listener_logs_state_change_to_open() -> None:
     )
 
     with (
-        patch("shortener.preview_client.PREVIEW_SERVICE_URL", "http://preview:8001"),
+        patch.dict("os.environ", _PREVIEW_ENV),
         patch("shortener.preview_client._call_preview_service", side_effect=http_exc),
         patch("shortener.preview_client._get_breaker", return_value=breaker),
         patch.object(_PreviewCircuitBreakerListener, "failure", spy_failure),
