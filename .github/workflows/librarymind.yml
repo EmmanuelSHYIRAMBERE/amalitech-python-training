@@ -518,8 +518,6 @@ jobs:
     name: Smoke Test (live API)
     runs-on: ubuntu-latest
     needs: [app-check, unit-tests]
-    # Only run when the secret is available (not in forks)
-    if: ${{ secrets.AMALI_API_KEY != '' }}
     env:
       AMALI_API_KEY: ${{ secrets.AMALI_API_KEY }}
       AMALI_BASE_URL: https://ai-api.amalitech.org/api/v2/public/
