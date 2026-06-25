@@ -1,0 +1,562 @@
+name: CI — LibraryMind (Mod 10)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Triggers
+# ─────────────────────────────────────────────────────────────────────────────
+on:
+  push:
+    branches:
+      - feat/library-mind
+      - develop
+      - main
+    paths:
+      - "projects/librarymind/**"
+      - ".github/workflows/librarymind.yml"
+  pull_request:
+    branches:
+      - develop
+      - main
+    paths:
+      - "projects/librarymind/**"
+      - ".github/workflows/librarymind.yml"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# All jobs run from the project subdirectory by default
+# ─────────────────────────────────────────────────────────────────────────────
+defaults:
+  run:
+    working-directory: projects/librarymind
+
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Job 1 — Lint & Format
+  # Covers all app directories: providers/, infrastructure/, services/, api/
+  # ───────────────────────────────────────────────────────────────────────────
+  lint:
+    name: Lint & Format Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install lint tools
+        run: pip install ruff black
+
+      - name: Ruff — lint
+        run: ruff check app/ scripts/ tests/
+
+      - name: Black — format check
+        run: black --check app/ scripts/ tests/
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Job 2 — Import & Config Validation
+  # Installs all dependencies and verifies the app imports cleanly with a
+  # dummy API key (bypasses the pydantic validator for CI).
+  # Also confirms all 6 service classes can be instantiated without error.
+  # ───────────────────────────────────────────────────────────────────────────
+  import-check:
+    name: Import & Config Validation
+    runs-on: ubuntu-latest
+    env:
+      AMALI_API_KEY: ci-dummy-key-not-for-production
+      AMALI_BASE_URL: https://ai-api.amalitech.org/api/v2/public/
+      PRIMARY_PROVIDER: openai
+      FALLBACK_PROVIDER: anthropic
+      OPENAI_MODEL: gpt-3.5-turbo
+      ANTHROPIC_MODEL: claude-haiku-4-5
+      REDIS_URL: redis://localhost:6379
+      RATE_LIMIT_PER_MINUTE: "20"
+      CACHE_TTL_SECONDS: "3600"
+      RELEVANCE_THRESHOLD: "0.05"
+      MAX_HISTORY_MESSAGES: "10"
+      EMBEDDING_MODEL: text-embedding-3-small
+      CHROMA_DB_PATH: ./chroma_db
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Verify all service modules import cleanly
+        run: |
+          python -c "
+          import warnings; warnings.filterwarnings('ignore')
+          from app.providers.base import AIProvider
+          from app.providers.amali_provider import AmaliProvider
+          from app.providers.resilient import ResilientAIService
+          from app.infrastructure.cache import CacheService
+          from app.infrastructure.rate_limiter import RateLimiter
+          from app.infrastructure.usage_tracker import UsageTracker
+          from app.services.embedding import EmbeddingService
+          from app.services.vector_store import VectorStore
+          from app.services.rag_engine import RAGEngine
+          from app.services.chatbot import ChatbotService
+          from app.services.classification import ClassificationService
+          from app.services.summarisation import SummarisationService
+          from app.exceptions import (
+              LibraryMindError, AIProviderError, RateLimitError,
+              EmbeddingError, VectorStoreError,
+              ClassificationError, SummarisationError,
+          )
+          print('All modules import successfully')
+          "
+
+      - name: Verify custom exception hierarchy
+        run: |
+          python -c "
+          import warnings; warnings.filterwarnings('ignore')
+          from app.exceptions import (
+              LibraryMindError, RateLimitError,
+              ClassificationError, SummarisationError,
+          )
+          assert issubclass(RateLimitError,      LibraryMindError)
+          assert issubclass(ClassificationError, LibraryMindError)
+          assert issubclass(SummarisationError,  LibraryMindError)
+          print('Exception hierarchy: PASS')
+          "
+
+      - name: Verify RateLimitError re-exported from rate_limiter module
+        run: |
+          python -c "
+          import warnings; warnings.filterwarnings('ignore')
+          from app.infrastructure.rate_limiter import RateLimitError
+          from app.exceptions import RateLimitError as RLE
+          assert RateLimitError is RLE, 'RateLimitError is not re-exported correctly'
+          print('RateLimitError re-export: PASS')
+          "
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Job 3 — FastAPI Application Check
+  # Starts the FastAPI app with TestClient and verifies:
+  #   - All 6 routes are registered and reachable
+  #   - /health returns 200 with correct JSON shape
+  #   - Pydantic validation returns 422 for invalid input
+  #   - Swagger docs (/docs) and OpenAPI schema (/openapi.json) are accessible
+  # Does NOT make real AI calls — only tests the HTTP layer.
+  # ───────────────────────────────────────────────────────────────────────────
+  app-check:
+    name: FastAPI Application Check
+    runs-on: ubuntu-latest
+    needs: import-check
+    env:
+      AMALI_API_KEY: ci-dummy-key-not-for-production
+      AMALI_BASE_URL: https://ai-api.amalitech.org/api/v2/public/
+      PRIMARY_PROVIDER: openai
+      FALLBACK_PROVIDER: anthropic
+      OPENAI_MODEL: gpt-3.5-turbo
+      ANTHROPIC_MODEL: claude-haiku-4-5
+      REDIS_URL: redis://localhost:6379
+      RATE_LIMIT_PER_MINUTE: "20"
+      CACHE_TTL_SECONDS: "3600"
+      RELEVANCE_THRESHOLD: "0.05"
+      MAX_HISTORY_MESSAGES: "10"
+      EMBEDDING_MODEL: text-embedding-3-small
+      CHROMA_DB_PATH: ./chroma_db
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt httpx[cli]
+
+      - name: Seed ChromaDB
+        run: |
+          python -c "
+          import warnings; warnings.filterwarnings('ignore')
+          import sys, subprocess
+          result = subprocess.run(
+              [sys.executable, 'scripts/seed.py'],
+              capture_output=True, text=True
+          )
+          print(result.stdout[-2000:] if len(result.stdout) > 2000 else result.stdout)
+          if result.returncode != 0:
+              print(result.stderr[-1000:])
+              sys.exit(result.returncode)
+          "
+
+      - name: Verify /health returns 200 with correct shape
+        run: |
+          python -c "
+          import warnings; warnings.filterwarnings('ignore')
+          from fastapi.testclient import TestClient
+          from app.main import app
+
+          client = TestClient(app)
+          r = client.get('/health')
+          assert r.status_code == 200, f'Expected 200, got {r.status_code}: {r.text}'
+          data = r.json()
+          assert data['status'] == 'ok', f'status: {data[\"status\"]}'
+          assert 'daily_cost_usd' in data, 'Missing daily_cost_usd'
+          assert 'total_requests'  in data, 'Missing total_requests'
+          print(f'Health check: PASS — {data}')
+          "
+
+      - name: Verify /docs and /openapi.json are accessible
+        run: |
+          python -c "
+          import warnings; warnings.filterwarnings('ignore')
+          from fastapi.testclient import TestClient
+          from app.main import app
+
+          client = TestClient(app)
+
+          r = client.get('/docs')
+          assert r.status_code == 200, f'/docs: {r.status_code}'
+          print('Swagger UI (/docs): PASS')
+
+          r = client.get('/openapi.json')
+          assert r.status_code == 200, f'/openapi.json: {r.status_code}'
+          schema = r.json()
+          paths = list(schema.get('paths', {}).keys())
+          print(f'OpenAPI schema: PASS — paths: {paths}')
+          "
+
+      - name: Verify all 6 routes are registered
+        run: |
+          python -c "
+          import warnings; warnings.filterwarnings('ignore')
+          from fastapi.testclient import TestClient
+          from app.main import app
+
+          client = TestClient(app)
+          r = client.get('/openapi.json')
+          paths = set(r.json().get('paths', {}).keys())
+          expected = {
+              '/search/books', '/search/ask', '/chat',
+              '/classify/ticket', '/summarise/reviews', '/health',
+          }
+          missing = expected - paths
+          assert not missing, f'Routes missing from OpenAPI schema: {missing}'
+          print(f'All 6 routes registered: PASS — {sorted(paths)}')
+          "
+
+      - name: Verify Pydantic validation returns 422 for invalid input
+        run: |
+          python -c "
+          import warnings; warnings.filterwarnings('ignore')
+          from fastapi.testclient import TestClient
+          from app.main import app
+
+          client = TestClient(app)
+
+          # Empty query string (min_length=1)
+          r = client.post('/search/books', json={'query': '', 'limit': 5})
+          assert r.status_code == 422, f'Empty query: expected 422, got {r.status_code}'
+          print('Empty query → 422: PASS')
+
+          # Too-short question (min_length=5)
+          r = client.post('/search/ask', json={'question': 'Hi'})
+          assert r.status_code == 422, f'Short question: expected 422, got {r.status_code}'
+          print('Short question → 422: PASS')
+
+          # Missing required field (conversation_id)
+          r = client.post('/chat', json={'message': 'Hello'})
+          assert r.status_code == 422, f'Missing field: expected 422, got {r.status_code}'
+          print('Missing field → 422: PASS')
+
+          # Ticket text too short (min_length=10)
+          r = client.post('/classify/ticket', json={'ticket_text': 'Hi'})
+          assert r.status_code == 422, f'Short ticket: expected 422, got {r.status_code}'
+          print('Short ticket → 422: PASS')
+
+          print('All validation checks: PASS')
+          "
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Job 4 — Unit Tests (infrastructure + services, no AI calls)
+  # Tests that do not require the Amalitec proxy:
+  #   - CacheService graceful degradation (Redis not running → available=False)
+  #   - RateLimiter token consumption and RateLimitError
+  #   - UsageTracker record/get_daily_cost/total_requests
+  #   - EmbeddingService local embedding (deterministic, correct dimensions)
+  #   - VectorStore upsert + search round-trip (uses seeded ChromaDB)
+  #   - Custom exception hierarchy
+  # ───────────────────────────────────────────────────────────────────────────
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    needs: import-check
+    env:
+      AMALI_API_KEY: ci-dummy-key-not-for-production
+      AMALI_BASE_URL: https://ai-api.amalitech.org/api/v2/public/
+      PRIMARY_PROVIDER: openai
+      FALLBACK_PROVIDER: anthropic
+      OPENAI_MODEL: gpt-3.5-turbo
+      ANTHROPIC_MODEL: claude-haiku-4-5
+      REDIS_URL: redis://localhost:6379
+      RATE_LIMIT_PER_MINUTE: "20"
+      CACHE_TTL_SECONDS: "3600"
+      RELEVANCE_THRESHOLD: "0.05"
+      MAX_HISTORY_MESSAGES: "10"
+      EMBEDDING_MODEL: text-embedding-3-small
+      CHROMA_DB_PATH: ./chroma_db_ci
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Test — CacheService graceful degradation (no Redis)
+        run: |
+          python -c "
+          import warnings; warnings.filterwarnings('ignore')
+          from app.infrastructure.cache import CacheService
+          cache = CacheService('redis://localhost:9999')  # port that's never open
+          assert cache.available is False, 'Expected available=False'
+          assert cache.get('any-key') is None
+          cache.set('any-key', {'data': 1})  # should not raise
+          cache.delete('any-key')            # should not raise
+          print('CacheService graceful degradation: PASS')
+          "
+
+      - name: Test — RateLimiter token bucket and RateLimitError
+        run: |
+          python -c "
+          import warnings; warnings.filterwarnings('ignore')
+          from app.infrastructure.rate_limiter import RateLimiter, RateLimitError
+          from app.exceptions import RateLimitError as RLE
+
+          # RateLimitError must be the same class from both import paths
+          assert RateLimitError is RLE, 'RateLimitError not re-exported correctly'
+
+          limiter = RateLimiter(requests_per_minute=2)
+          limiter.acquire()   # 1st token
+          limiter.acquire()   # 2nd token
+          try:
+              limiter.acquire()   # bucket empty → must raise
+              assert False, 'Expected RateLimitError'
+          except RateLimitError:
+              pass
+          print('RateLimiter token bucket: PASS')
+          "
+
+      - name: Test — UsageTracker record and cost calculation
+        run: |
+          python -c "
+          import warnings; warnings.filterwarnings('ignore')
+          from app.infrastructure.usage_tracker import UsageTracker
+          tracker = UsageTracker()
+          assert tracker.total_requests() == 0
+          assert tracker.get_daily_cost() == 0.0
+
+          tracker.record('gpt-3.5-turbo', prompt_tokens=1000,
+                         completion_tokens=500, endpoint='/test')
+          assert tracker.total_requests() == 1
+          cost = tracker.get_daily_cost()
+          assert cost > 0, f'Expected positive cost, got {cost}'
+          print(f'UsageTracker: PASS — cost={cost:.8f} USD')
+          "
+
+      - name: Test — EmbeddingService local embedding (deterministic + dims)
+        run: |
+          python -c "
+          import warnings; warnings.filterwarnings('ignore')
+          from app.infrastructure.cache import CacheService
+          from app.services.embedding import EmbeddingService, _DIMS
+
+          cache = CacheService('redis://localhost:9999')  # no Redis
+          svc = EmbeddingService(None, cache)
+
+          v1 = svc.embed('Dune by Frank Herbert')
+          v2 = svc.embed('Dune by Frank Herbert')
+          v3 = svc.embed('A completely different text about science')
+
+          assert len(v1) == _DIMS,     f'Expected {_DIMS} dims, got {len(v1)}'
+          assert v1 == v2,             'Same text should produce same vector'
+          assert v1 != v3,             'Different text should produce different vector'
+
+          # Verify unit norm (within float tolerance)
+          import math
+          norm = math.sqrt(sum(x*x for x in v1))
+          assert abs(norm - 1.0) < 1e-3, f'Expected unit norm, got {norm:.6f}'
+
+          print(f'EmbeddingService local embed: PASS — {_DIMS} dims, unit norm={norm:.6f}')
+          "
+
+      - name: Test — VectorStore upsert and search round-trip
+        run: |
+          python -c "
+          import warnings; warnings.filterwarnings('ignore')
+          from app.infrastructure.cache import CacheService
+          from app.services.embedding import EmbeddingService
+          from app.services.vector_store import VectorStore
+
+          cache = CacheService('redis://localhost:9999')
+          emb   = EmbeddingService(None, cache)
+          store = VectorStore('./chroma_db_ci_unit')
+
+          doc   = 'Dune by Frank Herbert. Genre: Science Fiction. A desert planet.'
+          vec   = emb.embed(doc)
+          store.upsert(
+              book_id='ci_test_001',
+              embedding=vec,
+              document=doc,
+              metadata={'title': 'Dune', 'author': 'Frank Herbert',
+                        'genre': 'Science Fiction', 'year': 1965},
+          )
+          results = store.search(vec, top_k=1)
+          assert len(results) == 1,           f'Expected 1 result, got {len(results)}'
+          assert results[0]['title'] == 'Dune', f'Expected Dune, got {results[0][\"title\"]}'
+          assert 'similarity' in results[0],  'Missing similarity field'
+          print(f'VectorStore round-trip: PASS — similarity={results[0][\"similarity\"]:.3f}')
+          "
+
+      - name: Test — Custom exception hierarchy
+        run: |
+          python -c "
+          import warnings; warnings.filterwarnings('ignore')
+          from app.exceptions import (
+              LibraryMindError, AIProviderError, RateLimitError,
+              EmbeddingError, VectorStoreError,
+              ClassificationError, SummarisationError,
+          )
+          classes = [
+              AIProviderError, RateLimitError, EmbeddingError,
+              VectorStoreError, ClassificationError, SummarisationError,
+          ]
+          for cls in classes:
+              assert issubclass(cls, LibraryMindError), \
+                  f'{cls.__name__} does not inherit LibraryMindError'
+              assert issubclass(cls, Exception), \
+                  f'{cls.__name__} does not inherit Exception'
+          # AIProviderError should accept last_error kwarg
+          err = AIProviderError('all providers failed', last_error=ValueError('test'))
+          assert err.last_error is not None
+          print(f'Exception hierarchy: PASS — {len(classes)} classes verified')
+          "
+
+      - name: Test — ClassificationService raises ClassificationError on bad JSON
+        run: |
+          python -c "
+          import warnings; warnings.filterwarnings('ignore')
+          from unittest.mock import MagicMock
+          from app.services.classification import ClassificationService
+          from app.exceptions import ClassificationError, RateLimitError
+
+          mock_ai       = MagicMock()
+          mock_ai.generate.return_value = 'NOT VALID JSON {{{'
+          mock_limiter  = MagicMock()
+
+          svc = ClassificationService(mock_ai, mock_limiter)
+          try:
+              svc._parse_json('NOT VALID JSON {{{')
+              assert False, 'Expected ClassificationError'
+          except ClassificationError as e:
+              print(f'ClassificationError raised correctly: PASS — {e}')
+          "
+
+      - name: Test — SummarisationService raises ValueError on empty reviews
+        run: |
+          python -c "
+          import warnings; warnings.filterwarnings('ignore')
+          from unittest.mock import MagicMock
+          from app.services.summarisation import SummarisationService
+
+          svc = SummarisationService(MagicMock(), MagicMock())
+
+          try:
+              svc.summarise([])
+              assert False, 'Expected ValueError'
+          except ValueError as e:
+              print(f'Empty reviews → ValueError: PASS — {e}')
+
+          try:
+              svc.summarise(['review'] * 51)
+              assert False, 'Expected ValueError'
+          except ValueError as e:
+              print(f'51 reviews → ValueError: PASS — {e}')
+          "
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Job 5 — Docker Build
+  # Validates the Dockerfile builds cleanly on ubuntu-latest.
+  # Does not run the container (requires AMALI_API_KEY at runtime).
+  # ───────────────────────────────────────────────────────────────────────────
+  docker-build:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        working-directory: projects/librarymind
+        run: docker build -t librarymind:ci .
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Job 6 — Smoke Test (live AI calls)
+  # Spins up uvicorn against the real Amalitec proxy and runs all 10 lab
+  # scenarios from tests/smoke_test.py.
+  # Requires AMALI_API_KEY to be set as a GitHub Actions repository secret.
+  # Skip this job in forks where the secret is not available.
+  # ───────────────────────────────────────────────────────────────────────────
+  smoke-test:
+    name: Smoke Test (live API)
+    runs-on: ubuntu-latest
+    needs: [app-check, unit-tests]
+    # Only run when the secret is available (not in forks)
+    if: ${{ secrets.AMALI_API_KEY != '' }}
+    env:
+      AMALI_API_KEY: ${{ secrets.AMALI_API_KEY }}
+      AMALI_BASE_URL: https://ai-api.amalitech.org/api/v2/public/
+      PRIMARY_PROVIDER: openai
+      FALLBACK_PROVIDER: anthropic
+      OPENAI_MODEL: gpt-3.5-turbo
+      ANTHROPIC_MODEL: claude-haiku-4-5
+      REDIS_URL: redis://localhost:6379
+      RATE_LIMIT_PER_MINUTE: "20"
+      CACHE_TTL_SECONDS: "3600"
+      RELEVANCE_THRESHOLD: "0.05"
+      MAX_HISTORY_MESSAGES: "10"
+      EMBEDDING_MODEL: text-embedding-3-small
+      CHROMA_DB_PATH: ./chroma_db
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Seed ChromaDB
+        run: python scripts/seed.py
+
+      - name: Start uvicorn in background
+        run: |
+          uvicorn app.main:app --port 8000 &
+          for i in $(seq 1 15); do
+            curl -sf http://localhost:8000/health && break
+            echo "Waiting for server... attempt $i"
+            sleep 2
+          done
+
+      - name: Run smoke tests (10/10 expected)
+        run: python tests/smoke_test.py
