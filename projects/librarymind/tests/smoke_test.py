@@ -4,15 +4,20 @@ LibraryMind smoke test suite — 10 scenarios.
 Server must be running on http://localhost:8000
 Run: python tests/smoke_test.py
 """
+
+# warnings must be silenced before httpx import to suppress SSL noise.
 import sys
 import time
 import warnings
+
 warnings.filterwarnings("ignore")
 
-import httpx
+import httpx  # noqa: E402
 
-BASE   = "http://localhost:8000"
-client = httpx.Client(timeout=45.0)
+BASE = "http://localhost:8000"
+# 120 s per request — CI runner hits the Amalitec proxy which can be slow
+client = httpx.Client(timeout=120.0)
+
 
 def test_semantic_search() -> bool:
     """Desert planet search must return Dune in top results."""
@@ -23,12 +28,13 @@ def test_semantic_search() -> bool:
             print(f"  ERROR: status {r.status_code}")
             return False
         results = r.json().get("results", [])
-        titles  = [b["title"] for b in results]
+        titles = [b["title"] for b in results]
         print(f"  Results: {titles}")
         return "Dune" in titles
     except Exception as e:
         print(f"  EXCEPTION: {e}")
         return False
+
 
 def test_rag_off_topic() -> bool:
     """Off-topic nonsense query must return empty sources.
@@ -49,6 +55,7 @@ def test_rag_off_topic() -> bool:
         print(f"  EXCEPTION: {e}")
         return False
 
+
 def test_rag_grounded_answer() -> bool:
     """Book question must return at least one source."""
     try:
@@ -65,6 +72,7 @@ def test_rag_grounded_answer() -> bool:
     except Exception as e:
         print(f"  EXCEPTION: {e}")
         return False
+
 
 def test_cache_hit() -> bool:
     """Second identical question must return cached=True or be faster.
@@ -88,6 +96,7 @@ def test_cache_hit() -> bool:
     except Exception as e:
         print(f"  EXCEPTION: {e}")
         return False
+
 
 def test_chat_memory() -> bool:
     """Turn 2 must elaborate on the book recommended in turn 1."""
@@ -113,6 +122,7 @@ def test_chat_memory() -> bool:
     except Exception as e:
         print(f"  EXCEPTION: {e}")
         return False
+
 
 def test_chat_separate_sessions() -> bool:
     """Two different session IDs must have isolated histories."""
@@ -141,6 +151,7 @@ def test_chat_separate_sessions() -> bool:
         print(f"  EXCEPTION: {e}")
         return False
 
+
 def test_classifier_negative() -> bool:
     """Angry card complaint must be technical/complaint, high/urgent, negative."""
     try:
@@ -157,13 +168,14 @@ def test_classifier_negative() -> bool:
               f"priority={data.get('priority')} "
               f"sentiment={data.get('sentiment')}")
         return (
-            data.get("category")  in ["technical", "complaint"]
-            and data.get("priority")  in ["high", "urgent"]
+            data.get("category") in ["technical", "complaint"]
+            and data.get("priority") in ["high", "urgent"]
             and data.get("sentiment") == "negative"
         )
     except Exception as e:
         print(f"  EXCEPTION: {e}")
         return False
+
 
 def test_classifier_positive() -> bool:
     """Positive feedback must be positive sentiment, low/medium priority."""
@@ -188,6 +200,7 @@ def test_classifier_positive() -> bool:
         print(f"  EXCEPTION: {e}")
         return False
 
+
 def test_review_summariser() -> bool:
     """Mixed reviews must produce balanced output with all required keys."""
     try:
@@ -205,7 +218,7 @@ def test_review_summariser() -> bool:
         data = r.json()
         required = {
             "overall_sentiment", "average_rating",
-            "key_themes", "praise", "criticism", "recommendation"
+            "key_themes", "praise", "criticism", "recommendation",
         }
         missing = required - set(data.keys())
         print(f"  sentiment={data.get('overall_sentiment')} "
@@ -217,6 +230,7 @@ def test_review_summariser() -> bool:
     except Exception as e:
         print(f"  EXCEPTION: {e}")
         return False
+
 
 def test_validation_422() -> bool:
     """Empty/short input must return HTTP 422."""
@@ -236,6 +250,7 @@ def test_validation_422() -> bool:
     except Exception as e:
         print(f"  EXCEPTION: {e}")
         return False
+
 
 TESTS = [
     ("Semantic search — Dune appears for desert planet query",
@@ -287,7 +302,7 @@ if __name__ == "__main__":
         results.append((name, passed))
 
     passed_count = sum(1 for _, ok in results if ok)
-    total        = len(results)
+    total = len(results)
     print("=" * 50)
     print(f"Results: {passed_count}/{total} tests passed")
     print()
