@@ -15,7 +15,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import httpx  # noqa: E402
 import openai  # noqa: E402
-
 from app.config import settings  # noqa: E402
 from app.infrastructure.cache import CacheService  # noqa: E402
 from app.services.embedding import EmbeddingService  # noqa: E402
