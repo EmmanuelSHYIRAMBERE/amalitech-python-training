@@ -1,8 +1,8 @@
 """Support ticket classification service."""
 
 import json
-import re
 import logging
+import re
 
 from app.exceptions import ClassificationError
 
@@ -92,4 +92,4 @@ class ClassificationService:
             logger.error(f"JSON parse failed. Raw: {raw!r}")
             raise ClassificationError(
                 f"AI returned invalid JSON: {e}. Raw: {raw[:200]}"
-            )
+            ) from e

@@ -1,6 +1,7 @@
 """Retrieval-Augmented Generation (RAG) pipeline."""
 
 import logging
+
 from app.exceptions import RateLimitError  # noqa: F401
 
 logger = logging.getLogger(__name__)

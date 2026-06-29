@@ -1,8 +1,8 @@
 """Book review summarisation service."""
 
 import json
-import re
 import logging
+import re
 
 from app.exceptions import SummarisationError
 
@@ -105,4 +105,4 @@ class SummarisationService:
             logger.error(f"JSON parse failed. Raw: {raw!r}")
             raise SummarisationError(
                 f"AI returned invalid JSON: {e}. Raw: {raw[:200]}"
-            )
+            ) from e

@@ -1,13 +1,15 @@
 """Amalitec proxy AI provider implementation."""
 
 import logging
+
 import httpx
 from tenacity import (
+    before_log,
     retry,
     stop_after_attempt,
     wait_exponential,
-    before_log,
 )
+
 from app.providers.base import AIProvider
 
 logger = logging.getLogger(__name__)

@@ -4,17 +4,22 @@ Creates the FastAPI ``app`` instance, configures CORS, attaches the
 router, and logs startup/shutdown events via a lifespan context manager.
 """
 
+# warnings must be silenced before any third-party imports to suppress
+# their startup noise (chromadb telemetry, openai deprecation notices).
 import warnings
+
 warnings.filterwarnings("ignore")
 
-import logging
-from contextlib import asynccontextmanager
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from app.api.routes import router
-from app.config import validate_and_summarise
-from app.dependencies import vector_store
-from app.providers import ai_service
+import logging  # noqa: E402
+from contextlib import asynccontextmanager  # noqa: E402
+
+from fastapi import FastAPI  # noqa: E402
+from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
+
+from app.api.routes import router  # noqa: E402
+from app.config import validate_and_summarise  # noqa: E402
+from app.dependencies import vector_store  # noqa: E402
+from app.providers import ai_service  # noqa: E402
 
 # Silence noisy third-party libraries before basicConfig sets the root level
 logging.getLogger("httpx").setLevel(logging.WARNING)

@@ -1,6 +1,7 @@
 """Resilient AI service with automatic provider fallback."""
 
 import logging
+
 from app.providers.base import AIProvider
 
 logger = logging.getLogger(__name__)

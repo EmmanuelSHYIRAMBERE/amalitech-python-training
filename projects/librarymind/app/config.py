@@ -1,8 +1,9 @@
 """Application configuration loaded from environment variables / .env."""
 
 import logging
-from pydantic_settings import BaseSettings
+
 from pydantic import model_validator
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):

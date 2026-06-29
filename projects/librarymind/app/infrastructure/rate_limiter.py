@@ -1,8 +1,8 @@
 """Token-bucket rate limiter and its exception, re-exported from app.exceptions."""
 
+import logging
 import threading
 import time
-import logging
 
 from app.exceptions import RateLimitError  # noqa: F401  (re-exported for callers)
 

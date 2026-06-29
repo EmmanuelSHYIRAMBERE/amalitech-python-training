@@ -3,7 +3,7 @@
 import hashlib
 import json
 import logging
-from typing import Any, Optional
+from typing import Any
 
 import redis
 
@@ -53,7 +53,7 @@ class CacheService:
         """
         return hashlib.sha256(raw.encode()).hexdigest()
 
-    def get(self, raw_key: str) -> Optional[Any]:
+    def get(self, raw_key: str) -> Any | None:
         """Retrieve a cached value by its raw key.
 
         Args:
@@ -74,7 +74,7 @@ class CacheService:
             logger.warning(f"Cache get error: {e}")
             return None
 
-    def set(self, raw_key: str, value: Any, ttl: Optional[int] = None) -> None:
+    def set(self, raw_key: str, value: Any, ttl: int | None = None) -> None:
         """Store a value in Redis under the hashed key.
 
         Args:

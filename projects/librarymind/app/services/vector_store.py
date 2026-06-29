@@ -1,6 +1,7 @@
 """ChromaDB-backed vector store for book embeddings."""
 
 import logging
+
 import chromadb
 
 logger = logging.getLogger(__name__)

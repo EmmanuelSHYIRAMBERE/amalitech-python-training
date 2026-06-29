@@ -3,20 +3,23 @@
 Seed script — populates ChromaDB with books from data/books.json.
 Run from project root: python scripts/seed.py
 """
-import sys
+
+# sys.path manipulation must happen before project imports.
 import json
+import sys
 import warnings
 from pathlib import Path
 
 warnings.filterwarnings("ignore")
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-import httpx
-import openai
-from app.config import settings
-from app.infrastructure.cache import CacheService
-from app.services.embedding import EmbeddingService
-from app.services.vector_store import VectorStore
+import httpx  # noqa: E402
+import openai  # noqa: E402
+
+from app.config import settings  # noqa: E402
+from app.infrastructure.cache import CacheService  # noqa: E402
+from app.services.embedding import EmbeddingService  # noqa: E402
+from app.services.vector_store import VectorStore  # noqa: E402
 
 
 def main():
@@ -53,10 +56,10 @@ def main():
             embedding=embedding,
             document=text,
             metadata={
-                "title":   book["title"],
-                "author":  book["author"],
-                "year":    book["year"],
-                "genre":   book["genre"],
+                "title": book["title"],
+                "author": book["author"],
+                "year": book["year"],
+                "genre": book["genre"],
                 "book_id": book["id"],
             },
         )
