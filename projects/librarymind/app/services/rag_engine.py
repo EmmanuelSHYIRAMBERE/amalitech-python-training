@@ -46,13 +46,13 @@ class RAGEngine:
         top_k: int = 5,
     ) -> None:
         self.embedding_service = embedding_service
-        self.vector_store      = vector_store
-        self.ai_service        = ai_service
-        self.cache             = cache
-        self.rate_limiter      = rate_limiter
-        self.usage_tracker     = usage_tracker
-        self.threshold         = threshold
-        self.top_k             = top_k
+        self.vector_store = vector_store
+        self.ai_service = ai_service
+        self.cache = cache
+        self.rate_limiter = rate_limiter
+        self.usage_tracker = usage_tracker
+        self.threshold = threshold
+        self.top_k = top_k
 
     def answer(self, question: str) -> dict:
         """Answer a natural-language question using RAG.
@@ -108,8 +108,7 @@ class RAGEngine:
 
         # Log top scores for debugging
         if results:
-            top_scores = [(r["title"], round(r["similarity"], 3))
-                          for r in results[:3]]
+            top_scores = [(r["title"], round(r["similarity"], 3)) for r in results[:3]]
             logger.info(f"Top scores: {top_scores}")
 
         # Step 7 — No-context fallback (no hallucination)
@@ -121,7 +120,7 @@ class RAGEngine:
                     "different question or ask about our book collection."
                 ),
                 "sources": [],
-                "cached":  False,
+                "cached": False,
             }
 
         # Step 8 — Build context block
@@ -151,7 +150,7 @@ class RAGEngine:
 
         # Step 11 — Record usage (token count estimated by word count;
         # tiktoken cannot download its vocab on this network)
-        prompt_tokens     = len((system + prompt).split()) * 4 // 3
+        prompt_tokens = len((system + prompt).split()) * 4 // 3
         completion_tokens = len(answer_text.split()) * 4 // 3
         self.usage_tracker.record(
             model=self.ai_service.primary_provider_name,
@@ -162,12 +161,12 @@ class RAGEngine:
 
         # Step 12 — Cache and return
         response = {
-            "answer":  answer_text,
+            "answer": answer_text,
             "sources": [
                 {
-                    "title":      r["title"],
-                    "author":     r["author"],
-                    "genre":      r["genre"],
+                    "title": r["title"],
+                    "author": r["author"],
+                    "genre": r["genre"],
                     "similarity": round(r["similarity"], 3),
                 }
                 for r in relevant

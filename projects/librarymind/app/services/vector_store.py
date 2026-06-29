@@ -30,16 +30,15 @@ class VectorStore:
             metadata={"hnsw:space": "cosine"},
         )
         logger.info(
-            f"VectorStore ready. "
-            f"Books in collection: {self.collection.count()}"
+            f"VectorStore ready. " f"Books in collection: {self.collection.count()}"
         )
 
     def upsert(
         self,
-        book_id:   str,
+        book_id: str,
         embedding: list[float],
-        document:  str,
-        metadata:  dict,
+        document: str,
+        metadata: dict,
     ) -> None:
         """Insert or update a book in the collection.
 
@@ -84,11 +83,13 @@ class VectorStore:
             # ChromaDB cosine DISTANCE → convert to similarity score
             # distance=0 means identical, distance=2 means opposite
             similarity = 1.0 - results["distances"][0][i]
-            output.append({
-                **meta,
-                "document":   results["documents"][0][i],
-                "similarity": similarity,
-            })
+            output.append(
+                {
+                    **meta,
+                    "document": results["documents"][0][i],
+                    "similarity": similarity,
+                }
+            )
         output.sort(key=lambda x: x["similarity"], reverse=True)
         return output
 

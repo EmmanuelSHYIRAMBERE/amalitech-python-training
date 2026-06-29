@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     AMALI_BASE_URL: str = "https://ai-api.amalitech.org/api/v2/public/"
 
     # Which provider the proxy should route to
-    PRIMARY_PROVIDER: str = "openai"      # "openai" or "anthropic"
+    PRIMARY_PROVIDER: str = "openai"  # "openai" or "anthropic"
     FALLBACK_PROVIDER: str = "anthropic"  # used if primary fails
 
     # Models
@@ -71,9 +71,7 @@ def validate_and_summarise() -> None:
     """
     logger = logging.getLogger(__name__)
     masked_key = (
-        settings.AMALI_API_KEY[:8] + "..."
-        if len(settings.AMALI_API_KEY) > 8
-        else "***"
+        settings.AMALI_API_KEY[:8] + "..." if len(settings.AMALI_API_KEY) > 8 else "***"
     )
     logger.info("Configuration loaded:")
     logger.info(f"  AMALI_API_KEY     : {masked_key}")

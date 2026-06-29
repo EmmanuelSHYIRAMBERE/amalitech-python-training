@@ -34,9 +34,7 @@ def main():
         http_client=httpx.Client(verify=False),
     )
     cache = CacheService(settings.REDIS_URL, settings.CACHE_TTL_SECONDS)
-    embedding_service = EmbeddingService(
-        openai_client, cache, settings.EMBEDDING_MODEL
-    )
+    embedding_service = EmbeddingService(openai_client, cache, settings.EMBEDDING_MODEL)
     vector_store = VectorStore(settings.CHROMA_DB_PATH)
 
     print(f"Seeding {len(books)} books into ChromaDB...")

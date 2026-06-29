@@ -109,10 +109,10 @@ class AmaliProvider(AIProvider):
         }
 
         headers = {
-            "accept":        "application/json",
-            "Content-Type":  "application/json",
-            "X-Api-Key":     self.api_key,
-            "Provider":      self._provider_name,
+            "accept": "application/json",
+            "Content-Type": "application/json",
+            "X-Api-Key": self.api_key,
+            "Provider": self._provider_name,
         }
 
         response = self.client.post(

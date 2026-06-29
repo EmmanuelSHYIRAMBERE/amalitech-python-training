@@ -100,7 +100,7 @@ class EmbeddingService:
         cache: CacheService,
         model: str = "text-embedding-3-small",
     ) -> None:
-        self.client = openai_client   # kept for interface compatibility
+        self.client = openai_client  # kept for interface compatibility
         self.cache = cache
         self.model = model
 

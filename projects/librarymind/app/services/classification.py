@@ -28,7 +28,7 @@ class ClassificationService:
     """
 
     def __init__(self, ai_service, rate_limiter) -> None:
-        self.ai_service   = ai_service
+        self.ai_service = ai_service
         self.rate_limiter = rate_limiter
 
     def classify(self, ticket_text: str) -> dict:

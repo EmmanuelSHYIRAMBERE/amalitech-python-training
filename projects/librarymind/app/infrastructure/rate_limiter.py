@@ -29,21 +29,20 @@ class RateLimiter:
     """
 
     def __init__(self, requests_per_minute: int) -> None:
-        self.capacity    = float(requests_per_minute)
-        self.tokens      = float(requests_per_minute)
-        self.refill_rate = requests_per_minute / 60.0   # tokens per second
+        self.capacity = float(requests_per_minute)
+        self.tokens = float(requests_per_minute)
+        self.refill_rate = requests_per_minute / 60.0  # tokens per second
         self.last_refill = time.time()
-        self.lock        = threading.Lock()
+        self.lock = threading.Lock()
 
     def _refill(self) -> None:
         """Add tokens proportional to elapsed time since last refill.
 
         Must be called while ``self.lock`` is held.
         """
-        now     = time.time()
+        now = time.time()
         elapsed = now - self.last_refill
-        self.tokens      = min(self.capacity,
-                               self.tokens + elapsed * self.refill_rate)
+        self.tokens = min(self.capacity, self.tokens + elapsed * self.refill_rate)
         self.last_refill = now
 
     def acquire(self) -> None:
@@ -60,11 +59,9 @@ class RateLimiter:
             if self.tokens >= 1.0:
                 self.tokens -= 1.0
                 logger.debug(
-                    f"Rate limiter: token acquired. "
-                    f"Remaining: {self.tokens:.1f}"
+                    f"Rate limiter: token acquired. " f"Remaining: {self.tokens:.1f}"
                 )
             else:
                 raise RateLimitError(
-                    "Rate limit exceeded. "
-                    "Please wait before making another request."
+                    "Rate limit exceeded. " "Please wait before making another request."
                 )

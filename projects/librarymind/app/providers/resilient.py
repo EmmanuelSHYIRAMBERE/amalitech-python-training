@@ -51,19 +51,13 @@ class ResilientAIService:
         for provider in self.providers:
             try:
                 logger.info(f"Trying provider: {provider.name}")
-                result = provider.generate(
-                    prompt, system, temperature, max_tokens
-                )
+                result = provider.generate(prompt, system, temperature, max_tokens)
                 logger.info(f"Provider {provider.name} succeeded")
                 return result
             except Exception as e:
-                logger.warning(
-                    f"Provider {provider.name} failed: {e}"
-                )
+                logger.warning(f"Provider {provider.name} failed: {e}")
                 last_error = e
-        raise RuntimeError(
-            f"All AI providers failed. Last error: {last_error}"
-        )
+        raise RuntimeError(f"All AI providers failed. Last error: {last_error}")
 
     @property
     def primary_provider_name(self) -> str:

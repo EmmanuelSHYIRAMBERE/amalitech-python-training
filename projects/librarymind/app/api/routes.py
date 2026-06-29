@@ -51,9 +51,7 @@ def search_books(req: SearchBooksRequest):
     except RateLimitError as e:
         raise HTTPException(status_code=429, detail=str(e)) from e
     except Exception as e:
-        raise HTTPException(
-            status_code=503, detail=f"Search failed: {e}"
-        ) from e
+        raise HTTPException(status_code=503, detail=f"Search failed: {e}") from e
 
 
 @router.post("/search/ask", response_model=AskResponse)
@@ -64,8 +62,13 @@ def ask(req: AskRequest):
         return AskResponse(
             answer=result["answer"],
             sources=[
-                BookResult(**{k: v for k, v in s.items()
-                              if k in {"title", "author", "genre", "similarity"}})
+                BookResult(
+                    **{
+                        k: v
+                        for k, v in s.items()
+                        if k in {"title", "author", "genre", "similarity"}
+                    }
+                )
                 for s in result["sources"]
             ],
             cached=result["cached"],
@@ -83,14 +86,17 @@ def ask(req: AskRequest):
 def chat(req: ChatRequest):
     """Multi-turn conversational chat with per-session memory."""
     try:
-        result = chatbot_service.chat(
-            req.conversation_id, req.message
-        )
+        result = chatbot_service.chat(req.conversation_id, req.message)
         return ChatResponse(
             reply=result["reply"],
             sources=[
-                BookResult(**{k: v for k, v in s.items()
-                              if k in {"title", "author", "genre", "similarity"}})
+                BookResult(
+                    **{
+                        k: v
+                        for k, v in s.items()
+                        if k in {"title", "author", "genre", "similarity"}
+                    }
+                )
                 for s in result["sources"]
             ],
             conversation_id=result["conversation_id"],

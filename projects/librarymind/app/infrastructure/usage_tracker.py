@@ -7,12 +7,12 @@ logger = logging.getLogger(__name__)
 
 # Cost per 1 000 tokens (prompt / completion) in USD
 PRICING: dict[str, dict[str, float]] = {
-    "gpt-3.5-turbo":          {"prompt": 0.0000005, "completion": 0.0000015},
-    "gpt-4o-mini":            {"prompt": 0.00015,   "completion": 0.0006},
-    "gpt-4o":                 {"prompt": 0.005,     "completion": 0.015},
-    "claude-haiku-4-5":       {"prompt": 0.00025,   "completion": 0.00125},
-    "claude-sonnet-4-6":      {"prompt": 0.003,     "completion": 0.015},
-    "text-embedding-3-small": {"prompt": 0.00002,   "completion": 0.0},
+    "gpt-3.5-turbo": {"prompt": 0.0000005, "completion": 0.0000015},
+    "gpt-4o-mini": {"prompt": 0.00015, "completion": 0.0006},
+    "gpt-4o": {"prompt": 0.005, "completion": 0.015},
+    "claude-haiku-4-5": {"prompt": 0.00025, "completion": 0.00125},
+    "claude-sonnet-4-6": {"prompt": 0.003, "completion": 0.015},
+    "text-embedding-3-small": {"prompt": 0.00002, "completion": 0.0},
 }
 
 
@@ -52,20 +52,20 @@ class UsageTracker:
             endpoint: API path that triggered this call (for auditing).
             cached: ``True`` if the response was served from cache.
         """
-        pricing  = PRICING.get(model, {"prompt": 0.0, "completion": 0.0})
+        pricing = PRICING.get(model, {"prompt": 0.0, "completion": 0.0})
         cost_usd = (
-            prompt_tokens     / 1000 * pricing["prompt"]
+            prompt_tokens / 1000 * pricing["prompt"]
             + completion_tokens / 1000 * pricing["completion"]
         )
         entry = {
-            "timestamp":         datetime.utcnow().isoformat() + "Z",
-            "model":             model,
-            "prompt_tokens":     prompt_tokens,
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "model": model,
+            "prompt_tokens": prompt_tokens,
             "completion_tokens": completion_tokens,
-            "total_tokens":      prompt_tokens + completion_tokens,
-            "cost_usd":          cost_usd,
-            "endpoint":          endpoint,
-            "cached":            cached,
+            "total_tokens": prompt_tokens + completion_tokens,
+            "cost_usd": cost_usd,
+            "endpoint": endpoint,
+            "cached": cached,
         }
         self.records.append(entry)
         logger.debug(f"Usage: {model} ${cost_usd:.6f} [{endpoint}]")
@@ -78,8 +78,7 @@ class UsageTracker:
         """
         today = datetime.utcnow().date().isoformat()
         return sum(
-            r["cost_usd"] for r in self.records
-            if r["timestamp"].startswith(today)
+            r["cost_usd"] for r in self.records if r["timestamp"].startswith(today)
         )
 
     def total_requests(self) -> int:

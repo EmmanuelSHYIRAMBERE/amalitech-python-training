@@ -28,7 +28,7 @@ class SummarisationService:
     """
 
     def __init__(self, ai_service, rate_limiter) -> None:
-        self.ai_service   = ai_service
+        self.ai_service = ai_service
         self.rate_limiter = rate_limiter
 
     def summarise(self, reviews: list[str]) -> dict:
@@ -54,9 +54,7 @@ class SummarisationService:
 
         self.rate_limiter.acquire()
 
-        numbered = "\n".join(
-            f"{i+1}. {r}" for i, r in enumerate(reviews)
-        )
+        numbered = "\n".join(f"{i+1}. {r}" for i, r in enumerate(reviews))
 
         system = (
             "You are a literary analyst.\n"

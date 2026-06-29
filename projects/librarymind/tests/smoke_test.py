@@ -22,8 +22,10 @@ client = httpx.Client(timeout=180.0)
 def test_semantic_search() -> bool:
     """Desert planet search must return Dune in top results."""
     try:
-        r = client.post(f"{BASE}/search/books",
-            json={"query": "desert planet adventure", "limit": 5})
+        r = client.post(
+            f"{BASE}/search/books",
+            json={"query": "desert planet adventure", "limit": 5},
+        )
         if r.status_code != 200:
             print(f"  ERROR: status {r.status_code}")
             return False
@@ -42,8 +44,10 @@ def test_rag_off_topic() -> bool:
     so the local bag-of-words embedding scores below RELEVANCE_THRESHOLD.
     """
     try:
-        r = client.post(f"{BASE}/search/ask",
-            json={"question": "xyzzy plugh blorb quux zork frobnitz"})
+        r = client.post(
+            f"{BASE}/search/ask",
+            json={"question": "xyzzy plugh blorb quux zork frobnitz"},
+        )
         if r.status_code != 200:
             print(f"  ERROR: status {r.status_code}")
             return False
@@ -59,9 +63,10 @@ def test_rag_off_topic() -> bool:
 def test_rag_grounded_answer() -> bool:
     """Book question must return at least one source."""
     try:
-        r = client.post(f"{BASE}/search/ask",
-            json={"question":
-                  "Recommend a classic romance novel set in England"})
+        r = client.post(
+            f"{BASE}/search/ask",
+            json={"question": "Recommend a classic romance novel set in England"},
+        )
         if r.status_code != 200:
             print(f"  ERROR: status {r.status_code}")
             return False
@@ -102,17 +107,19 @@ def test_chat_memory() -> bool:
     """Turn 2 must elaborate on the book recommended in turn 1."""
     try:
         cid = f"smoke-memory-{int(time.time())}"
-        r1 = client.post(f"{BASE}/chat",
-            json={"conversation_id": cid,
-                  "message": "Recommend a thriller book"})
+        r1 = client.post(
+            f"{BASE}/chat",
+            json={"conversation_id": cid, "message": "Recommend a thriller book"},
+        )
         if r1.status_code != 200:
             print(f"  ERROR turn 1: status {r1.status_code}")
             return False
         print(f"  Turn 1: {r1.json()['reply'][:80]}")
 
-        r2 = client.post(f"{BASE}/chat",
-            json={"conversation_id": cid,
-                  "message": "Tell me more about that one"})
+        r2 = client.post(
+            f"{BASE}/chat",
+            json={"conversation_id": cid, "message": "Tell me more about that one"},
+        )
         if r2.status_code != 200:
             print(f"  ERROR turn 2: status {r2.status_code}")
             return False
@@ -128,12 +135,20 @@ def test_chat_separate_sessions() -> bool:
     """Two different session IDs must have isolated histories."""
     try:
         ts = int(time.time())
-        rA = client.post(f"{BASE}/chat",
-            json={"conversation_id": f"smoke-sessA-{ts}",
-                  "message": "Tell me about Dune by Frank Herbert"})
-        rB = client.post(f"{BASE}/chat",
-            json={"conversation_id": f"smoke-sessB-{ts}",
-                  "message": "What did we just talk about?"})
+        rA = client.post(
+            f"{BASE}/chat",
+            json={
+                "conversation_id": f"smoke-sessA-{ts}",
+                "message": "Tell me about Dune by Frank Herbert",
+            },
+        )
+        rB = client.post(
+            f"{BASE}/chat",
+            json={
+                "conversation_id": f"smoke-sessB-{ts}",
+                "message": "What did we just talk about?",
+            },
+        )
         if rA.status_code != 200 or rB.status_code != 200:
             print(f"  ERROR: {rA.status_code}, {rB.status_code}")
             return False
@@ -155,18 +170,23 @@ def test_chat_separate_sessions() -> bool:
 def test_classifier_negative() -> bool:
     """Angry card complaint must be technical/complaint, high/urgent, negative."""
     try:
-        r = client.post(f"{BASE}/classify/ticket",
-            json={"ticket_text":
-                  "My library card is not working at the "
-                  "self-checkout and I am very frustrated. "
-                  "This keeps happening every week."})
+        r = client.post(
+            f"{BASE}/classify/ticket",
+            json={
+                "ticket_text": "My library card is not working at the "
+                "self-checkout and I am very frustrated. "
+                "This keeps happening every week."
+            },
+        )
         if r.status_code != 200:
             print(f"  ERROR: status {r.status_code}")
             return False
         data = r.json()
-        print(f"  category={data.get('category')} "
-              f"priority={data.get('priority')} "
-              f"sentiment={data.get('sentiment')}")
+        print(
+            f"  category={data.get('category')} "
+            f"priority={data.get('priority')} "
+            f"sentiment={data.get('sentiment')}"
+        )
         return (
             data.get("category") in ["technical", "complaint"]
             and data.get("priority") in ["high", "urgent"]
@@ -180,22 +200,27 @@ def test_classifier_negative() -> bool:
 def test_classifier_positive() -> bool:
     """Positive feedback must be positive sentiment, low/medium priority."""
     try:
-        r = client.post(f"{BASE}/classify/ticket",
-            json={"ticket_text":
-                  "I love the new reading room renovation, "
-                  "it is beautiful and so comfortable. "
-                  "Thank you to the whole team!"})
+        r = client.post(
+            f"{BASE}/classify/ticket",
+            json={
+                "ticket_text": "I love the new reading room renovation, "
+                "it is beautiful and so comfortable. "
+                "Thank you to the whole team!"
+            },
+        )
         if r.status_code != 200:
             print(f"  ERROR: status {r.status_code}")
             return False
         data = r.json()
-        print(f"  category={data.get('category')} "
-              f"priority={data.get('priority')} "
-              f"sentiment={data.get('sentiment')}")
-        return (
-            data.get("sentiment") == "positive"
-            and data.get("priority") in ["low", "medium"]
+        print(
+            f"  category={data.get('category')} "
+            f"priority={data.get('priority')} "
+            f"sentiment={data.get('sentiment')}"
         )
+        return data.get("sentiment") == "positive" and data.get("priority") in [
+            "low",
+            "medium",
+        ]
     except Exception as e:
         print(f"  EXCEPTION: {e}")
         return False
@@ -204,25 +229,35 @@ def test_classifier_positive() -> bool:
 def test_review_summariser() -> bool:
     """Mixed reviews must produce balanced output with all required keys."""
     try:
-        r = client.post(f"{BASE}/summarise/reviews",
-            json={"reviews": [
-                "Loved it, great characters and vivid descriptions.",
-                "Brilliant world building but pacing dragged in places.",
-                "Could not put it down — a genuine masterpiece.",
-                "Overrated in my opinion, ending felt rushed.",
-                "Beautiful prose even if the plot loses momentum.",
-            ]})
+        r = client.post(
+            f"{BASE}/summarise/reviews",
+            json={
+                "reviews": [
+                    "Loved it, great characters and vivid descriptions.",
+                    "Brilliant world building but pacing dragged in places.",
+                    "Could not put it down — a genuine masterpiece.",
+                    "Overrated in my opinion, ending felt rushed.",
+                    "Beautiful prose even if the plot loses momentum.",
+                ]
+            },
+        )
         if r.status_code != 200:
             print(f"  ERROR: status {r.status_code}")
             return False
         data = r.json()
         required = {
-            "overall_sentiment", "average_rating",
-            "key_themes", "praise", "criticism", "recommendation",
+            "overall_sentiment",
+            "average_rating",
+            "key_themes",
+            "praise",
+            "criticism",
+            "recommendation",
         }
         missing = required - set(data.keys())
-        print(f"  sentiment={data.get('overall_sentiment')} "
-              f"rating={data.get('average_rating')}")
+        print(
+            f"  sentiment={data.get('overall_sentiment')} "
+            f"rating={data.get('average_rating')}"
+        )
         if missing:
             print(f"  Missing keys: {missing}")
             return False
@@ -235,44 +270,37 @@ def test_review_summariser() -> bool:
 def test_validation_422() -> bool:
     """Empty/short input must return HTTP 422."""
     try:
-        r1 = client.post(f"{BASE}/search/books",
-                         json={"query": "", "limit": 5})
-        r2 = client.post(f"{BASE}/search/ask",
-                         json={"question": "Hi"})
-        r3 = client.post(f"{BASE}/chat",
-                         json={"message": "Hello"})
-        print(f"  Empty query: {r1.status_code} | "
-              f"Short question: {r2.status_code} | "
-              f"Missing field: {r3.status_code}")
-        return (r1.status_code == 422
-                and r2.status_code == 422
-                and r3.status_code == 422)
+        r1 = client.post(f"{BASE}/search/books", json={"query": "", "limit": 5})
+        r2 = client.post(f"{BASE}/search/ask", json={"question": "Hi"})
+        r3 = client.post(f"{BASE}/chat", json={"message": "Hello"})
+        print(
+            f"  Empty query: {r1.status_code} | "
+            f"Short question: {r2.status_code} | "
+            f"Missing field: {r3.status_code}"
+        )
+        return r1.status_code == 422 and r2.status_code == 422 and r3.status_code == 422
     except Exception as e:
         print(f"  EXCEPTION: {e}")
         return False
 
 
 TESTS = [
-    ("Semantic search — Dune appears for desert planet query",
-     test_semantic_search),
-    ("RAG off-topic — weather question returns empty sources",
-     test_rag_off_topic),
-    ("RAG grounded answer — romance question returns sources",
-     test_rag_grounded_answer),
-    ("Cache behaviour — identical question handled correctly",
-     test_cache_hit),
-    ("Chat memory — turn 2 elaborates on turn 1",
-     test_chat_memory),
-    ("Chat sessions — separate IDs have isolated histories",
-     test_chat_separate_sessions),
-    ("Classifier negative — technical/high/negative ticket",
-     test_classifier_negative),
-    ("Classifier positive — positive sentiment/low priority",
-     test_classifier_positive),
-    ("Review summariser — all required keys + numeric rating",
-     test_review_summariser),
-    ("Validation — empty/short input returns HTTP 422",
-     test_validation_422),
+    ("Semantic search — Dune appears for desert planet query", test_semantic_search),
+    ("RAG off-topic — weather question returns empty sources", test_rag_off_topic),
+    (
+        "RAG grounded answer — romance question returns sources",
+        test_rag_grounded_answer,
+    ),
+    ("Cache behaviour — identical question handled correctly", test_cache_hit),
+    ("Chat memory — turn 2 elaborates on turn 1", test_chat_memory),
+    (
+        "Chat sessions — separate IDs have isolated histories",
+        test_chat_separate_sessions,
+    ),
+    ("Classifier negative — technical/high/negative ticket", test_classifier_negative),
+    ("Classifier positive — positive sentiment/low priority", test_classifier_positive),
+    ("Review summariser — all required keys + numeric rating", test_review_summariser),
+    ("Validation — empty/short input returns HTTP 422", test_validation_422),
 ]
 
 if __name__ == "__main__":

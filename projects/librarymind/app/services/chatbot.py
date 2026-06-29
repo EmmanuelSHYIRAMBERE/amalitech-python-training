@@ -27,8 +27,8 @@ class ChatbotService:
     """
 
     def __init__(self, rag_engine, ai_service, max_history: int = 10) -> None:
-        self.rag_engine  = rag_engine
-        self.ai_service  = ai_service
+        self.rag_engine = rag_engine
+        self.ai_service = ai_service
         self.max_history = max_history
         # In-memory conversation store: {conversation_id: [messages]}
         self.store: dict[str, list[dict]] = {}
@@ -59,8 +59,8 @@ class ChatbotService:
         history = self.store.setdefault(conversation_id, [])
 
         # Step 2 — RAG context for this message
-        rag_result    = self.rag_engine.answer(message)
-        sources       = rag_result["sources"]
+        rag_result = self.rag_engine.answer(message)
+        sources = rag_result["sources"]
         context_block = self._format_sources(sources)
 
         # Step 3 — System prompt
@@ -91,13 +91,13 @@ class ChatbotService:
         )
 
         # Step 6 — Append both turns to history
-        history.append({"role": "user",      "content": message})
+        history.append({"role": "user", "content": message})
         history.append({"role": "assistant", "content": reply})
 
         # Step 7 — Truncate to max_history in PAIRS
         # Always remove whole pairs (user+assistant) from the front
         if len(history) > self.max_history:
-            trimmed = history[-self.max_history:]
+            trimmed = history[-self.max_history :]
             # If the first message is an assistant turn, drop it
             # so we always start on a user turn
             if trimmed and trimmed[0]["role"] == "assistant":
@@ -107,8 +107,8 @@ class ChatbotService:
             self.store[conversation_id] = history
 
         return {
-            "reply":           reply,
-            "sources":         sources,
+            "reply": reply,
+            "sources": sources,
             "conversation_id": conversation_id,
         }
 
@@ -144,9 +144,7 @@ class ChatbotService:
         for msg in history:
             parts.append(f'{msg["role"].upper()}: {msg["content"]}')
         if context_block:
-            parts.append(
-                f"[LIBRARY CATALOGUE CONTEXT]\n{context_block}"
-            )
+            parts.append(f"[LIBRARY CATALOGUE CONTEXT]\n{context_block}")
         parts.append(f"USER: {new_message}")
         return "\n\n".join(parts)
 
@@ -163,6 +161,5 @@ class ChatbotService:
         if not sources:
             return ""
         return "\n".join(
-            f'- "{s["title"]}" by {s["author"]} ({s["genre"]})'
-            for s in sources
+            f'- "{s["title"]}" by {s["author"]} ({s["genre"]})' for s in sources
         )

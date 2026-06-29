@@ -18,9 +18,7 @@ _openai_client = openai.OpenAI(
     http_client=httpx.Client(verify=False),
 )
 
-embedding_service = EmbeddingService(
-    _openai_client, cache, settings.EMBEDDING_MODEL
-)
+embedding_service = EmbeddingService(_openai_client, cache, settings.EMBEDDING_MODEL)
 vector_store = VectorStore(settings.CHROMA_DB_PATH)
 rag_engine = RAGEngine(
     embedding_service=embedding_service,
@@ -31,8 +29,6 @@ rag_engine = RAGEngine(
     usage_tracker=usage_tracker,
     threshold=settings.RELEVANCE_THRESHOLD,
 )
-chatbot_service = ChatbotService(
-    rag_engine, ai_service, settings.MAX_HISTORY_MESSAGES
-)
+chatbot_service = ChatbotService(rag_engine, ai_service, settings.MAX_HISTORY_MESSAGES)
 classification_service = ClassificationService(ai_service, rate_limiter)
 summarisation_service = SummarisationService(ai_service, rate_limiter)
