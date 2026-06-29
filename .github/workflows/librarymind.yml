@@ -517,6 +517,7 @@ jobs:
   smoke-test:
     name: Smoke Test (live API)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: [app-check, unit-tests]
     env:
       AMALI_API_KEY: ${{ secrets.AMALI_API_KEY }}

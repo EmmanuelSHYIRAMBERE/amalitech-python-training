@@ -15,8 +15,8 @@ warnings.filterwarnings("ignore")
 import httpx  # noqa: E402
 
 BASE = "http://localhost:8000"
-# 120 s per request — CI runner hits the Amalitec proxy which can be slow
-client = httpx.Client(timeout=120.0)
+# 180 s per request — CI runner hits the Amalitec proxy which can be slow
+client = httpx.Client(timeout=180.0)
 
 
 def test_semantic_search() -> bool:
