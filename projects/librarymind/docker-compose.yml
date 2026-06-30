@@ -1,38 +1,39 @@
-version: "3.9"
-
 services:
   api:
     build: .
+    env_file:
+      - .env
     ports:
-      - "8000:8000"
+      - "${API_PORT:-8000}:8000"
     environment:
-      - AMALI_API_KEY=${AMALI_API_KEY}
-      - AMALI_BASE_URL=${AMALI_BASE_URL}
-      - PRIMARY_PROVIDER=${PRIMARY_PROVIDER:-openai}
-      - FALLBACK_PROVIDER=${FALLBACK_PROVIDER:-anthropic}
-      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-3.5-turbo}
-      - ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-claude-haiku-4-5}
-      - REDIS_URL=redis://redis:6379
-      - RATE_LIMIT_PER_MINUTE=${RATE_LIMIT_PER_MINUTE:-20}
-      - CACHE_TTL_SECONDS=${CACHE_TTL_SECONDS:-3600}
-      - RELEVANCE_THRESHOLD=${RELEVANCE_THRESHOLD:-0.05}
-      - MAX_HISTORY_MESSAGES=${MAX_HISTORY_MESSAGES:-10}
-      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-text-embedding-3-small}
-      - CHROMA_DB_PATH=/data/chroma_db
+      # Docker-internal Redis URL overrides the localhost value in .env
+      REDIS_URL: "redis://redis:6379"
+      CHROMA_DB_PATH: "/data/chroma_db"
     volumes:
       - chroma_data:/data/chroma_db
     depends_on:
-      - redis
-    command: >
-      sh -c "python scripts/seed.py &&
-             uvicorn app.main:app --host 0.0.0.0 --port 8000"
+      redis:
+        condition: service_healthy
+    command: "${API_CMD:-sh -c 'python scripts/seed.py && uvicorn app.main:app --host 0.0.0.0 --port 8000'}"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
 
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "${REDIS_EXTERNAL_PORT:-6379}:6379"
     volumes:
       - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
 volumes:
   chroma_data:
