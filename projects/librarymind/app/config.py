@@ -2,16 +2,17 @@
 
 import logging
 
-from pydantic import model_validator
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
     """Pydantic-settings model for all LibraryMind configuration.
 
-    Values are read from environment variables or a ``.env`` file in the
-    working directory.  ``AMALI_API_KEY`` is required and validated on
-    startup; the application will not start without a real key.
+    Every value is read exclusively from environment variables or the
+    ``.env`` file — there are no hardcoded defaults in this class.
+    A missing or placeholder ``AMALI_API_KEY`` causes an immediate
+    ``ValidationError`` so the application fails loudly on misconfiguration.
 
     Example:
         >>> from app.config import settings
@@ -20,25 +21,43 @@ class Settings(BaseSettings):
     """
 
     # Amalitec proxy — replaces direct provider keys
-    AMALI_API_KEY: str = ""
-    AMALI_BASE_URL: str = "https://ai-api.amalitech.org/api/v2/public/"
+    AMALI_API_KEY: str = Field(..., description="Amalitec proxy API key (required)")
+    AMALI_BASE_URL: str = Field(..., description="Amalitec proxy base URL")
 
     # Which provider the proxy should route to
-    PRIMARY_PROVIDER: str = "openai"  # "openai" or "anthropic"
-    FALLBACK_PROVIDER: str = "anthropic"  # used if primary fails
+    PRIMARY_PROVIDER: str = Field(
+        ..., description="Primary AI provider: openai or anthropic"
+    )
+    FALLBACK_PROVIDER: str = Field(
+        ..., description="Fallback AI provider if primary fails"
+    )
 
     # Models
-    OPENAI_MODEL: str = "gpt-3.5-turbo"
-    ANTHROPIC_MODEL: str = "claude-haiku-4-5"
+    OPENAI_MODEL: str = Field(
+        ..., description="Model name forwarded for OpenAI routing"
+    )
+    ANTHROPIC_MODEL: str = Field(
+        ..., description="Model name forwarded for Anthropic routing"
+    )
 
     # Infrastructure
-    REDIS_URL: str = "redis://localhost:6379"
-    RATE_LIMIT_PER_MINUTE: int = 20
-    CACHE_TTL_SECONDS: int = 3600
-    RELEVANCE_THRESHOLD: float = 0.05
-    MAX_HISTORY_MESSAGES: int = 10
-    EMBEDDING_MODEL: str = "text-embedding-3-small"
-    CHROMA_DB_PATH: str = "./chroma_db"
+    REDIS_URL: str = Field(..., description="Redis connection URL")
+    RATE_LIMIT_PER_MINUTE: int = Field(
+        ..., description="Max AI requests per minute (token bucket capacity)"
+    )
+    CACHE_TTL_SECONDS: int = Field(..., description="Redis cache TTL in seconds")
+    RELEVANCE_THRESHOLD: float = Field(
+        ..., description="Minimum cosine similarity to include a book result"
+    )
+    MAX_HISTORY_MESSAGES: int = Field(
+        ..., description="Max chat turns retained per session"
+    )
+    EMBEDDING_MODEL: str = Field(
+        ..., description="Embedding model name (interface compatibility)"
+    )
+    CHROMA_DB_PATH: str = Field(
+        ..., description="Filesystem path for ChromaDB persistence"
+    )
 
     @model_validator(mode="after")
     def api_key_must_be_set(self) -> "Settings":
@@ -74,11 +93,16 @@ def validate_and_summarise() -> None:
         settings.AMALI_API_KEY[:8] + "..." if len(settings.AMALI_API_KEY) > 8 else "***"
     )
     logger.info("Configuration loaded:")
-    logger.info(f"  AMALI_API_KEY     : {masked_key}")
-    logger.info(f"  PRIMARY_PROVIDER  : {settings.PRIMARY_PROVIDER}")
-    logger.info(f"  FALLBACK_PROVIDER : {settings.FALLBACK_PROVIDER}")
-    logger.info(f"  OPENAI_MODEL      : {settings.OPENAI_MODEL}")
-    logger.info(f"  ANTHROPIC_MODEL   : {settings.ANTHROPIC_MODEL}")
-    logger.info(f"  REDIS_URL         : {settings.REDIS_URL}")
-    logger.info(f"  THRESHOLD         : {settings.RELEVANCE_THRESHOLD}")
-    logger.info(f"  CHROMA_DB_PATH    : {settings.CHROMA_DB_PATH}")
+    logger.info(f"  AMALI_API_KEY          : {masked_key}")
+    logger.info(f"  AMALI_BASE_URL         : {settings.AMALI_BASE_URL}")
+    logger.info(f"  PRIMARY_PROVIDER       : {settings.PRIMARY_PROVIDER}")
+    logger.info(f"  FALLBACK_PROVIDER      : {settings.FALLBACK_PROVIDER}")
+    logger.info(f"  OPENAI_MODEL           : {settings.OPENAI_MODEL}")
+    logger.info(f"  ANTHROPIC_MODEL        : {settings.ANTHROPIC_MODEL}")
+    logger.info(f"  REDIS_URL              : {settings.REDIS_URL}")
+    logger.info(f"  RATE_LIMIT_PER_MINUTE  : {settings.RATE_LIMIT_PER_MINUTE}")
+    logger.info(f"  CACHE_TTL_SECONDS      : {settings.CACHE_TTL_SECONDS}")
+    logger.info(f"  RELEVANCE_THRESHOLD    : {settings.RELEVANCE_THRESHOLD}")
+    logger.info(f"  MAX_HISTORY_MESSAGES   : {settings.MAX_HISTORY_MESSAGES}")
+    logger.info(f"  EMBEDDING_MODEL        : {settings.EMBEDDING_MODEL}")
+    logger.info(f"  CHROMA_DB_PATH         : {settings.CHROMA_DB_PATH}")
