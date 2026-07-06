@@ -16,6 +16,8 @@ from contextlib import asynccontextmanager  # noqa: E402
 from fastapi import FastAPI  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 
+from app.api.admin_routes import router as admin_router  # noqa: E402
+from app.api.auth_routes import router as auth_router  # noqa: E402
 from app.api.routes import router  # noqa: E402
 from app.config import validate_and_summarise  # noqa: E402
 from app.dependencies import vector_store  # noqa: E402
@@ -65,4 +67,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth_router)
+app.include_router(admin_router)
 app.include_router(router)
