@@ -59,6 +59,13 @@ class Settings(BaseSettings):
         ..., description="Filesystem path for ChromaDB persistence"
     )
 
+    # Authentication
+    JWT_SECRET_KEY: str = Field(..., description="Secret key for signing JWT tokens")
+    JWT_ALGORITHM: str = Field(..., description="JWT signing algorithm (e.g. HS256)")
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(
+        ..., description="JWT token lifetime in minutes"
+    )
+
     @model_validator(mode="after")
     def api_key_must_be_set(self) -> "Settings":
         """Validate that AMALI_API_KEY is present and non-placeholder.
@@ -106,3 +113,7 @@ def validate_and_summarise() -> None:
     logger.info(f"  MAX_HISTORY_MESSAGES   : {settings.MAX_HISTORY_MESSAGES}")
     logger.info(f"  EMBEDDING_MODEL        : {settings.EMBEDDING_MODEL}")
     logger.info(f"  CHROMA_DB_PATH         : {settings.CHROMA_DB_PATH}")
+    logger.info(f"  JWT_ALGORITHM          : {settings.JWT_ALGORITHM}")
+    logger.info(
+        f"  JWT_EXPIRE_MINUTES     : {settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES}"
+    )
