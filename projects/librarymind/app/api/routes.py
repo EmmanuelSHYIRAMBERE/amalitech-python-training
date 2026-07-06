@@ -1,6 +1,6 @@
 """FastAPI route handlers for all LibraryMind endpoints."""
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from app.api.models import (
     AskRequest,
@@ -14,6 +14,7 @@ from app.api.models import (
     SearchBooksResponse,
     SummariseRequest,
 )
+from app.auth.dependencies import get_current_user
 from app.dependencies import (
     chatbot_service,
     classification_service,
@@ -33,7 +34,9 @@ router = APIRouter()
 
 
 @router.post("/search/books", response_model=SearchBooksResponse)
-def search_books(req: SearchBooksRequest):
+def search_books(
+    req: SearchBooksRequest, _: dict = Depends(get_current_user)  # noqa: B008
+):
     """Semantic vector search over the book catalogue."""
     try:
         vector = embedding_service.embed(req.query)
@@ -55,7 +58,7 @@ def search_books(req: SearchBooksRequest):
 
 
 @router.post("/search/ask", response_model=AskResponse)
-def ask(req: AskRequest):
+def ask(req: AskRequest, _: dict = Depends(get_current_user)):  # noqa: B008
     """RAG-grounded natural language question answering."""
     try:
         result = rag_engine.answer(req.question)
@@ -83,7 +86,7 @@ def ask(req: AskRequest):
 
 
 @router.post("/chat", response_model=ChatResponse)
-def chat(req: ChatRequest):
+def chat(req: ChatRequest, _: dict = Depends(get_current_user)):  # noqa: B008
     """Multi-turn conversational chat with per-session memory."""
     try:
         result = chatbot_service.chat(req.conversation_id, req.message)
@@ -111,7 +114,9 @@ def chat(req: ChatRequest):
 
 
 @router.post("/classify/ticket")
-def classify_ticket(req: ClassifyTicketRequest):
+def classify_ticket(
+    req: ClassifyTicketRequest, _: dict = Depends(get_current_user)  # noqa: B008
+):
     """Classify a support ticket into structured JSON."""
     try:
         return classification_service.classify(req.ticket_text)
@@ -122,7 +127,9 @@ def classify_ticket(req: ClassifyTicketRequest):
 
 
 @router.post("/summarise/reviews")
-def summarise_reviews(req: SummariseRequest):
+def summarise_reviews(
+    req: SummariseRequest, _: dict = Depends(get_current_user)  # noqa: B008
+):
     """Summarise a batch of book reviews into structured JSON."""
     try:
         return summarisation_service.summarise(req.reviews)
