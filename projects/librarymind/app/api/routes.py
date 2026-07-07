@@ -7,7 +7,7 @@ receive a restricted experience; authenticated callers get full access.
   /search/ask    — unauthenticated: answer only, sources list is empty
   /chat          — unauthenticated: single-turn only (history not saved)
   /classify/ticket — unauthenticated: category field only
-  /summarise/reviews — unauthenticated: summary field only
+  /summarise/reviews — unauthenticated: recommendation field only
 """
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -182,14 +182,14 @@ def summarise_reviews(
 ):
     """Summarise a batch of book reviews into structured JSON.
 
-    Unauthenticated: summary field only.
-    Authenticated: full structured JSON (summary, sentiment, key_themes, rating).
+    Unauthenticated: recommendation field only.
+    Authenticated: full structured JSON (overall_sentiment, average_rating, key_themes, recommendation).
     """
     try:
         full = summarisation_service.summarise(req.reviews)
         if current_user:
             return full
-        return {"summary": full.get("summary")}
+        return {"recommendation": full.get("recommendation")}
     except RateLimitError as e:
         raise HTTPException(status_code=429, detail=str(e)) from e
     except (SummarisationError, ValueError) as e:
