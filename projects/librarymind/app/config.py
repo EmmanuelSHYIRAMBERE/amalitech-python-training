@@ -59,6 +59,12 @@ class Settings(BaseSettings):
         ..., description="Filesystem path for ChromaDB persistence"
     )
 
+    # Public (unauthenticated) access limits
+    PUBLIC_SEARCH_LIMIT: int = Field(
+        ...,
+        description="Max results returned to unauthenticated callers on /search/books",
+    )
+
     # Authentication
     JWT_SECRET_KEY: str = Field(..., description="Secret key for signing JWT tokens")
     JWT_ALGORITHM: str = Field(..., description="JWT signing algorithm (e.g. HS256)")
@@ -113,6 +119,7 @@ def validate_and_summarise() -> None:
     logger.info(f"  MAX_HISTORY_MESSAGES   : {settings.MAX_HISTORY_MESSAGES}")
     logger.info(f"  EMBEDDING_MODEL        : {settings.EMBEDDING_MODEL}")
     logger.info(f"  CHROMA_DB_PATH         : {settings.CHROMA_DB_PATH}")
+    logger.info(f"  PUBLIC_SEARCH_LIMIT    : {settings.PUBLIC_SEARCH_LIMIT}")
     logger.info(f"  JWT_ALGORITHM          : {settings.JWT_ALGORITHM}")
     logger.info(
         f"  JWT_EXPIRE_MINUTES     : {settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES}"
