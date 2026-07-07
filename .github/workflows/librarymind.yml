@@ -79,6 +79,10 @@ jobs:
       MAX_HISTORY_MESSAGES: "10"
       EMBEDDING_MODEL: text-embedding-3-small
       CHROMA_DB_PATH: ./chroma_db
+      PUBLIC_SEARCH_LIMIT: "3"
+      JWT_SECRET_KEY: ci-jwt-secret-not-for-production
+      JWT_ALGORITHM: HS256
+      JWT_ACCESS_TOKEN_EXPIRE_MINUTES: "60"
 
     steps:
       - uses: actions/checkout@v4
@@ -166,6 +170,10 @@ jobs:
       MAX_HISTORY_MESSAGES: "10"
       EMBEDDING_MODEL: text-embedding-3-small
       CHROMA_DB_PATH: ./chroma_db
+      PUBLIC_SEARCH_LIMIT: "3"
+      JWT_SECRET_KEY: ci-jwt-secret-not-for-production
+      JWT_ALGORITHM: HS256
+      JWT_ACCESS_TOKEN_EXPIRE_MINUTES: "60"
 
     steps:
       - uses: actions/checkout@v4
@@ -309,6 +317,10 @@ jobs:
       MAX_HISTORY_MESSAGES: "10"
       EMBEDDING_MODEL: text-embedding-3-small
       CHROMA_DB_PATH: ./chroma_db_ci
+      PUBLIC_SEARCH_LIMIT: "3"
+      JWT_SECRET_KEY: ci-jwt-secret-not-for-production
+      JWT_ALGORITHM: HS256
+      JWT_ACCESS_TOKEN_EXPIRE_MINUTES: "60"
 
     steps:
       - uses: actions/checkout@v4
