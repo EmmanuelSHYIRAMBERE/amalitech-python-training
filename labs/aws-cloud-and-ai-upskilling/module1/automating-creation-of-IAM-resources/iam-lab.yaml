@@ -118,18 +118,18 @@ Resources:
         - !Ref EC2User2
 
   # s3-user: S3 group only
-  S3User:
-    Type: AWS::IAM::User
-    DependsOn: LabTempPassword
-    Properties:
-      UserName: s3-user
-      Groups:
-        - !Ref S3UserGroup
-      LoginProfile:
-        Password: !Sub
-          - "{{resolve:secretsmanager:${SecretArn}:SecretString:password}}"
-          - SecretArn: !Ref LabTempPassword
-        PasswordResetRequired: true
+  # S3User:
+  #   Type: AWS::IAM::User
+  #   DependsOn: LabTempPassword
+  #   Properties:
+  #     UserName: s3-user
+  #     Groups:
+  #       - !Ref S3UserGroup
+  #     LoginProfile:
+  #       Password: !Sub
+  #         - "{{resolve:secretsmanager:${SecretArn}:SecretString:password}}"
+  #         - SecretArn: !Ref LabTempPassword
+  #       PasswordResetRequired: true
 
 # ─────────────────────────────────────────────
 # OUTPUTS
