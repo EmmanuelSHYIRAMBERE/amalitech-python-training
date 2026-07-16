@@ -19,7 +19,17 @@ Resources:
         ExcludeCharacters: '"@/\'
 
   # ─────────────────────────────────────────────
-  # 2. S3 GROUP + POLICY
+  # 2. LAB USERS GROUP (self-service password change)
+  # ─────────────────────────────────────────────
+  LabUsersGroup:
+    Type: AWS::IAM::Group
+    Properties:
+      GroupName: LabUsersGroup
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/IAMUserChangePassword
+
+  # ─────────────────────────────────────────────
+  # 3. S3 GROUP + POLICY
   # ─────────────────────────────────────────────
   S3UserGroup:
     Type: AWS::IAM::Group
@@ -42,7 +52,7 @@ Resources:
         - !Ref S3UserGroup
 
   # ─────────────────────────────────────────────
-  # 3. EC2 GROUP + POLICY
+  # 4. EC2 GROUP + POLICY
   # ─────────────────────────────────────────────
   EC2UserGroup:
     Type: AWS::IAM::Group
@@ -71,7 +81,38 @@ Resources:
         - !Ref EC2UserGroup
 
   # ─────────────────────────────────────────────
-  # 4. IAM USERS
+  # 5. PERMISSIONS BOUNDARY FOR ec2-user2
+  # ─────────────────────────────────────────────
+  # Caps ec2-user2's effective permissions at Describe*-only, regardless of
+  # what the EC2UserGroup policy grants (which includes RunInstances). A
+  # permissions boundary is the max-permissions ceiling: effective access is
+  # the intersection of identity policies (the group) and this boundary, so
+  # RunInstances is blocked without needing a user-level Deny statement.
+  EC2User2Boundary:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: EC2User2NoRunInstancesBoundary
+      Description: Permissions boundary capping ec2-user2 below RunInstances
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - ec2:DescribeInstances
+              - ec2:DescribeInstanceStatus
+              - ec2:DescribeImages
+              - ec2:DescribeKeyPairs
+              - ec2:DescribeSecurityGroups
+              - ec2:DescribeSubnets
+              - ec2:DescribeVpcs
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - iam:ChangePassword
+            Resource: "*"
+
+  # ─────────────────────────────────────────────
+  # 6. IAM USERS
   # ─────────────────────────────────────────────
 
   # ec2-user1: full EC2 group access
@@ -82,13 +123,15 @@ Resources:
       UserName: ec2-user1
       Groups:
         - !Ref EC2UserGroup
+        - !Ref LabUsersGroup
       LoginProfile:
         Password: !Sub
           - "{{resolve:secretsmanager:${SecretArn}:SecretString:password}}"
           - SecretArn: !Ref LabTempPassword
         PasswordResetRequired: true
 
-  # ec2-user2: EC2 group + inline Deny on RunInstances
+  # ec2-user2: EC2 group, but capped by a permissions boundary so
+  # RunInstances is denied even though the group policy allows it
   EC2User2:
     Type: AWS::IAM::User
     DependsOn: LabTempPassword
@@ -96,40 +139,28 @@ Resources:
       UserName: ec2-user2
       Groups:
         - !Ref EC2UserGroup
+        - !Ref LabUsersGroup
+      PermissionsBoundary: !Ref EC2User2Boundary
       LoginProfile:
         Password: !Sub
           - "{{resolve:secretsmanager:${SecretArn}:SecretString:password}}"
           - SecretArn: !Ref LabTempPassword
         PasswordResetRequired: true
 
-  # Inline deny policy attached directly to ec2-user2
-  EC2User2DenyRunInstances:
-    Type: AWS::IAM::Policy
-    Properties:
-      PolicyName: DenyEC2RunInstances
-      PolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Deny
-            Action:
-              - ec2:RunInstances
-            Resource: "*"
-      Users:
-        - !Ref EC2User2
-
   # s3-user: S3 group only
-  # S3User:
-  #   Type: AWS::IAM::User
-  #   DependsOn: LabTempPassword
-  #   Properties:
-  #     UserName: s3-user
-  #     Groups:
-  #       - !Ref S3UserGroup
-  #     LoginProfile:
-  #       Password: !Sub
-  #         - "{{resolve:secretsmanager:${SecretArn}:SecretString:password}}"
-  #         - SecretArn: !Ref LabTempPassword
-  #       PasswordResetRequired: true
+  S3User:
+    Type: AWS::IAM::User
+    DependsOn: LabTempPassword
+    Properties:
+      UserName: s3-user
+      Groups:
+        - !Ref S3UserGroup
+        - !Ref LabUsersGroup
+      LoginProfile:
+        Password: !Sub
+          - "{{resolve:secretsmanager:${SecretArn}:SecretString:password}}"
+          - SecretArn: !Ref LabTempPassword
+        PasswordResetRequired: true
 
 # ─────────────────────────────────────────────
 # OUTPUTS
@@ -146,6 +177,14 @@ Outputs:
   EC2GroupName:
     Description: IAM Group for EC2 users
     Value: !Ref EC2UserGroup
+
+  LabUsersGroupName:
+    Description: IAM Group granting self-service password change
+    Value: !Ref LabUsersGroup
+
+  EC2User2BoundaryArn:
+    Description: ARN of the permissions boundary limiting ec2-user2
+    Value: !Ref EC2User2Boundary
 
   ConsoleLoginURL:
     Description: AWS Console login URL
