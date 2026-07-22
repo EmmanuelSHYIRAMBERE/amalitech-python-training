@@ -307,23 +307,13 @@ Resources:
       SecurityGroupIds:
         - !Ref PublicSecurityGroup
       UserData:
-        Fn::Base64: |
+        Fn::Base64: !Sub |
           #!/bin/bash
           dnf update -y
           dnf install -y httpd
           systemctl enable httpd
           systemctl start httpd
-          cat > /var/www/html/index.html <<EOF
-          <!DOCTYPE html>
-          <html>
-            <head><title>Emmanuel SHYIRAMBERE — VPC Lab</title></head>
-            <body>
-              <h1>Emmanuel SHYIRAMBERE</h1>
-              <h2>Securely Deploying Resources in a VPC Using CloudFormation</h2>
-              <p>Public Web Server — AZ1</p>
-            </body>
-          </html>
-          EOF
+          echo '<html><head><title>Emmanuel SHYIRAMBERE - VPC Lab</title></head><body><h1>Emmanuel SHYIRAMBERE</h1><h2>Securely Deploying Resources in a VPC Using CloudFormation</h2><p>Public Web Server - AZ1</p></body></html>' > /var/www/html/index.html
       Tags:
         - Key: Name
           Value: emmanuel-public-web-az1
@@ -339,23 +329,13 @@ Resources:
       SecurityGroupIds:
         - !Ref PublicSecurityGroup
       UserData:
-        Fn::Base64: |
+        Fn::Base64: !Sub |
           #!/bin/bash
           dnf update -y
           dnf install -y httpd
           systemctl enable httpd
           systemctl start httpd
-          cat > /var/www/html/index.html <<EOF
-          <!DOCTYPE html>
-          <html>
-            <head><title>Emmanuel SHYIRAMBERE — VPC Lab</title></head>
-            <body>
-              <h1>Emmanuel SHYIRAMBERE</h1>
-              <h2>Securely Deploying Resources in a VPC Using CloudFormation</h2>
-              <p>Public Web Server — AZ2</p>
-            </body>
-          </html>
-          EOF
+          echo '<html><head><title>Emmanuel SHYIRAMBERE - VPC Lab</title></head><body><h1>Emmanuel SHYIRAMBERE</h1><h2>Securely Deploying Resources in a VPC Using CloudFormation</h2><p>Public Web Server - AZ2</p></body></html>' > /var/www/html/index.html
       Tags:
         - Key: Name
           Value: emmanuel-public-web-az2
