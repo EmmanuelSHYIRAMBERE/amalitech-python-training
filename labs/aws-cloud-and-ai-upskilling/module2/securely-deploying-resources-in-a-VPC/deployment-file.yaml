@@ -1,0 +1,4 @@
+template-file-path: >-
+  labs/aws-cloud-and-ai-upskilling/module2/securely-deploying-resources-in-a-VPC/template.yaml
+parameters: {}
+tags: {}
