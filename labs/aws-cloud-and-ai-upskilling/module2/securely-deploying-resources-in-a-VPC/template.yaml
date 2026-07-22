@@ -36,7 +36,7 @@ Parameters:
 
   InstanceType:
     Type: String
-    Default: t2.micro
+    Default: t3.micro
 
 # ─────────────────────────────────────────────
 # RESOURCES
