@@ -1,0 +1,202 @@
+[
+  {
+    "id": "book_001",
+    "title": "Dune",
+    "author": "Frank Herbert",
+    "year": 1965,
+    "genre": "Science Fiction",
+    "description": "Set on the desert planet Arrakis, the only source of the most valuable substance in the universe — the spice melange — Dune follows young Paul Atreides as his noble family assumes control of the planet, only to be betrayed and thrust into a world of political intrigue, religion, and survival. Paul must navigate Fremen culture, ancient prophecy, and his own awakening powers to reclaim his destiny. A sweeping meditation on ecology, religion, and power, Dune redefined science fiction with its unparalleled world-building and philosophical depth."
+  },
+  {
+    "id": "book_002",
+    "title": "The Martian",
+    "author": "Andy Weir",
+    "year": 2011,
+    "genre": "Science Fiction",
+    "description": "When astronaut Mark Watney is accidentally left behind on Mars after a violent storm forces his crew to abort their mission, he must use his ingenuity as a botanist and engineer to survive alone on the hostile red planet. With limited supplies, no way to communicate with Earth, and years before any rescue mission could arrive, Watney turns his situation into a series of improvised science experiments. Witty, technically precise, and gripping, The Martian is a love letter to problem-solving, human resilience, and the spirit of scientific curiosity."
+  },
+  {
+    "id": "book_003",
+    "title": "Ender's Game",
+    "author": "Orson Scott Card",
+    "year": 1985,
+    "genre": "Science Fiction",
+    "description": "In a future where Earth has twice been invaded by an alien insectoid species called the Formics, gifted child Andrew 'Ender' Wiggin is recruited into a space-based battle school where brilliant children are trained to become military commanders. Through increasingly complex war games and simulations, Ender is groomed to lead humanity's fleet against the alien threat, unaware of the true stakes of his training. The novel is a profound exploration of leadership, moral responsibility, empathy, and the cost of genius in a world that exploits children for survival."
+  },
+  {
+    "id": "book_004",
+    "title": "Foundation",
+    "author": "Isaac Asimov",
+    "year": 1951,
+    "genre": "Science Fiction",
+    "description": "Mathematician Hari Seldon has developed psychohistory — a science that predicts the future of large populations — and foresees the inevitable fall of the Galactic Empire, followed by thirty thousand years of barbarism. To shorten this dark age to a single millennium, he establishes the Foundation on a remote planet at the edge of the galaxy. Spanning centuries and generations, Foundation is a monumental work of epic scope that examines the cycles of civilisation, the power of knowledge, and the tension between individual agency and historical inevitability."
+  },
+  {
+    "id": "book_005",
+    "title": "Pride and Prejudice",
+    "author": "Jane Austen",
+    "year": 1813,
+    "genre": "Classic Romance",
+    "description": "Set in rural England at the turn of the nineteenth century, Pride and Prejudice follows the witty and independent Elizabeth Bennet as she navigates society's expectations of marriage, wealth, and propriety while clashing with the proud and wealthy Mr. Darcy. Through sharp social commentary and sparkling dialogue, Austen dissects the hypocrisy and constraints placed upon women in Regency-era England. The novel remains one of the most beloved romances in the English language, celebrated for its memorable characters, ironic humour, and exploration of personal growth over prejudice."
+  },
+  {
+    "id": "book_006",
+    "title": "Jane Eyre",
+    "author": "Charlotte Brontë",
+    "year": 1847,
+    "genre": "Classic Romance",
+    "description": "Orphaned as a child and subjected to cruelty at the hands of her aunt and a harsh charity school, Jane Eyre grows into a fiercely independent and morally courageous young woman who takes a position as governess at Thornfield Hall, where she falls in love with the brooding and mysterious Mr. Rochester. The novel is a landmark in English literature for its passionate first-person narration and its portrayal of a woman who refuses to compromise her integrity for love or security. Gothic in atmosphere and revolutionary in spirit, Jane Eyre confronts class, religion, and gender with unflinching honesty."
+  },
+  {
+    "id": "book_007",
+    "title": "Sense and Sensibility",
+    "author": "Jane Austen",
+    "year": 1811,
+    "genre": "Classic Romance",
+    "description": "When their father dies and leaves the Dashwood family financially ruined, sisters Elinor and Marianne must find suitable marriages while navigating a society that values wealth and status above all else. Elinor represents restrained good sense, managing her feelings with quiet dignity, while passionate Marianne is ruled by romantic sensibility, throwing herself into love with reckless abandon. Austen's first published novel brilliantly contrasts two modes of experiencing the world, ultimately arguing for a balance between reason and emotion in matters of the heart."
+  },
+  {
+    "id": "book_008",
+    "title": "Wuthering Heights",
+    "author": "Emily Brontë",
+    "year": 1847,
+    "genre": "Classic Romance",
+    "description": "On the wild Yorkshire moors of northern England, the foundling Heathcliff and the gentry girl Catherine Earnshaw form a fierce childhood bond that transforms into an all-consuming, destructive love that outlasts death itself. Told through nested narratives spanning two generations, the novel depicts obsession, revenge, and class resentment with a raw intensity that shocked Victorian readers. Wuthering Heights stands apart from all other romance novels as a uniquely dark and Gothic vision of love as a force that can annihilate rather than redeem."
+  },
+  {
+    "id": "book_009",
+    "title": "The Girl with the Dragon Tattoo",
+    "author": "Stieg Larsson",
+    "year": 2005,
+    "genre": "Crime Thriller",
+    "description": "Disgraced journalist Mikael Blomkvist teams up with brilliant but troubled hacker Lisbeth Salander to investigate the decades-old disappearance of a woman from a powerful Swedish industrial family, uncovering a web of corruption, violence, and secrets that stretch back to World War II. Salander is one of modern fiction's most iconic characters — a fiercely self-reliant, antisocial genius who becomes an instrument of justice against the men who abuse women. The novel is a searing critique of misogyny in Swedish society wrapped in a compulsively readable thriller."
+  },
+  {
+    "id": "book_010",
+    "title": "Gone Girl",
+    "author": "Gillian Flynn",
+    "year": 2012,
+    "genre": "Crime Thriller",
+    "description": "On the morning of their fifth wedding anniversary, Amy Dunne disappears and all evidence points to her husband Nick as the prime suspect in her murder. Told in alternating perspectives — Nick's present-day account and Amy's diary entries from the past — the novel systematically dismantles every assumption the reader makes about the truth. A razor-sharp psychological thriller and a savage satire of marriage, media hysteria, and the performance of identity, Gone Girl is a masterclass in unreliable narration and sustained suspense."
+  },
+  {
+    "id": "book_011",
+    "title": "The Da Vinci Code",
+    "author": "Dan Brown",
+    "year": 2003,
+    "genre": "Crime Thriller",
+    "description": "When a curator at the Louvre is found murdered in a mysterious pose surrounded by cryptic symbols, Harvard symbologist Robert Langdon is drawn into a dangerous chase through Paris, London, and beyond in search of a secret that could shake the foundations of Christianity. With the help of cryptologist Sophie Neveu, Langdon follows a trail of clues embedded in the works of Leonardo da Vinci that leads to a hidden religious society protecting an ancient truth about Jesus Christ. Fast-paced and packed with historical puzzles, The Da Vinci Code became one of the best-selling mystery novels of all time."
+  },
+  {
+    "id": "book_012",
+    "title": "Big Little Lies",
+    "author": "Liane Moriarty",
+    "year": 2014,
+    "genre": "Crime Thriller",
+    "description": "In a seemingly idyllic beachside community in Australia, three women — Madeline, Celeste, and Jane — form an unlikely friendship while their children attend the same kindergarten, but beneath the surface of school fundraisers and perfect Instagram lives lie secrets about domestic violence, infidelity, and past trauma. The novel unfolds as a mystery in reverse, with readers knowing from the start that someone died at the school trivia night but not who or why. Moriarty deftly blends darkly comic social satire with a genuine thriller, shining a light on the hidden lives of women."
+  },
+  {
+    "id": "book_013",
+    "title": "The Name of the Rose",
+    "author": "Umberto Eco",
+    "year": 1980,
+    "genre": "Historical Fiction",
+    "description": "In a wealthy Italian abbey in 1327, Franciscan friar William of Baskerville and his young novice Adso arrive to attend a theological debate, only to find themselves investigating a series of mysterious deaths connected to the abbey's vast and labyrinthine library. Part detective thriller, part philosophical treatise, and part meditation on the nature of knowledge, the novel deploys semiotics, medieval theology, and literary theory to create an intellectually dazzling puzzle. Eco's debut novel is a rare achievement: a rigorous work of ideas that is also genuinely suspenseful and entertaining."
+  },
+  {
+    "id": "book_014",
+    "title": "Wolf Hall",
+    "author": "Hilary Mantel",
+    "year": 2009,
+    "genre": "Historical Fiction",
+    "description": "Told from the perspective of Thomas Cromwell, the blacksmith's son who rose to become the most powerful man in Henry VIII's England, Wolf Hall reimagines the Tudor court with extraordinary psychological depth and present-tense immediacy. Mantel portrays Cromwell not as the villain of popular history but as a pragmatic, deeply intelligent man navigating a treacherous world of shifting loyalties, religious upheaval, and royal caprice. The novel won the Man Booker Prize and is widely regarded as one of the greatest historical novels ever written in English."
+  },
+  {
+    "id": "book_015",
+    "title": "The Pillars of the Earth",
+    "author": "Ken Follett",
+    "year": 1989,
+    "genre": "Historical Fiction",
+    "description": "Set in twelfth-century England during a period of civil war and ecclesiastical rivalry, The Pillars of the Earth follows the multigenerational saga of the people involved in building a magnificent Gothic cathedral in the fictional town of Kingsbridge. Characters include a visionary master builder, a manipulative bishop, a runaway noblewoman, and a monk obsessed with creating beauty in stone, all caught in the sweep of historical events including the murder of Thomas Becket. An epic of faith, ambition, love, and brutality, the novel is a sweeping portrait of medieval life that has sold over twenty million copies worldwide."
+  },
+  {
+    "id": "book_016",
+    "title": "All the Light We Cannot See",
+    "author": "Anthony Doerr",
+    "year": 2014,
+    "genre": "Historical Fiction",
+    "description": "Set during World War II, the novel weaves together the parallel stories of Marie-Laure, a blind French girl who flees Nazi-occupied Paris with her father and a legendary diamond, and Werner, a German orphan boy whose prodigious talent with radios earns him a place in the Nazi war machine. Their fates converge in the walled city of Saint-Malo as the Allies bomb it into rubble. Winner of the Pulitzer Prize, the novel is a luminous meditation on moral choice, the physics of light and blindness, and how ordinary people survive in the machinery of war."
+  },
+  {
+    "id": "book_017",
+    "title": "The Lord of the Rings",
+    "author": "J.R.R. Tolkien",
+    "year": 1954,
+    "genre": "Fantasy",
+    "description": "When the hobbit Frodo Baggins inherits the One Ring — a weapon of immense power forged by the Dark Lord Sauron — he must journey with a Fellowship of companions across Middle-earth to destroy it in the fires of Mount Doom before Sauron can reclaim it and enslave all free peoples. An epic quest that encompasses friendship, sacrifice, the corruption of power, and the struggle against overwhelming evil, the novel draws on Norse mythology, Anglo-Saxon poetry, and Tolkien's own invented languages. The Lord of the Rings essentially created the modern fantasy genre and remains its defining masterwork."
+  },
+  {
+    "id": "book_018",
+    "title": "A Wizard of Earthsea",
+    "author": "Ursula K. Le Guin",
+    "year": 1968,
+    "genre": "Fantasy",
+    "description": "On the archipelago world of Earthsea, a young boy named Ged discovers he has extraordinary magical talent and is sent to study at the school for wizards on the island of Roke. In his arrogance, Ged summons a shadowy creature from the land of the dead that pursues him relentlessly across the seas — and he must ultimately turn to face his pursuer in an act of profound self-knowledge. Spare and mythic in prose, A Wizard of Earthsea is a foundational work of fantasy literature that explores identity, pride, and the shadow selves we carry within us."
+  },
+  {
+    "id": "book_019",
+    "title": "The Night Circus",
+    "author": "Erin Morgenstern",
+    "year": 2011,
+    "genre": "Fantasy",
+    "description": "A mysterious black-and-white circus — Le Cirque des Rêves — appears without warning in cities around the world, open only at night, filled with impossible wonders including cloud mazes, carousels of ice, and bottles containing memories. Behind the spectacle, two young magicians — Celia and Marco — have been bound since childhood to compete in a magical contest orchestrated by their enigmatic teachers, unaware that the circus itself is the arena and that love has complicated everything. A sensuous, dreamlike novel that is as much a love story as a fantasy, The Night Circus is an enchanting evocation of wonder and desire."
+  },
+  {
+    "id": "book_020",
+    "title": "The Name of the Wind",
+    "author": "Patrick Rothfuss",
+    "year": 2007,
+    "genre": "Fantasy",
+    "description": "The legendary hero Kvothe — now living in hiding as a humble innkeeper — begins telling his life story to a chronicler: how he grew up as a travelling performer, how his family was murdered by a mysterious group called the Chandrian, and how he made his way to the University to learn the art of naming and the deep magic of sympathy. Rothfuss constructs an extraordinarily detailed secondary world and a hero whose brilliance is matched only by his tragic flaws. The novel is a masterfully told coming-of-age story that redefines the fantasy genre with its lyrical prose and deeply human protagonist."
+  },
+  {
+    "id": "book_021",
+    "title": "Atomic Habits",
+    "author": "James Clear",
+    "year": 2018,
+    "genre": "Self-Help",
+    "description": "James Clear draws on biology, psychology, and neuroscience to argue that the key to extraordinary results is not motivation or willpower but the tiny habits and systems we build into our daily lives. Using the concept of the habit loop — cue, craving, response, reward — he provides a practical framework for building good habits and eliminating bad ones through marginal improvements that compound over time. With concrete strategies like habit stacking, environment design, and identity-based habits, Atomic Habits has become one of the most widely adopted frameworks for personal and professional behaviour change."
+  },
+  {
+    "id": "book_022",
+    "title": "Deep Work",
+    "author": "Cal Newport",
+    "year": 2016,
+    "genre": "Self-Help",
+    "description": "Cal Newport argues that the ability to focus without distraction on cognitively demanding tasks — what he calls 'deep work' — is both increasingly rare and increasingly valuable in our economy of constant connectivity and notification-driven shallow work. Drawing on the practices of figures from Carl Jung to Bill Gates, Newport makes the case that cultivating deep focus is a kind of superpower, and provides concrete strategies for structuring your work and life to maximise periods of intense concentration. The book is both a philosophical manifesto for the value of focused attention and a practical guide to achieving it."
+  },
+  {
+    "id": "book_023",
+    "title": "Man's Search for Meaning",
+    "author": "Viktor Frankl",
+    "year": 1946,
+    "genre": "Self-Help",
+    "description": "Psychiatrist and Holocaust survivor Viktor Frankl recounts his experiences in Nazi concentration camps including Auschwitz, and from those experiences develops his theory of logotherapy — the idea that the primary human drive is not pleasure but the search for meaning. Even in the most extreme suffering, Frankl observed that those who retained a sense of purpose or something to live for were more likely to survive psychologically intact. A profound and moving work that remains one of the most influential books on the human condition, combining memoir, philosophy, and therapeutic insight into a slim volume of extraordinary power."
+  },
+  {
+    "id": "book_024",
+    "title": "Thinking, Fast and Slow",
+    "author": "Daniel Kahneman",
+    "year": 2011,
+    "genre": "Self-Help",
+    "description": "Nobel Prize-winning psychologist Daniel Kahneman synthesises decades of research on cognitive biases and decision-making into an accessible masterwork, distinguishing between System 1 — the fast, intuitive, emotional brain — and System 2 — the slow, deliberate, rational brain. Through compelling experiments and real-world examples, he reveals the systematic errors in thinking that affect our judgements about everything from personal relationships to economic decisions. Essential reading for anyone who wants to understand why we make the choices we do and how to make better ones."
+  },
+  {
+    "id": "book_025",
+    "title": "The Power of Now",
+    "author": "Eckhart Tolle",
+    "year": 1997,
+    "genre": "Self-Help",
+    "description": "Drawing on his own transformative personal experience and a synthesis of Buddhist, Hindu, and Christian spiritual traditions, Eckhart Tolle argues that the source of all human suffering is identification with the thinking mind and its compulsive need to live in the past or future rather than the present moment. Through a conversational question-and-answer format, he guides readers toward the practice of present-moment awareness and the dissolution of the ego-driven mind. The Power of Now has sold over two million copies and become a cornerstone of contemporary spirituality and mindfulness practice."
+  }
+]
