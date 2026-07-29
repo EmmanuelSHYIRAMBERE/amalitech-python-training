@@ -25,9 +25,9 @@ def main():
     books_path = Path(__file__).parent.parent / "data" / "books.json"
     books = json.loads(books_path.read_text(encoding="utf-8"))
 
-    # openai SDK pointed at Amalitec proxy with SSL verification disabled.
-    # The EmbeddingService uses local numpy embeddings (proxy /embeddings
-    # is a stub), but the client is passed through for interface compatibility.
+    # OpenAI SDK pointed at the Amalitec proxy with SSL verification disabled.
+    # EmbeddingService tries the proxy /embeddings endpoint first (neural model)
+    # and falls back to local bag-of-words if the proxy returns a stub response.
     openai_client = openai.OpenAI(
         api_key=settings.AMALI_API_KEY,
         base_url=settings.AMALI_BASE_URL,
@@ -39,13 +39,14 @@ def main():
 
     print(f"Seeding {len(books)} books into ChromaDB...")
     for book in books:
-        # Include genre and author prominently so bag-of-words similarity
-        # picks up genre-specific queries reliably.
+        # Structured opening sentence (title, author, year, genre) followed by
+        # the full description.  The structured prefix gives both keyword queries
+        # ("science fiction") and natural-language queries ("books about space")
+        # explicit anchors; the description provides thematic vocabulary.
         text = (
-            f"{book['title']} by {book['author']}. "
-            f"Genre: {book['genre']}. "
-            f"{book['description']} "
-            f"Genre: {book['genre']}. Author: {book['author']}."
+            f"Book titled \"{book['title']}\" written by {book['author']}, "
+            f"published in {book['year']}, genre: {book['genre']}. "
+            f"{book['description']}"
         )
         embedding = embedding_service.embed(text)
         vector_store.upsert(

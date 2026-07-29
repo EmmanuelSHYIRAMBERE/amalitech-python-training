@@ -1,11 +1,16 @@
-"""Local numpy bag-of-words embedding service.
+"""Text embedding service with proxy-backed neural embeddings.
 
-The Amalitec proxy ``/embeddings`` endpoint is a stub (empty 200) and
-all external model downloads (ChromaDB ONNX, tiktoken) are blocked by
-the corporate SSL proxy.  This module provides a fully local,
-deterministic, dependency-free embedding that is API-compatible with
-the OpenAI embeddings interface so it can be swapped out when the proxy
-adds real embedding support.
+Attempts to use the Amalitec proxy's ``/embeddings`` endpoint via the
+OpenAI SDK (``text-embedding-3-small``, 1536-dim).  If the proxy returns
+an empty or invalid response — which happens when the endpoint is a stub —
+it falls back automatically to a local deterministic bag-of-words model
+so the application stays functional.
+
+The local fallback uses SHA-256-seeded numpy word vectors summed and
+L2-normalised to 1536 dimensions.  It is order-independent and produces
+lower similarity scores than neural embeddings (0.05–0.31 vs 0.7+), but
+it is deterministic, requires no network calls, and matches the same
+interface so it can be swapped out transparently.
 """
 
 import hashlib
@@ -19,25 +24,15 @@ from app.infrastructure.cache import CacheService
 
 logger = logging.getLogger(__name__)
 
-# Embedding dimensionality matches text-embedding-3-small for drop-in
-# compatibility once the proxy adds a real /embeddings endpoint.
 _DIMS = 1536
 
 
+# ---------------------------------------------------------------------------
+# Local bag-of-words fallback
+# ---------------------------------------------------------------------------
+
 def _word_vector(word: str) -> np.ndarray:
-    """Map a single word to a deterministic unit vector in _DIMS-space.
-
-    Uses SHA-256 of the word to seed a numpy RNG, then draws a
-    standard-normal vector and L2-normalises it.  Identical words
-    always produce identical vectors; different words produce nearly
-    orthogonal vectors (expected cosine ≈ 0).
-
-    Args:
-        word: Lowercase word token to embed.
-
-    Returns:
-        Float32 numpy array of shape ``(_DIMS,)`` with unit L2-norm.
-    """
+    """Map a single word to a deterministic unit vector in _DIMS-space."""
     digest = hashlib.sha256(word.encode()).digest()
     seed = struct.unpack("<Q", digest[:8])[0]
     rng = np.random.default_rng(seed)
@@ -47,21 +42,7 @@ def _word_vector(word: str) -> np.ndarray:
 
 
 def _local_embed(text: str) -> list[float]:
-    """Bag-of-words embedding: sum the unit word vectors then L2-normalise.
-
-    Properties:
-    - Deterministic: same text → same vector every time
-    - Symmetric: order-independent (bag of words)
-    - Semantic proximity: texts sharing words have higher cosine similarity
-    - Dimension: ``_DIMS`` (1536) floats, unit-norm
-
-    Args:
-        text: Raw text to embed (case-insensitive; split on whitespace).
-
-    Returns:
-        List of ``_DIMS`` floats representing the unit-normalised
-        bag-of-words vector.  Returns a zero vector for empty input.
-    """
+    """Bag-of-words embedding: sum unit word vectors then L2-normalise."""
     words = text.lower().split()
     if not words:
         return [0.0] * _DIMS
@@ -74,21 +55,30 @@ def _local_embed(text: str) -> list[float]:
     return vec.tolist()
 
 
-class EmbeddingService:
-    """Generates text embeddings with Redis caching.
+# ---------------------------------------------------------------------------
+# Embedding service
+# ---------------------------------------------------------------------------
 
-    The ``openai_client`` parameter is accepted for API compatibility with
-    the Phase 3 spec (and for future use when the proxy supports
-    ``/embeddings``), but the actual computation uses the local
-    :func:`_local_embed` function.  Cached embeddings are stored for 24 h.
+class EmbeddingService:
+    """Generates text embeddings, preferring the proxy neural model.
+
+    On every call ``embed()`` first tries ``client.embeddings.create()``
+    against the Amalitec proxy (``text-embedding-3-small``, 1536-dim).
+    If the proxy returns a valid non-empty vector that call succeeds and
+    the result is cached in Redis for 24 h.
+
+    If the proxy endpoint is unavailable or returns an empty/stub response,
+    the call falls back to the local deterministic bag-of-words model
+    transparently.  A WARNING is logged on each fallback so the operator
+    knows the proxy embedding is not in service.
 
     Args:
-        openai_client: Reserved for proxy-backed embedding (unused now).
-        cache: Cache service used to persist computed embeddings.
-        model: Embedding model name (used as part of the cache key).
+        openai_client: OpenAI SDK client pointed at the Amalitec proxy.
+        cache: Redis-backed cache for computed embeddings.
+        model: Embedding model name forwarded to the proxy.
 
     Example:
-        >>> svc = EmbeddingService(client, cache)
+        >>> svc = EmbeddingService(client, cache, "text-embedding-3-small")
         >>> vec = svc.embed("Dune by Frank Herbert")
         >>> len(vec)
         1536
@@ -100,21 +90,23 @@ class EmbeddingService:
         cache: CacheService,
         model: str = "text-embedding-3-small",
     ) -> None:
-        self.client = openai_client  # kept for interface compatibility
+        self.client = openai_client
         self.cache = cache
         self.model = model
 
     def embed(self, text: str) -> list[float]:
-        """Return the embedding vector for a single text string.
+        """Return a 1536-dim embedding vector for *text*.
 
-        Checks the cache first; on a miss computes locally and stores
-        the result for 24 hours.
+        Resolution order:
+        1. Redis cache hit → return immediately
+        2. Amalitec proxy ``/embeddings`` → neural embedding
+        3. Local bag-of-words fallback (proxy unavailable or stub)
 
         Args:
-            text: Text to embed.
+            text: Text to embed (any length).
 
         Returns:
-            List of ``_DIMS`` floats (unit-normalised).
+            List of 1536 floats, L2-normalised.
         """
         cache_key = f"emb:{self.model}:{text}"
         cached = self.cache.get(cache_key)
@@ -122,7 +114,7 @@ class EmbeddingService:
             logger.debug("Embedding cache hit")
             return cached
 
-        vector = _local_embed(text)
+        vector = self._proxy_embed(text)
         self.cache.set(cache_key, vector, ttl=86400)
         return vector
 
@@ -130,9 +122,38 @@ class EmbeddingService:
         """Embed multiple texts, each cached independently.
 
         Args:
-            texts: List of strings to embed.
+            texts: Strings to embed.
 
         Returns:
-            List of embedding vectors in the same order as ``texts``.
+            List of embedding vectors in the same order as *texts*.
         """
         return [self.embed(t) for t in texts]
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
+    def _proxy_embed(self, text: str) -> list[float]:
+        """Try proxy neural embedding; fall back to local BoW on failure."""
+        try:
+            response = self.client.embeddings.create(
+                model=self.model,
+                input=text,
+                encoding_format="float",
+            )
+            vector = response.data[0].embedding
+            # Guard against stub responses: an empty list or all-zeros vector
+            # means the endpoint is not implemented on this proxy deployment.
+            if vector and any(v != 0.0 for v in vector):
+                logger.debug(f"Proxy embedding success (model={self.model})")
+                return vector
+            logger.warning(
+                "Proxy /embeddings returned an empty or zero vector — "
+                "falling back to local bag-of-words embedding"
+            )
+        except Exception as exc:
+            logger.warning(
+                f"Proxy /embeddings call failed ({exc!r}) — "
+                "falling back to local bag-of-words embedding"
+            )
+        return _local_embed(text)

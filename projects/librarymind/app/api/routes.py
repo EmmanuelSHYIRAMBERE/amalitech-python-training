@@ -10,6 +10,8 @@ receive a restricted experience; authenticated callers get full access.
   /summarise/reviews — unauthenticated: recommendation field only
 """
 
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.api.models import (
@@ -27,6 +29,7 @@ from app.api.models import (
 from app.auth.dependencies import get_optional_user
 from app.config import settings
 from app.dependencies import (
+    ai_service,
     chatbot_service,
     classification_service,
     embedding_service,
@@ -44,6 +47,9 @@ from app.exceptions import (
 router = APIRouter()
 
 
+logger = logging.getLogger(__name__)
+
+
 @router.post("/search/books", response_model=SearchBooksResponse)
 def search_books(
     req: SearchBooksRequest,
@@ -53,13 +59,23 @@ def search_books(
 
     Unauthenticated: results capped at PUBLIC_SEARCH_LIMIT.
     Authenticated: full requested limit (up to 20).
+
+    The query is analysed by the AI to extract hard filters (author name,
+    author gender, genre) and clean search keywords before embedding, so
+    both structural queries ("by Emily", "by a female") and thematic
+    queries ("gripping thriller") return relevant results.
     """
     try:
         effective_limit = (
             req.limit if current_user else min(req.limit, settings.PUBLIC_SEARCH_LIMIT)
         )
-        vector = embedding_service.embed(req.query)
-        results = vector_store.search(vector, effective_limit)
+        # Reuse the RAG engine's filter extraction — same logic, same cache
+        where_filter, search_keywords = rag_engine._extract_filters(req.query)  # noqa: SLF001
+        logger.info(
+            f"search_books — keywords={search_keywords!r}, filter={where_filter}"
+        )
+        vector = embedding_service.embed(search_keywords)
+        results = vector_store.search(vector, effective_limit, where=where_filter)
         books = [
             BookResult(
                 title=r["title"],

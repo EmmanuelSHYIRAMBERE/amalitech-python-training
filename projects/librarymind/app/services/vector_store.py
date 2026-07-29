@@ -60,6 +60,7 @@ class VectorStore:
         self,
         query_embedding: list[float],
         top_k: int = 5,
+        where: dict | None = None,
     ) -> list[dict]:
         """Return the top-k most similar books for a query vector.
 
@@ -67,17 +68,29 @@ class VectorStore:
             query_embedding: Query vector of the same dimensionality
                 as the stored embeddings.
             top_k: Maximum number of results to return.
+            where: Optional ChromaDB metadata filter (e.g.
+                ``{"genre": "Fantasy"}`` or
+                ``{"author": {"$in": ["Jane Austen", "Emily Brontë"]}}``).
+                When provided, only books matching the filter are searched.
 
         Returns:
             List of dicts, each containing all metadata fields plus
             ``"document"`` and ``"similarity"`` (float, higher = more
             similar).  Sorted by descending similarity.
         """
-        results = self.collection.query(
+        # ChromaDB requires n_results ≤ number of matching documents.
+        # When a where filter is active the matching set may be smaller
+        # than top_k — query up to the full collection and cap afterwards.
+        safe_k = min(top_k, self.collection.count()) or 1
+        kwargs: dict = dict(
             query_embeddings=[query_embedding],
-            n_results=top_k,
+            n_results=safe_k,
             include=["documents", "metadatas", "distances"],
         )
+        if where:
+            kwargs["where"] = where
+
+        results = self.collection.query(**kwargs)
         output = []
         for i, meta in enumerate(results["metadatas"][0]):
             # ChromaDB cosine DISTANCE → convert to similarity score
@@ -91,7 +104,7 @@ class VectorStore:
                 }
             )
         output.sort(key=lambda x: x["similarity"], reverse=True)
-        return output
+        return output[:top_k]
 
     def count(self) -> int:
         """Return the number of documents stored in the collection.
