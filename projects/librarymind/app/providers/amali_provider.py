@@ -130,6 +130,64 @@ class AmaliProvider(AIProvider):
         data = response.json()
         return self._extract_text(data)
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        before=before_log(logger, logging.WARNING),
+        reraise=True,
+    )
+    def generate_with_history(
+        self,
+        messages: list[dict],
+        system: str = "",
+        temperature: float = 0.7,
+        max_tokens: int = 1000,
+    ) -> str:
+        """Send a full conversation messages array to the proxy.
+
+        Builds the payload with the system message first, then appends
+        the provided history messages directly so the AI sees the real
+        conversation structure rather than a flattened string.
+
+        Args:
+            messages: Ordered list of ``{"role": ..., "content": ...}``
+                dicts (user and assistant turns only — no system).
+            system: System instruction sent as the first message.
+            temperature: Sampling temperature (0.0 = deterministic).
+            max_tokens: Maximum tokens in the completion response.
+
+        Returns:
+            The text content of the AI response.
+
+        Raises:
+            RuntimeError: On non-200 proxy response after all retries.
+        """
+        payload_messages = []
+        if system:
+            payload_messages.append({"role": "system", "content": system})
+        payload_messages.extend(messages)
+
+        payload = {
+            "model": self.model,
+            "messages": payload_messages,
+            "stream": False,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+        }
+        headers = {
+            "accept": "application/json",
+            "Content-Type": "application/json",
+            "X-Api-Key": self.api_key,
+            "Provider": self._provider_name,
+        }
+        response = self.client.post(self.base_url, json=payload, headers=headers)
+        if response.status_code != 200:
+            raise RuntimeError(
+                f"Amalitec proxy error {response.status_code} "
+                f"(provider={self._provider_name}): {response.text[:300]}"
+            )
+        return self._extract_text(response.json())
+
     def _extract_text(self, data: dict) -> str:
         """Normalise the proxy response to a plain text string.
 
