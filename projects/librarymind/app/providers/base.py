@@ -33,6 +33,31 @@ class AIProvider(ABC):
             RuntimeError: If the provider fails to return a response.
         """
 
+    @abstractmethod
+    def generate_with_history(
+        self,
+        messages: list[dict],
+        system: str = "",
+        temperature: float = 0.7,
+        max_tokens: int = 1000,
+    ) -> str:
+        """Generate a reply given a full conversation messages array.
+
+        Args:
+            messages: List of ``{"role": "user"|"assistant", "content": str}``
+                dicts representing the full conversation so far, in order.
+                Do NOT include the system message — pass it via ``system``.
+            system: System instruction sent as the first message.
+            temperature: Sampling temperature (0.0 = deterministic).
+            max_tokens: Maximum tokens in the completion response.
+
+        Returns:
+            The text content of the AI response.
+
+        Raises:
+            RuntimeError: If the provider fails to return a response.
+        """
+
     @property
     @abstractmethod
     def name(self) -> str:
