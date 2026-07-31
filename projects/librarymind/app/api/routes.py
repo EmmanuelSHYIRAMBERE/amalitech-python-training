@@ -146,6 +146,7 @@ def chat(
             # Single-turn: answer without touching the session store
             result = chatbot_service.chat("__anon__", req.message)
             chatbot_service.store.pop("__anon__", None)
+            chatbot_service.seen_sources.pop("__anon__", None)
             result["conversation_id"] = req.conversation_id
 
         return ChatResponse(
