@@ -59,6 +59,41 @@ class ResilientAIService:
                 last_error = e
         raise RuntimeError(f"All AI providers failed. Last error: {last_error}")
 
+    def generate_with_history(
+        self,
+        messages: list[dict],
+        system: str = "",
+        temperature: float = 0.7,
+        max_tokens: int = 1000,
+    ) -> str:
+        """Generate a reply from a full messages array, with provider fallback.
+
+        Args:
+            messages: Ordered list of user/assistant turn dicts.
+            system: System instruction (not included in messages).
+            temperature: Sampling temperature.
+            max_tokens: Maximum completion tokens.
+
+        Returns:
+            Text reply from the first provider that succeeds.
+
+        Raises:
+            RuntimeError: If every provider fails.
+        """
+        last_error: Exception | None = None
+        for provider in self.providers:
+            try:
+                logger.info(f"Trying provider (history): {provider.name}")
+                result = provider.generate_with_history(
+                    messages, system, temperature, max_tokens
+                )
+                logger.info(f"Provider {provider.name} succeeded")
+                return result
+            except Exception as e:
+                logger.warning(f"Provider {provider.name} failed: {e}")
+                last_error = e
+        raise RuntimeError(f"All AI providers failed. Last error: {last_error}")
+
     @property
     def primary_provider_name(self) -> str:
         """Name of the first (primary) provider.
