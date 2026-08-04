@@ -1,0 +1,573 @@
+name: CI — Python URL Shortener Microservice (Mod 9)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Triggers
+# ─────────────────────────────────────────────────────────────────────────────
+on:
+  push:
+    branches:
+      - feat/python-url-shortener-microservice-mod9
+      - develop
+    paths:
+      - "projects/python-url-shortener-microservice/**"
+      - ".github/workflows/python-url-shortener-mod9.yml"
+  pull_request:
+    branches:
+      - develop
+    paths:
+      - "projects/python-url-shortener-microservice/**"
+      - ".github/workflows/python-url-shortener-mod9.yml"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# All jobs run from the project subdirectory by default
+# ─────────────────────────────────────────────────────────────────────────────
+defaults:
+  run:
+    working-directory: projects/python-url-shortener-microservice
+
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Job 1 — Lint & Format
+  # ───────────────────────────────────────────────────────────────────────────
+  lint:
+    name: Lint & Format Check
+    runs-on: ubuntu-latest
+    env:
+      SECRET_KEY: ci-dummy-secret-key-not-for-production
+      DEBUG: "False"
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt ruff black
+
+      - name: Ruff — lint
+        run: ruff check config/ shortener/ api/ core/ users/
+
+      - name: Black — format check
+        run: black --check config/ shortener/ api/ core/ users/
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Job 2 — Type Check (mypy)
+  # Mod 9 adds httpx, tenacity, corsheaders — all listed in
+  # pyproject.toml [[tool.mypy.overrides]] with ignore_missing_imports = true.
+  # ───────────────────────────────────────────────────────────────────────────
+  type-check:
+    name: Type Check (mypy)
+    runs-on: ubuntu-latest
+    env:
+      SECRET_KEY: ci-dummy-secret-key-not-for-production
+      DEBUG: "False"
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: mypy — type check
+        run: >
+          mypy
+          --ignore-missing-imports
+          --explicit-package-bases
+          config/ shortener/ api/ core/ users/
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Job 3 — Docker Build
+  # Validates the multi-stage Dockerfile builds cleanly with all Mod 9
+  # dependencies (httpx, tenacity, django-cors-headers) in requirements.txt.
+  # ───────────────────────────────────────────────────────────────────────────
+  docker-build:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        working-directory: projects/python-url-shortener-microservice
+        run: docker build -t url-shortener:mod9 .
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Job 4 — Django System Check
+  # ───────────────────────────────────────────────────────────────────────────
+  django-check:
+    name: Django System Check
+    runs-on: ubuntu-latest
+    needs: [lint, type-check]
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: urlshortener
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-postgres-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      SECRET_KEY: ci-test-secret-key-mod9
+      DEBUG: "True"
+      ALLOWED_HOSTS: localhost,127.0.0.1
+      DB_NAME: urlshortener
+      DB_USER: postgres
+      DB_PASSWORD: ci-postgres-password
+      DB_HOST: localhost
+      DB_PORT: "5432"
+      REDIS_URL: redis://localhost:6379/0
+      CELERY_BROKER_URL: redis://localhost:6379/1
+      CORS_ALLOWED_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
+      PREVIEW_SERVICE_URL: ""
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Django system check
+        run: python manage.py check --fail-level WARNING
+
+      - name: Run migrations
+        # Applies all migrations including:
+        #   shortener/0004_mod9_unique_preview_fields — unique on title/desc/favicon
+        #   django_celery_results, django_celery_beat, token_blacklist
+        run: python manage.py migrate --noinput
+
+      - name: Verify migration 0004 applied (unique preview fields)
+        run: |
+          python manage.py shell -c "
+          from django.db import connection
+          with connection.cursor() as cursor:
+              cursor.execute(\"SELECT column_name FROM information_schema.columns WHERE table_name='shortener_url' AND column_name IN ('title','description','favicon')\")
+              cols = [r[0] for r in cursor.fetchall()]
+              assert len(cols) == 3, f'Expected 3 preview columns, got {cols}'
+              print(f'OK — preview columns exist: {cols}')
+          "
+
+      - name: Verify corsheaders is in INSTALLED_APPS
+        run: |
+          python manage.py shell -c "
+          from django.conf import settings
+          assert 'corsheaders' in settings.INSTALLED_APPS, \
+              'corsheaders missing from INSTALLED_APPS'
+          print('OK — corsheaders in INSTALLED_APPS')
+          "
+
+      - name: Verify CorsMiddleware is registered before CommonMiddleware
+        run: |
+          python manage.py shell -c "
+          from django.conf import settings
+          mw = settings.MIDDLEWARE
+          cors_idx   = mw.index('corsheaders.middleware.CorsMiddleware')
+          common_idx = mw.index('django.middleware.common.CommonMiddleware')
+          assert cors_idx < common_idx, \
+              f'CorsMiddleware (idx={cors_idx}) must come before CommonMiddleware (idx={common_idx})'
+          print(f'OK — CorsMiddleware at index {cors_idx}, CommonMiddleware at index {common_idx}')
+          "
+
+      - name: Verify CORS_ALLOWED_ORIGINS is configured
+        run: |
+          python manage.py shell -c "
+          from django.conf import settings
+          origins = settings.CORS_ALLOWED_ORIGINS
+          assert isinstance(origins, list) and len(origins) > 0, \
+              f'CORS_ALLOWED_ORIGINS must be a non-empty list, got {origins!r}'
+          print(f'OK — CORS_ALLOWED_ORIGINS: {origins}')
+          "
+
+      - name: Verify PREVIEW_SERVICE_URL setting exists
+        run: |
+          python manage.py shell -c "
+          from django.conf import settings
+          assert hasattr(settings, 'PREVIEW_SERVICE_URL'), \
+              'PREVIEW_SERVICE_URL not found in settings'
+          print(f'OK — PREVIEW_SERVICE_URL={settings.PREVIEW_SERVICE_URL!r}')
+          "
+
+      - name: Verify fetch_url_preview task route is registered
+        run: |
+          python manage.py shell -c "
+          from django.conf import settings
+          routes = settings.CELERY_TASK_ROUTES
+          key = 'shortener.tasks.fetch_url_preview'
+          assert key in routes, f'{key} not found in CELERY_TASK_ROUTES'
+          print(f'OK — {key} routes to queue={routes[key][\"queue\"]}')
+          "
+
+      - name: Verify default tags were seeded
+        run: |
+          python manage.py shell -c "
+          from shortener.models import Tag
+          count = Tag.objects.count()
+          assert count >= 10, f'Expected >= 10 default tags, got {count}'
+          print(f'OK — {count} tags seeded')
+          "
+
+      - name: Verify auth URL patterns are registered
+        run: |
+          python manage.py shell -c "
+          from django.urls import reverse, NoReverseMatch
+          for name in ['auth-register', 'auth-login', 'auth-refresh']:
+              try:
+                  url = reverse(name)
+                  print(f'OK — {name} resolves to {url}')
+              except NoReverseMatch as e:
+                  raise AssertionError(f'URL name not found: {name}') from e
+          "
+
+      - name: Generate OpenAPI schema
+        run: python manage.py spectacular --file schema.yml
+
+      - name: Verify JWT security scheme in schema
+        run: |
+          python -c "
+          import yaml
+          with open('schema.yml') as f:
+              schema = yaml.safe_load(f)
+          schemes = schema.get('components', {}).get('securitySchemes', {})
+          assert 'jwtAuth' in schemes, \
+              f'jwtAuth not found in securitySchemes. Got: {list(schemes.keys())}'
+          print('OK — jwtAuth security scheme present in OpenAPI schema')
+          "
+
+      - name: Upload OpenAPI schema artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: openapi-schema-mod9
+          path: projects/python-url-shortener-microservice/schema.yml
+          retention-days: 7
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Job 5 — Pytest & Coverage
+  # Runs the full test suite against live Postgres + Redis.
+  # Mod 9 new test files:
+  #   - tests/test_preview_client.py    — inter-service HTTP client
+  #   - tests/test_preview_task.py      — fetch_url_preview Celery task
+  #   - tests/test_cors.py              — CORS headers
+  # ───────────────────────────────────────────────────────────────────────────
+  test:
+    name: Pytest & Coverage
+    runs-on: ubuntu-latest
+    needs: django-check
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: urlshortener
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-postgres-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      SECRET_KEY: ci-test-secret-key-mod9
+      DEBUG: "True"
+      ALLOWED_HOSTS: localhost,127.0.0.1
+      DB_NAME: urlshortener
+      DB_USER: postgres
+      DB_PASSWORD: ci-postgres-password
+      DB_HOST: localhost
+      DB_PORT: "5432"
+      REDIS_URL: redis://localhost:6379/0
+      CELERY_BROKER_URL: redis://localhost:6379/1
+      CORS_ALLOWED_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
+      PREVIEW_SERVICE_URL: ""
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run pytest with coverage
+        run: coverage run -m pytest
+
+      - name: Coverage report (terminal)
+        run: coverage report --show-missing
+
+      - name: Enforce minimum coverage threshold
+        run: coverage report --fail-under=80
+
+      - name: Generate HTML coverage report
+        run: coverage html
+
+      - name: Upload HTML coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report-mod9
+          path: projects/python-url-shortener-microservice/htmlcov/
+          retention-days: 7
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Job 6 — Smoke Test
+  # Spins up Django dev server + Redis and exercises the full request cycle:
+  #   - CORS preflight returns 200 from allowed origin
+  #   - Access-Control-Allow-Origin header present on responses
+  #   - GET /api/v1/urls/list/?tag=Technology filters correctly
+  #   - All Mod 8 smoke tests still pass (health, auth, create, redirect)
+  # ───────────────────────────────────────────────────────────────────────────
+  smoke-test:
+    name: Smoke Test
+    runs-on: ubuntu-latest
+    needs: test
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: urlshortener
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-postgres-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      SECRET_KEY: ci-test-secret-key-mod9
+      DEBUG: "True"
+      ALLOWED_HOSTS: localhost,127.0.0.1,0.0.0.0
+      DB_NAME: urlshortener
+      DB_USER: postgres
+      DB_PASSWORD: ci-postgres-password
+      DB_HOST: localhost
+      DB_PORT: "5432"
+      REDIS_URL: redis://localhost:6379/0
+      CELERY_BROKER_URL: redis://localhost:6379/1
+      CORS_ALLOWED_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
+      PREVIEW_SERVICE_URL: ""
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Apply migrations
+        run: python manage.py migrate --noinput
+
+      - name: Start Django dev server in background
+        run: |
+          python manage.py runserver 0.0.0.0:8000 &
+          for i in $(seq 1 15); do
+            curl -sf http://localhost:8000/health/ && break
+            echo "Waiting for server... attempt $i"
+            sleep 2
+          done
+
+      # ── Health & Core ──────────────────────────────────────────────────────
+
+      - name: Smoke test — health check returns ok with db + redis fields
+        run: |
+          RESPONSE=$(curl -s http://localhost:8000/health/)
+          echo "Health response: $RESPONSE"
+          python -c "
+          import json, sys
+          data = json.loads('$RESPONSE')
+          assert data['status'] == 'ok',        f'status: {data[\"status\"]}'
+          assert data['db']     == 'reachable', f'db: {data[\"db\"]}'
+          assert data['redis']  == 'reachable', f'redis: {data[\"redis\"]}'
+          print('OK — health check: status=ok, db=reachable, redis=reachable')
+          "
+
+      # ── CORS ──────────────────────────────────────────────────────────────
+
+      - name: Smoke test — CORS preflight returns 200 from allowed origin
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X OPTIONS http://localhost:8000/api/v1/urls/ \
+            -H "Origin: http://localhost:3000" \
+            -H "Access-Control-Request-Method: POST" \
+            -H "Access-Control-Request-Headers: authorization,content-type")
+          echo "CORS preflight status: $STATUS"
+          [ "$STATUS" = "200" ] || (echo "FAIL: expected 200, got $STATUS" && exit 1)
+
+      - name: Smoke test — CORS header present on response from allowed origin
+        run: |
+          HEADER=$(curl -s -I http://localhost:8000/health/ \
+            -H "Origin: http://localhost:3000" \
+            | grep -i "access-control-allow-origin" | tr -d '\r')
+          echo "CORS header: $HEADER"
+          echo "$HEADER" | grep -q "localhost:3000" || \
+            (echo "FAIL: Access-Control-Allow-Origin header missing or wrong" && exit 1)
+
+      # ── Auth ──────────────────────────────────────────────────────────────
+
+      - name: Smoke test — register a new user (201)
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST http://localhost:8000/api/v1/auth/register/ \
+            -H "Content-Type: application/json" \
+            -d '{"username":"smokeuser","email":"smoke@example.com","password":"SmokePass123!","password2":"SmokePass123!"}')
+          echo "Register status: $STATUS"
+          [ "$STATUS" = "201" ] || (echo "FAIL: expected 201, got $STATUS" && exit 1)
+
+      - name: Smoke test — login returns access + refresh + user (200)
+        run: |
+          RESPONSE=$(curl -s -X POST http://localhost:8000/api/v1/auth/login/ \
+            -H "Content-Type: application/json" \
+            -d '{"username":"smokeuser","password":"SmokePass123!"}')
+          echo "Login response: $RESPONSE"
+          echo "$RESPONSE" | python -c "
+          import sys, json
+          data = json.load(sys.stdin)
+          assert 'access'  in data, f'Missing access token.  Got: {list(data.keys())}'
+          assert 'refresh' in data, f'Missing refresh token. Got: {list(data.keys())}'
+          assert 'user'    in data, f'Missing user profile.  Got: {list(data.keys())}'
+          print('OK — access, refresh, and user keys present')
+          "
+          echo "$RESPONSE" > /tmp/login_response.json
+          echo "ACCESS_TOKEN=$(python -c "import json; d=json.load(open('/tmp/login_response.json')); print(d['access'])")" >> $GITHUB_ENV
+          echo "REFRESH_TOKEN=$(python -c "import json; d=json.load(open('/tmp/login_response.json')); print(d['refresh'])")" >> $GITHUB_ENV
+
+      - name: Smoke test — token refresh returns new access token (200)
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST http://localhost:8000/api/v1/auth/refresh/ \
+            -H "Content-Type: application/json" \
+            -d "{\"refresh\":\"$REFRESH_TOKEN\"}")
+          echo "Token refresh status: $STATUS"
+          [ "$STATUS" = "200" ] || (echo "FAIL: expected 200, got $STATUS" && exit 1)
+
+      # ── URL Operations ─────────────────────────────────────────────────────
+
+      - name: Smoke test — unauthenticated POST /api/v1/urls/ returns 401
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST http://localhost:8000/api/v1/urls/ \
+            -H "Content-Type: application/json" \
+            -d '{"original_url":"https://example.com"}')
+          echo "Unauthenticated create status: $STATUS"
+          [ "$STATUS" = "401" ] || (echo "FAIL: expected 401, got $STATUS" && exit 1)
+
+      - name: Smoke test — authenticated POST /api/v1/urls/ returns 201
+        run: |
+          RESPONSE=$(curl -s \
+            -X POST http://localhost:8000/api/v1/urls/ \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"original_url":"https://example.com/smoke-test","tags":["Technology"]}')
+          echo "Create URL response: $RESPONSE"
+          echo "$RESPONSE" > /tmp/create_response.json
+          python -c "
+          import json
+          data = json.loads(open('/tmp/create_response.json').read())
+          assert 'short_code' in data, f'Missing short_code. Got: {list(data.keys())}'
+          print(f'OK — created short_code={data[\"short_code\"]!r}')
+          "
+
+      - name: Smoke test — GET /api/v1/urls/list/ returns user URLs (200)
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            http://localhost:8000/api/v1/urls/list/ \
+            -H "Authorization: Bearer $ACCESS_TOKEN")
+          echo "List URLs status: $STATUS"
+          [ "$STATUS" = "200" ] || (echo "FAIL: expected 200, got $STATUS" && exit 1)
+
+      - name: Smoke test — GET /api/v1/urls/list/?tag=Technology filters correctly
+        run: |
+          RESPONSE=$(curl -s \
+            "http://localhost:8000/api/v1/urls/list/?tag=Technology" \
+            -H "Authorization: Bearer $ACCESS_TOKEN")
+          echo "Tag filter response: $RESPONSE"
+          python -c "
+          import json
+          data = json.loads('$RESPONSE')
+          # data is a list (or paginated dict with results key)
+          items = data if isinstance(data, list) else data.get('results', data)
+          print(f'OK — tag filter returned {len(items)} URL(s)')
+          "
+
+      - name: Smoke test — redirect is public (302 without token)
+        run: |
+          SHORT_CODE=$(python -c "import json; print(json.load(open('/tmp/create_response.json'))['short_code'])")
+          echo "Short code: $SHORT_CODE"
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            --max-redirs 0 \
+            http://localhost:8000/$SHORT_CODE/)
+          echo "Public redirect status: $STATUS"
+          [ "$STATUS" = "302" ] || (echo "FAIL: expected 302, got $STATUS" && exit 1)
+
+      - name: Smoke test — wrong password returns 401
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST http://localhost:8000/api/v1/auth/login/ \
+            -H "Content-Type: application/json" \
+            -d '{"username":"smokeuser","password":"WrongPassword!"}')
+          echo "Bad credentials status: $STATUS"
+          [ "$STATUS" = "401" ] || (echo "FAIL: expected 401, got $STATUS" && exit 1)

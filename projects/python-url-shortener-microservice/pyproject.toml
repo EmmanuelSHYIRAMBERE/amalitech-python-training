@@ -1,0 +1,54 @@
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+
+[tool.ruff.lint.isort]
+known-third-party = ["django", "rest_framework", "rest_framework_simplejwt", "drf_spectacular", "decouple"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+explicit_package_bases = true
+mypy_path = "projects/python-url-shortener-microservice"
+plugins = ["mypy_django_plugin.main", "mypy_drf_plugin.main"]
+
+[[tool.mypy.overrides]]
+module = ["decouple", "decouple.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["celery", "celery.*", "django_celery_beat", "django_celery_beat.*", "django_celery_results", "django_celery_results.*", "django_redis", "django_redis.*", "pythonjsonlogger", "pythonjsonlogger.*", "httpx", "httpx.*", "tenacity", "tenacity.*", "corsheaders", "corsheaders.*", "pybreaker", "pybreaker.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["tests.*", "manage", "config.celery", "config"]
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = ["shortener.tasks"]
+# @shared_task(bind=True) decorator is untyped in celery-types; suppress the cascade.
+disable_error_code = ["untyped-decorator"]
+
+[[tool.mypy.overrides]]
+module = ["shortener.preview_client"]
+# pybreaker has no typed stubs; subclassing CircuitBreakerListener triggers [misc].
+disable_error_code = ["misc"]
+
+[tool.django-stubs]
+django_settings_module = "config.settings"
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.test_settings"
+pythonpath = ["."]
+addopts = "-v --tb=short"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["shortener", "core", "api", "users"]
+omit = ["*/migrations/*", "manage.py"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false

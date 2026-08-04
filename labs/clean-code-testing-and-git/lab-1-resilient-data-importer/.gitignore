@@ -1,0 +1,43 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Distribution / packaging
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Type checker caches
+.mypy_cache/
+.dmypy.json
+
+# Linter caches
+.ruff_cache/
+
+# Test & coverage artefacts
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS artefacts
+.DS_Store
+Thumbs.db
+
+# Generated database files (keep sample_data CSVs, ignore runtime JSON)
+database.json
+*.json
+!pyproject.toml

@@ -1,0 +1,268 @@
+name: CI — Python URL Shortener Microservice (Mod 6)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Triggers
+# ─────────────────────────────────────────────────────────────────────────────
+on:
+  push:
+    branches:
+      - feat/python-url-shortener-microservice-mod6
+      - develop
+    paths:
+      - "projects/python-url-shortener-microservice/**"
+      - ".github/workflows/python-url-shortener-mod6.yml"
+  pull_request:
+    branches:
+      - develop
+    paths:
+      - "projects/python-url-shortener-microservice/**"
+      - ".github/workflows/python-url-shortener-mod6.yml"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# All jobs run from the project subdirectory by default
+# ─────────────────────────────────────────────────────────────────────────────
+defaults:
+  run:
+    working-directory: projects/python-url-shortener-microservice
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Shared env — Python version used across all jobs
+# Note: POSTGRES_* values are inlined in services: blocks because the
+# env context is not available there (GitHub Actions limitation).
+# ─────────────────────────────────────────────────────────────────────────────
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Job 1 — Lint & Format
+  # Runs ruff (lint + import order) and black (format check).
+  # No DB needed — pure static analysis.
+  # ───────────────────────────────────────────────────────────────────────────
+  lint:
+    name: Lint & Format Check
+    runs-on: ubuntu-latest
+    env:
+      # django-stubs plugin imports settings.py at startup — needs SECRET_KEY.
+      SECRET_KEY: ci-dummy-secret-key-not-for-production
+      DEBUG: "False"
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        # Full requirements.txt so django-stubs can import settings.py cleanly.
+        # ruff and black are added on top (not in requirements.txt).
+        run: pip install -r requirements.txt ruff black
+
+      - name: Ruff — lint
+        # Check config/, shortener/, api/, core/, and the new users/ app.
+        run: ruff check config/ shortener/ api/ core/ users/
+
+      - name: Black — format check
+        run: black --check config/ shortener/ api/ core/ users/
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Job 2 — Type Check (mypy)
+  # Separated from lint so failures are reported independently in the PR.
+  # ───────────────────────────────────────────────────────────────────────────
+  type-check:
+    name: Type Check (mypy)
+    runs-on: ubuntu-latest
+    env:
+      SECRET_KEY: ci-dummy-secret-key-not-for-production
+      DEBUG: "False"
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: mypy — type check
+        # --ignore-missing-imports: psycopg2 and decouple have no bundled stubs.
+        # --explicit-package-bases: required when running from the project
+        #   subdirectory so mypy resolves config.settings correctly.
+        # users/ is included — new Mod 6 app must also pass strict type checks.
+        run: >
+          mypy
+          --ignore-missing-imports
+          --explicit-package-bases
+          config/ shortener/ api/ core/ users/
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Job 3 — Docker Build
+  # Validates the multi-stage Dockerfile builds without errors.
+  # Does not push — image is discarded after the job.
+  # ───────────────────────────────────────────────────────────────────────────
+  docker-build:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        working-directory: projects/python-url-shortener-microservice
+        run: docker build -t url-shortener:mod6 .
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Job 4 — Django System Check
+  # Validates settings, models, and URL configuration.
+  # Runs all migrations including the new users/0001 and shortener/0002-0003.
+  # Generates the OpenAPI schema as a smoke test for drf-spectacular.
+  # ───────────────────────────────────────────────────────────────────────────
+  django-check:
+    name: Django System Check
+    runs-on: ubuntu-latest
+    needs: [lint, type-check]
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: urlshortener
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-postgres-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      SECRET_KEY: ci-test-secret-key-mod6
+      DEBUG: "True"
+      ALLOWED_HOSTS: localhost,127.0.0.1
+      DB_NAME: urlshortener
+      DB_USER: postgres
+      DB_PASSWORD: ci-postgres-password
+      DB_HOST: localhost
+      DB_PORT: "5432"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Django system check
+        # Validates INSTALLED_APPS, AUTH_USER_MODEL, model fields, URL patterns.
+        run: python manage.py check --fail-level WARNING
+
+      - name: Run migrations
+        # Applies in dependency order:
+        #   auth → users/0001 → shortener/0001 → shortener/0002 → shortener/0003
+        # shortener/0003 is the data migration that seeds default tags.
+        run: python manage.py migrate --noinput
+
+      - name: Verify default tags were seeded
+        # manage.py shell -c handles django.setup() automatically.
+        # | (literal block scalar) preserves newlines — fixes the
+        # IndentationError caused by > (folded scalar) collapsing them.
+        run: |
+          python manage.py shell -c "
+          from shortener.models import Tag
+          count = Tag.objects.count()
+          assert count >= 10, f'Expected >= 10 default tags, got {count}'
+          print(f'OK — {count} tags seeded')
+          "
+
+      - name: Generate OpenAPI schema
+        # Validates drf-spectacular can introspect all views and serializers.
+        run: python manage.py spectacular --file schema.yml
+
+      - name: Upload OpenAPI schema artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: openapi-schema-mod6
+          path: projects/python-url-shortener-microservice/schema.yml
+          retention-days: 7
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Job 5 — Pytest & Coverage
+  # Runs the full 123-test suite against a live Postgres instance.
+  # Fails if coverage drops below 80%.
+  # Uploads the HTML coverage report as a downloadable artifact.
+  # ───────────────────────────────────────────────────────────────────────────
+  test:
+    name: Pytest & Coverage
+    runs-on: ubuntu-latest
+    needs: django-check
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: urlshortener
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-postgres-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      SECRET_KEY: ci-test-secret-key-mod6
+      DEBUG: "True"
+      ALLOWED_HOSTS: localhost,127.0.0.1
+      DB_NAME: urlshortener
+      DB_USER: postgres
+      DB_PASSWORD: ci-postgres-password
+      DB_HOST: localhost
+      DB_PORT: "5432"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run pytest with coverage
+        # coverage.run.source = ["shortener", "core", "api"] in pyproject.toml.
+        # users/ is intentionally excluded from source — it contains only a
+        # model and AppConfig with no custom logic to measure.
+        run: coverage run -m pytest
+
+      - name: Coverage report (terminal)
+        run: coverage report --show-missing
+
+      - name: Enforce minimum coverage threshold
+        # Fail the build if total coverage drops below 80%.
+        # Adjust --fail-under as the codebase grows.
+        run: coverage report --fail-under=80
+
+      - name: Generate HTML coverage report
+        run: coverage html
+
+      - name: Upload HTML coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report-mod6
+          path: projects/python-url-shortener-microservice/htmlcov/
+          retention-days: 7

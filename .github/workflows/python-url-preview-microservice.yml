@@ -1,0 +1,614 @@
+name: CI — Python URL Preview Microservice (Mod 9)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Triggers
+# ─────────────────────────────────────────────────────────────────────────────
+on:
+  push:
+    branches:
+      - feat/python-url-shortener-microservice-module9
+      - develop
+      - main
+    paths:
+      - "projects/python-url-preview-microservice/**"
+      - ".github/workflows/python-url-preview-microservice.yml"
+  pull_request:
+    branches:
+      - develop
+      - main
+    paths:
+      - "projects/python-url-preview-microservice/**"
+      - ".github/workflows/python-url-preview-microservice.yml"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# All jobs run from the project subdirectory by default
+# ─────────────────────────────────────────────────────────────────────────────
+defaults:
+  run:
+    working-directory: projects/python-url-preview-microservice
+
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Job 1 — Lint & Format
+  # Covers all app directories: config/, core/, api_keys/, preview/, api/
+  # ───────────────────────────────────────────────────────────────────────────
+  lint:
+    name: Lint & Format Check
+    runs-on: ubuntu-latest
+    env:
+      SECRET_KEY: ci-dummy-secret-key-not-for-production
+      DEBUG: "False"
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt ruff black
+
+      - name: Ruff — lint
+        run: ruff check config/ core/ api_keys/ preview/ api/
+
+      - name: Black — format check
+        run: black --check config/ core/ api_keys/ preview/ api/
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Job 2 — Type Check (mypy)
+  # httpx, tenacity, and django-cors-headers have no typed stubs.
+  # --ignore-missing-imports covers all three cleanly.
+  # ───────────────────────────────────────────────────────────────────────────
+  type-check:
+    name: Type Check (mypy)
+    runs-on: ubuntu-latest
+    env:
+      SECRET_KEY: ci-dummy-secret-key-not-for-production
+      DEBUG: "False"
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: mypy — type check
+        run: >
+          mypy
+          --ignore-missing-imports
+          --explicit-package-bases
+          config/ core/ api_keys/ preview/ api/
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Job 3 — Docker Build
+  # Validates the two-stage Alpine Dockerfile builds cleanly.
+  # The builder stage compiles psycopg2; the runtime stage copies wheels only.
+  # ───────────────────────────────────────────────────────────────────────────
+  docker-build:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        working-directory: projects/python-url-preview-microservice
+        run: docker build -t url-preview:mod9 .
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Job 4 — Django System Check
+  # Verifies settings, migrations, URL routing, and API key auth backend
+  # against a live PostgreSQL + Redis instance.
+  #
+  # Checks performed:
+  #   - manage.py check --fail-level WARNING passes cleanly
+  #   - api_keys migration 0001 creates the APIKey table + composite index
+  #   - preview migration 0001 is present (empty — preview is stateless)
+  #   - APIKeyAuthentication is the only DRF auth class
+  #   - IsAuthenticated is the default permission class
+  #   - django-redis is the default cache backend
+  #   - Redis is reachable and cache set/get works
+  #   - preview-fetch and preview-health URL names resolve
+  #   - api-keys-list and api-keys-revoke URL names resolve
+  #   - /health/ URL resolves
+  #   - OpenAPI schema generates without errors
+  # ───────────────────────────────────────────────────────────────────────────
+  django-check:
+    name: Django System Check
+    runs-on: ubuntu-latest
+    needs: [lint, type-check]
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: urlpreview
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-postgres-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      SECRET_KEY: ci-test-secret-key-preview-mod9
+      DEBUG: "True"
+      ALLOWED_HOSTS: localhost,127.0.0.1
+      DB_NAME: urlpreview
+      DB_USER: postgres
+      DB_PASSWORD: ci-postgres-password
+      DB_HOST: localhost
+      DB_PORT: "5432"
+      REDIS_URL: redis://localhost:6379/0
+      API_KEY_RATE_LIMIT: "1000"
+      CORS_ALLOWED_ORIGINS: http://localhost:8000,http://127.0.0.1:8000
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Django system check
+        run: python manage.py check --fail-level WARNING
+
+      - name: Run migrations
+        # api_keys/0001_initial — APIKey table + composite index on (is_active, token_hash)
+        # preview/0001_initial  — empty migration (preview is stateless, no DB tables)
+        run: python manage.py migrate --noinput
+
+      - name: Verify APIKey table and composite index exist
+        run: |
+          python manage.py shell -c "
+          from django.db import connection
+          tables = connection.introspection.table_names()
+          assert 'api_keys_apikey' in tables, \
+              f'api_keys_apikey table missing. Tables: {tables}'
+          print('OK — api_keys_apikey table exists')
+          with connection.cursor() as cur:
+              cur.execute(\"SELECT indexname FROM pg_indexes WHERE tablename='api_keys_apikey'\")
+              indexes = [r[0] for r in cur.fetchall()]
+          assert any('active' in i or 'hash' in i for i in indexes), \
+              f'Composite index not found. Indexes: {indexes}'
+          print(f'OK — indexes on api_keys_apikey: {indexes}')
+          "
+
+      - name: Verify APIKeyAuthentication is the sole DRF auth class
+        run: |
+          python manage.py shell -c "
+          from django.conf import settings
+          auth_classes = settings.REST_FRAMEWORK.get('DEFAULT_AUTHENTICATION_CLASSES', [])
+          assert auth_classes == ['api_keys.authentication.APIKeyAuthentication'], \
+              f'Unexpected auth classes: {auth_classes}'
+          print(f'OK — DEFAULT_AUTHENTICATION_CLASSES: {auth_classes}')
+          "
+
+      - name: Verify IsAuthenticated is the default permission class
+        run: |
+          python manage.py shell -c "
+          from django.conf import settings
+          perm_classes = settings.REST_FRAMEWORK.get('DEFAULT_PERMISSION_CLASSES', [])
+          assert 'rest_framework.permissions.IsAuthenticated' in perm_classes, \
+              f'IsAuthenticated missing from DEFAULT_PERMISSION_CLASSES: {perm_classes}'
+          print(f'OK — DEFAULT_PERMISSION_CLASSES: {perm_classes}')
+          "
+
+      - name: Verify django-redis is the cache backend
+        run: |
+          python manage.py shell -c "
+          from django.conf import settings
+          backend = settings.CACHES['default']['BACKEND']
+          assert backend == 'django_redis.cache.RedisCache', \
+              f'Expected django_redis.cache.RedisCache, got {backend}'
+          print(f'OK — cache backend: {backend}')
+          "
+
+      - name: Verify Redis is reachable via Django cache
+        run: |
+          python manage.py shell -c "
+          from django.core.cache import cache
+          cache.set('ci_check', 'ok', timeout=10)
+          value = cache.get('ci_check')
+          assert value == 'ok', f'Expected ok, got {value!r}'
+          cache.delete('ci_check')
+          print('OK — Redis cache set/get/delete works')
+          "
+
+      - name: Verify preview URL patterns resolve
+        run: |
+          python manage.py shell -c "
+          from django.urls import reverse, NoReverseMatch
+          for name in ['preview-fetch', 'preview-health']:
+              try:
+                  url = reverse(name)
+                  print(f'OK — {name} resolves to {url}')
+              except NoReverseMatch as e:
+                  raise AssertionError(f'URL name not found: {name}') from e
+          "
+
+      - name: Verify API key management URL patterns resolve
+        run: |
+          python manage.py shell -c "
+          from django.urls import reverse, NoReverseMatch
+          for name in ['api-keys-list', 'api-keys-revoke']:
+              try:
+                  args = [] if name == 'api-keys-list' else [1]
+                  url = reverse(name, args=args)
+                  print(f'OK — {name} resolves to {url}')
+              except NoReverseMatch as e:
+                  raise AssertionError(f'URL name not found: {name}') from e
+          "
+
+      - name: Verify health URL resolves
+        run: |
+          python manage.py shell -c "
+          from django.urls import reverse
+          url = reverse('health-check')
+          print(f'OK — health-check resolves to {url}')
+          "
+
+      - name: Verify CORS_ALLOWED_ORIGINS is configured
+        run: |
+          python manage.py shell -c "
+          from django.conf import settings
+          origins = settings.CORS_ALLOWED_ORIGINS
+          assert isinstance(origins, list) and len(origins) > 0, \
+              f'CORS_ALLOWED_ORIGINS must be a non-empty list, got {origins!r}'
+          print(f'OK — CORS_ALLOWED_ORIGINS: {origins}')
+          "
+
+      - name: Generate OpenAPI schema
+        run: python manage.py spectacular --file schema.yml
+
+      - name: Verify preview endpoints appear in OpenAPI schema
+        run: |
+          python -c "
+          import yaml
+          with open('schema.yml') as f:
+              schema = yaml.safe_load(f)
+          paths = schema.get('paths', {})
+          preview_paths = [p for p in paths if 'preview' in p]
+          assert len(preview_paths) >= 1, \
+              f'No preview paths in schema. Got: {list(paths.keys())}'
+          print(f'OK — preview paths in schema: {preview_paths}')
+          "
+
+      - name: Upload OpenAPI schema artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: openapi-schema-preview-mod9
+          path: projects/python-url-preview-microservice/schema.yml
+          retention-days: 7
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Job 5 — Pytest & Coverage
+  # 74 tests across 6 files. Uses config.test_settings (SQLite in-memory +
+  # LocMemCache) — no real PostgreSQL or Redis needed for the test suite itself.
+  # The postgres + redis services are still declared so django-check artifacts
+  # (schema.yml) are available as needed, and to mirror production parity.
+  #
+  # Test files:
+  #   tests/test_api_keys.py        — 25 tests (model, auth backend, endpoints)
+  #   tests/test_health.py          —  3 tests (health check endpoint)
+  #   tests/test_preview_service.py — 25 tests (service, circuit breaker, parsers)
+  #   tests/test_preview_views.py   —  7 tests (fetch + health endpoints)
+  #   tests/test_schemas.py         — 16 tests (DomainInfo, PreviewResult, FetchStats)
+  # ───────────────────────────────────────────────────────────────────────────
+  test:
+    name: Pytest & Coverage
+    runs-on: ubuntu-latest
+    needs: django-check
+
+    env:
+      # config.test_settings overrides DATABASES → SQLite and CACHES → LocMemCache,
+      # so these vars only need to satisfy decouple's .env fallback parsing.
+      SECRET_KEY: ci-test-secret-key-preview-mod9
+      DEBUG: "True"
+      ALLOWED_HOSTS: localhost,127.0.0.1
+      DB_NAME: urlpreview
+      DB_USER: postgres
+      DB_PASSWORD: ci-postgres-password
+      DB_HOST: localhost
+      DB_PORT: "5432"
+      REDIS_URL: redis://localhost:6379/0
+      API_KEY_RATE_LIMIT: "1000"
+      CORS_ALLOWED_ORIGINS: http://localhost:8000,http://127.0.0.1:8000
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run pytest with coverage
+        # setup.cfg points DJANGO_SETTINGS_MODULE at config.test_settings,
+        # which overrides DATABASES → SQLite in-memory and CACHES → LocMemCache.
+        # All 74 tests run without Docker.
+        run: coverage run -m pytest
+
+      - name: Coverage report (terminal)
+        run: coverage report --show-missing
+
+      - name: Enforce minimum coverage threshold
+        run: coverage report --fail-under=80
+
+      - name: Generate HTML coverage report
+        run: coverage html
+
+      - name: Upload HTML coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report-preview-mod9
+          path: projects/python-url-preview-microservice/htmlcov/
+          retention-days: 7
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Job 6 — Smoke Test
+  # Spins up gunicorn + Postgres + Redis and exercises the live HTTP surface:
+  #
+  #   GET  /health/                         → 200, status/db/redis fields
+  #   POST /api/v1/keys/                    → 201, token in body
+  #   GET  /api/v1/keys/                    → 200, token_hash absent from items
+  #   POST /api/v1/preview/fetch/ (no auth) → 401
+  #   POST /api/v1/preview/fetch/ (Bearer)  → 200, all metadata fields present
+  #   POST /api/v1/preview/fetch/ (X-API-Key header) → 200
+  #   GET  /api/v1/preview/health/          → 200, status=ok, service=url-preview
+  #   DELETE /api/v1/keys/<id>/revoke/      → 204
+  #   POST /api/v1/preview/fetch/ (revoked) → 401
+  # ───────────────────────────────────────────────────────────────────────────
+  smoke-test:
+    name: Smoke Test
+    runs-on: ubuntu-latest
+    needs: test
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: urlpreview
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-postgres-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      SECRET_KEY: ci-test-secret-key-preview-mod9
+      DEBUG: "True"
+      ALLOWED_HOSTS: localhost,127.0.0.1,0.0.0.0
+      DB_NAME: urlpreview
+      DB_USER: postgres
+      DB_PASSWORD: ci-postgres-password
+      DB_HOST: localhost
+      DB_PORT: "5432"
+      REDIS_URL: redis://localhost:6379/0
+      API_KEY_RATE_LIMIT: "1000"
+      CORS_ALLOWED_ORIGINS: http://localhost:8000,http://127.0.0.1:8000
+      DJANGO_SETTINGS_MODULE: config.settings
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Apply migrations
+        run: python manage.py migrate --noinput
+
+      - name: Start gunicorn in background
+        run: |
+          gunicorn config.wsgi:application --bind 0.0.0.0:8001 --workers 2 --daemon
+          for i in $(seq 1 15); do
+            curl -sf http://localhost:8001/health/ && break
+            echo "Waiting for server... attempt $i"
+            sleep 2
+          done
+
+      # ── Health ────────────────────────────────────────────────────────────
+
+      - name: Smoke test — health check returns ok with db + redis fields
+        run: |
+          RESPONSE=$(curl -s http://localhost:8001/health/)
+          echo "Health response: $RESPONSE"
+          python -c "
+          import json
+          data = json.loads('$RESPONSE')
+          assert data['status'] == 'ok',        f'status: {data[\"status\"]}'
+          assert data['db']     == 'reachable', f'db: {data[\"db\"]}'
+          assert data['redis']  == 'reachable', f'redis: {data[\"redis\"]}'
+          print('OK — health: status=ok, db=reachable, redis=reachable')
+          "
+
+      # ── API Key Management ────────────────────────────────────────────────
+
+      - name: Smoke test — create API key returns 201 with token
+        run: |
+          RESPONSE=$(curl -s -X POST http://localhost:8001/api/v1/keys/ \
+            -H "Content-Type: application/json" \
+            -d '{"name": "ci-smoke-test"}')
+          echo "Create key response: $RESPONSE"
+          python -c "
+          import json
+          data = json.loads('$RESPONSE')
+          assert 'token'      in data, f'token missing. Got: {list(data.keys())}'
+          assert 'id'         in data, f'id missing.    Got: {list(data.keys())}'
+          assert len(data['token']) == 64, f'token length={len(data[\"token\"])}, expected 64'
+          print(f'OK — API key created: id={data[\"id\"]}, token length=64')
+          "
+          echo "$RESPONSE" > /tmp/key_response.json
+          echo "API_TOKEN=$(python -c "import json; print(json.load(open('/tmp/key_response.json'))['token'])")" >> $GITHUB_ENV
+          echo "KEY_ID=$(python -c "import json; print(json.load(open('/tmp/key_response.json'))['id'])")" >> $GITHUB_ENV
+
+      - name: Smoke test — list keys returns 200 and does not expose token_hash
+        run: |
+          RESPONSE=$(curl -s http://localhost:8001/api/v1/keys/)
+          echo "List keys response: $RESPONSE"
+          python -c "
+          import json
+          items = json.loads('$RESPONSE')
+          assert isinstance(items, list), f'Expected list, got {type(items)}'
+          assert len(items) >= 1, 'Expected at least 1 key'
+          for item in items:
+              assert 'token'      not in item, 'token exposed in list response'
+              assert 'token_hash' not in item, 'token_hash exposed in list response'
+          print(f'OK — {len(items)} key(s) listed, token_hash not exposed')
+          "
+
+      # ── Preview Service ───────────────────────────────────────────────────
+
+      - name: Smoke test — preview health returns 200, service=url-preview
+        run: |
+          RESPONSE=$(curl -s http://localhost:8001/api/v1/preview/health/)
+          echo "Preview health response: $RESPONSE"
+          python -c "
+          import json
+          data = json.loads('$RESPONSE')
+          assert data['status']  == 'ok',         f'status: {data[\"status\"]}'
+          assert data['service'] == 'url-preview', f'service: {data[\"service\"]}'
+          print('OK — preview health: status=ok, service=url-preview')
+          "
+
+      - name: Smoke test — preview fetch without token returns 401
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST http://localhost:8001/api/v1/preview/fetch/ \
+            -H "Content-Type: application/json" \
+            -d '{"url": "https://example.com"}')
+          echo "Unauthenticated fetch status: $STATUS"
+          [ "$STATUS" = "401" ] || (echo "FAIL: expected 401, got $STATUS" && exit 1)
+
+      - name: Smoke test — preview fetch with invalid token returns 401
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST http://localhost:8001/api/v1/preview/fetch/ \
+            -H "Authorization: Bearer invalid-token-abc123" \
+            -H "Content-Type: application/json" \
+            -d '{"url": "https://example.com"}')
+          echo "Invalid token status: $STATUS"
+          [ "$STATUS" = "401" ] || (echo "FAIL: expected 401, got $STATUS" && exit 1)
+
+      - name: Smoke test — preview fetch with Bearer token returns 200 with fields
+        run: |
+          RESPONSE=$(curl -s \
+            -X POST http://localhost:8001/api/v1/preview/fetch/ \
+            -H "Authorization: Bearer $API_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"url": "https://example.com"}')
+          echo "Preview fetch response: $RESPONSE"
+          python -c "
+          import json
+          data = json.loads('$RESPONSE')
+          for field in ['url', 'title', 'description', 'favicon', 'error']:
+              assert field in data, f'Missing field: {field}. Got: {list(data.keys())}'
+          assert data['url'] == 'https://example.com', f'url mismatch: {data[\"url\"]}'
+          print(f'OK — all fields present: {list(data.keys())}')
+          print(f'     title={data[\"title\"]!r}')
+          "
+
+      - name: Smoke test — preview fetch with X-API-Key header returns 200
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST http://localhost:8001/api/v1/preview/fetch/ \
+            -H "X-API-Key: $API_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"url": "https://example.com"}')
+          echo "X-API-Key header status: $STATUS"
+          [ "$STATUS" = "200" ] || (echo "FAIL: expected 200, got $STATUS" && exit 1)
+
+      - name: Smoke test — preview fetch with invalid URL returns 400
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST http://localhost:8001/api/v1/preview/fetch/ \
+            -H "Authorization: Bearer $API_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"url": "not-a-url"}')
+          echo "Invalid URL status: $STATUS"
+          [ "$STATUS" = "400" ] || (echo "FAIL: expected 400, got $STATUS" && exit 1)
+
+      - name: Smoke test — preview fetch with missing url field returns 400
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST http://localhost:8001/api/v1/preview/fetch/ \
+            -H "Authorization: Bearer $API_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{}')
+          echo "Missing url field status: $STATUS"
+          [ "$STATUS" = "400" ] || (echo "FAIL: expected 400, got $STATUS" && exit 1)
+
+      # ── Key Revocation ────────────────────────────────────────────────────
+
+      - name: Smoke test — revoke key returns 204
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X DELETE http://localhost:8001/api/v1/keys/$KEY_ID/revoke/)
+          echo "Revoke key status: $STATUS"
+          [ "$STATUS" = "204" ] || (echo "FAIL: expected 204, got $STATUS" && exit 1)
+
+      - name: Smoke test — revoked key returns 401 on fetch
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST http://localhost:8001/api/v1/preview/fetch/ \
+            -H "Authorization: Bearer $API_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"url": "https://example.com"}')
+          echo "Revoked token status: $STATUS"
+          [ "$STATUS" = "401" ] || (echo "FAIL: expected 401 for revoked key, got $STATUS" && exit 1)
+
+      - name: Smoke test — revoke non-existent key returns 404
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X DELETE http://localhost:8001/api/v1/keys/99999/revoke/)
+          echo "Non-existent key revoke status: $STATUS"
+          [ "$STATUS" = "404" ] || (echo "FAIL: expected 404, got $STATUS" && exit 1)

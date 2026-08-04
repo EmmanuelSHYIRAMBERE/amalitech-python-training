@@ -1,0 +1,12 @@
+# Testing
+pytest>=7.4
+pytest-mock>=3.12
+coverage>=7.4
+
+# Code quality
+black>=24.0
+ruff>=0.4
+mypy>=1.9
+
+# Git hooks
+pre-commit>=3.7

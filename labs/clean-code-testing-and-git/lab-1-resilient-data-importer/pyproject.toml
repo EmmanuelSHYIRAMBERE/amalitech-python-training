@@ -1,0 +1,57 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "resilient-data-importer"
+version = "0.1.0"
+description = "A CLI tool that reliably imports user data from CSV into a JSON database."
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+import-users = "importer.cli:main"
+import-users-interactive = "importer.menu_handlers:_interactive_entry"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+# --- Black ---
+[tool.black]
+line-length = 88
+target-version = ["py312"]
+
+# --- Ruff ---
+[tool.ruff]
+line-length = 88
+# Only lint this lab's source and tests, not the whole monorepo
+include = ["src/**/*.py", "tests/**/*.py", "main.py"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+ignore = ["E501"]
+
+# --- Mypy ---
+[tool.mypy]
+python_version = "3.12"
+strict = true
+# Scope mypy to this lab only — avoids duplicate-module errors
+# from other labs in the monorepo
+files = ["src/importer"]
+explicit_package_bases = true
+ignore_missing_imports = true
+
+# --- Pytest ---
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--tb=short -v"
+
+# --- Coverage ---
+[tool.coverage.run]
+source = ["src"]
+omit = ["*/tests/*", "*/__init__.py"]
+
+[tool.coverage.report]
+fail_under = 90
+show_missing = true
+skip_covered = false
