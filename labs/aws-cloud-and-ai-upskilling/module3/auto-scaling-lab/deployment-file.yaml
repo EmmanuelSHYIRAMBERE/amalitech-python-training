@@ -1,0 +1,4 @@
+template-file-path: >-
+  labs/aws-cloud-and-ai-upskilling/module3/auto-scaling-lab/auto-scaling-alb-vpc.yaml
+parameters: {}
+tags: {}
