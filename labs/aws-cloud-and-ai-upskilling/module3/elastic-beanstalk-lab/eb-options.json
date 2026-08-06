@@ -1,0 +1,9 @@
+[
+  {"Namespace": "aws:ec2:vpc", "OptionName": "VPCId", "Value": "vpc-0627e3a089e56449b"},
+  {"Namespace": "aws:ec2:vpc", "OptionName": "Subnets", "Value": "subnet-01c8200a8fe7a1563,subnet-0d13ecdef01258dbf"},
+  {"Namespace": "aws:ec2:vpc", "OptionName": "ELBSubnets", "Value": "subnet-07ae635531f8233ea,subnet-0fb35d4b8a92880ef"},
+  {"Namespace": "aws:ec2:vpc", "OptionName": "AssociatePublicIpAddress", "Value": "false"},
+  {"Namespace": "aws:autoscaling:launchconfiguration", "OptionName": "IamInstanceProfile", "Value": "emmanuel-eb-lab-instance-profile"},
+  {"Namespace": "aws:elasticbeanstalk:application:environment", "OptionName": "DYNAMODB_TABLE", "Value": "eb-lab-visits"},
+  {"Namespace": "aws:elasticbeanstalk:application:environment", "OptionName": "APP_VERSION", "Value": "1.0.0"}
+]

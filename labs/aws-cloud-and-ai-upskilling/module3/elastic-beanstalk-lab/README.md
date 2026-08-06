@@ -61,7 +61,7 @@ aws elasticbeanstalk create-application-version \
 aws elasticbeanstalk create-environment \
   --application-name emmanuel-eb-lab \
   --environment-name emmanuel-eb-lab-env \
-  --solution-stack-name "64bit Amazon Linux 2023 v6.3.0 running Node.js 18" \
+  --solution-stack-name "64bit Amazon Linux 2023 v6.3.0 running Node.js 22" \
   --version-label v1-initial \
   --option-settings \
     Namespace=aws:autoscaling:launchconfiguration,OptionName=IamInstanceProfile,Value=emmanuel-eb-lab-instance-profile \
@@ -74,10 +74,10 @@ aws elasticbeanstalk create-environment \
 
 In your GitHub repo → Settings → Secrets → Actions:
 
-| Secret | Value |
-|--------|-------|
-| `AWS_ACCESS_KEY_ID` | IAM user access key with EB + S3 permissions |
-| `AWS_SECRET_ACCESS_KEY` | Corresponding secret key |
+| Secret                  | Value                                        |
+| ----------------------- | -------------------------------------------- |
+| `AWS_ACCESS_KEY_ID`     | IAM user access key with EB + S3 permissions |
+| `AWS_SECRET_ACCESS_KEY` | Corresponding secret key                     |
 
 ---
 
@@ -95,9 +95,9 @@ Every push to `feat/elastic-beanstalk-node-lab` that touches `app/**`:
 
 ## App Endpoints
 
-| Endpoint | Description |
-|----------|-------------|
-| `GET /` | HTML page showing version + DynamoDB visit count |
+| Endpoint      | Description                                         |
+| ------------- | --------------------------------------------------- |
+| `GET /`       | HTML page showing version + DynamoDB visit count    |
 | `GET /health` | JSON health check `{"status":"ok","version":"..."}` |
 
 ---
