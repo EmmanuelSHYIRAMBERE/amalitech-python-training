@@ -36,6 +36,7 @@ jobs:
 
       - name: Package app into ZIP
         run: |
+          sudo apt-get install -y zip
           cd labs/aws-cloud-and-ai-upskilling/module3/elastic-beanstalk-lab/app
           zip -r ../deploy.zip . -x "*.git*"
 
