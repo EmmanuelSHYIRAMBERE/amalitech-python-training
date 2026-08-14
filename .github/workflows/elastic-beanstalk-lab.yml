@@ -1,0 +1,75 @@
+name: Deploy to Elastic Beanstalk
+
+on:
+  push:
+    branches: [feat/elastic-beanstalk-node-lab]
+    paths:
+      - "labs/aws-cloud-and-ai-upskilling/module3/elastic-beanstalk-lab/app/**"
+
+env:
+  AWS_REGION: eu-north-1
+  EB_APP_NAME: emmanuel-eb-lab
+  EB_ENV_NAME: emmanuel-eb-lab-env
+  S3_BUCKET: emmanuel-eb-lab-deployments
+
+jobs:
+  deploy:
+    name: Package & Deploy
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Set version label
+        id: version
+        run: echo "label=v${{ github.run_number }}-${{ github.sha }}" >> "$GITHUB_OUTPUT"
+
+      - name: Package app into ZIP
+        run: |
+          sudo apt-get install -y zip
+          cd labs/aws-cloud-and-ai-upskilling/module3/elastic-beanstalk-lab/app
+          zip -r ../deploy.zip . -x "*.git*"
+
+      - name: Upload bundle to S3
+        run: |
+          aws s3 cp \
+            labs/aws-cloud-and-ai-upskilling/module3/elastic-beanstalk-lab/deploy.zip \
+            s3://${{ env.S3_BUCKET }}/deploy-${{ steps.version.outputs.label }}.zip
+
+      - name: Create Elastic Beanstalk application version
+        run: |
+          aws elasticbeanstalk create-application-version \
+            --application-name ${{ env.EB_APP_NAME }} \
+            --version-label ${{ steps.version.outputs.label }} \
+            --source-bundle S3Bucket=${{ env.S3_BUCKET }},S3Key=deploy-${{ steps.version.outputs.label }}.zip \
+            --auto-create-application
+
+      - name: Deploy to Elastic Beanstalk environment
+        run: |
+          aws elasticbeanstalk update-environment \
+            --application-name ${{ env.EB_APP_NAME }} \
+            --environment-name ${{ env.EB_ENV_NAME }} \
+            --version-label ${{ steps.version.outputs.label }}
+
+      - name: Wait for deployment to complete
+        run: |
+          for i in $(seq 1 20); do
+            STATUS=$(aws elasticbeanstalk describe-environments \
+              --application-name ${{ env.EB_APP_NAME }} \
+              --environment-names ${{ env.EB_ENV_NAME }} \
+              --query "Environments[0].Status" --output text)
+            echo "Attempt $i: $STATUS"
+            [ "$STATUS" = "Ready" ] && echo "Deployment complete" && exit 0
+            sleep 30
+          done
+          echo "Timed out waiting for Ready status" && exit 1
