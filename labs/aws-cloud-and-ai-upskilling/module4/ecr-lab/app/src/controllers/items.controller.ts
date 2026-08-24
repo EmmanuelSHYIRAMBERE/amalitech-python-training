@@ -35,7 +35,7 @@ export const getAll = async (_req: Request, res: Response, next: NextFunction): 
  */
 export const getOne = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const item = itemsService.getItemById(req.params.id);
+    const item = itemsService.getItemById(req.params.id as string);
     res.status(200).json({ success: true, data: item });
   } catch (error) {
     next(error);
@@ -66,7 +66,7 @@ export const create = async (req: Request, res: Response, next: NextFunction): P
  */
 export const update = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const item = itemsService.updateItem(req.params.id, req.body);
+    const item = itemsService.updateItem(req.params.id as string, req.body);
     res.status(200).json({ success: true, message: 'Item updated', data: item });
   } catch (error) {
     next(error);
@@ -81,7 +81,7 @@ export const update = async (req: Request, res: Response, next: NextFunction): P
  */
 export const remove = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    itemsService.deleteItem(req.params.id);
+    itemsService.deleteItem(req.params.id as string);
     res.status(200).json({ success: true, message: 'Item deleted' });
   } catch (error) {
     next(error);
