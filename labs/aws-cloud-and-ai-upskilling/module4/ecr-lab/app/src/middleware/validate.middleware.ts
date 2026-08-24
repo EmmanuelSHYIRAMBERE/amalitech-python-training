@@ -31,7 +31,7 @@ export const validate = (schema: ZodSchema) => {
         res.status(400).json({
           success: false,
           statusCode: 400,
-          message: err.issues.map((e: { path: (string | number)[]; message: string }) => `${e.path.join('.')}: ${e.message}`).join(', '),
+          message: err.issues.map((e) => `${e.path.map(String).join('.')}: ${e.message}`).join(', '),
         });
         return;
       }
