@@ -1,3 +1,10 @@
+/**
+ * @fileoverview Central route registry for the ECR Lab API.
+ *
+ * Mounts all resource route groups under /api/v1 and appends:
+ *  - A 404 catch-all for unmatched routes
+ *  - The global error handler (must be registered last with 4 arguments)
+ */
 import { NextFunction, Request, Response, Router } from 'express';
 import itemsRoutes from './items.routes';
 import ErrorHandler from '../utils/errorhandler.utility';
