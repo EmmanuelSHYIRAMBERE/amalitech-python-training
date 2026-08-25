@@ -1,4 +1,4 @@
 template-file-path: labs/aws-cloud-and-ai-upskilling/module4/ecs-lab/infra/app-platform.yaml
 parameters:
-  GitHubConnectionArn: "REPLACE_WITH_CODESTAR_CONNECTION_ARN"
+  GitHubConnectionArn: "arn:aws:codeconnections:eu-north-1:195275667627:connection/9435f640-87f0-4853-b75e-ff96870132c8"
 tags: {}
