@@ -1,0 +1,29 @@
+{
+  "family": "emmanuel-ecs-lab-task",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "256",
+  "memory": "512",
+  "executionRoleArn": "arn:aws:iam::195275667627:role/emmanuel-ecs-lab-task-execution-role",
+  "taskRoleArn": "arn:aws:iam::195275667627:role/emmanuel-ecs-lab-task-role",
+  "containerDefinitions": [
+    {
+      "name": "ecs-lab-app",
+      "image": "<IMAGE1_NAME>",
+      "portMappings": [
+        {
+          "containerPort": 8080,
+          "protocol": "tcp"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/emmanuel-ecs-lab",
+          "awslogs-region": "eu-north-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }
+    }
+  ]
+}
