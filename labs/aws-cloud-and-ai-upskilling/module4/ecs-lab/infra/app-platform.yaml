@@ -61,7 +61,7 @@ Resources:
       RepositoryName: emmanuel-ecs-lab-app
       ImageScanningConfiguration:
         ScanOnPush: true
-      ImageTagMutability: IMMUTABLE
+      ImageTagMutability: IMMUTABLE_WITH_EXCLUSION
       ImageTagMutabilityExclusionFilters:
         # "latest" stays mutable so CodePipeline's ECR source action has a
         # stable tag to watch. Every build also gets a unique, immutable
