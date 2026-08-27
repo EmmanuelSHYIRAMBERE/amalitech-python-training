@@ -10,7 +10,7 @@ on:
 env:
   AWS_REGION: ${{ secrets.AWS_REGION }}
   ECR_REPOSITORY: ${{ secrets.ECS_LAB_ECR_REPOSITORY }}
-  IMAGE_TAG: emmanuelshyirambere_ecslab
+  IMAGE_TAG_PREFIX: emmanuelshyirambere_ecslab
 
 jobs:
   build-and-push:
@@ -38,7 +38,10 @@ jobs:
         env:
           REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
+          SHA_TAG="${IMAGE_TAG_PREFIX}-${GITHUB_SHA::7}"
           docker build \
-            -t $REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+            -t $REGISTRY/$ECR_REPOSITORY:$SHA_TAG \
+            -t $REGISTRY/$ECR_REPOSITORY:latest \
             labs/aws-cloud-and-ai-upskilling/module4/ecs-lab/app
-          docker push $REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $REGISTRY/$ECR_REPOSITORY:$SHA_TAG
+          docker push $REGISTRY/$ECR_REPOSITORY:latest

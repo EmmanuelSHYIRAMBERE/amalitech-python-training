@@ -62,6 +62,12 @@ Resources:
       ImageScanningConfiguration:
         ScanOnPush: true
       ImageTagMutability: IMMUTABLE
+      ImageTagMutabilityExclusionFilters:
+        # "latest" stays mutable so CodePipeline's ECR source action has a
+        # stable tag to watch. Every build also gets a unique, immutable
+        # <student>_<app>-<sha> tag for permanent, tamper-proof history.
+        - ImageTagMutabilityExclusionFilterType: WILDCARD
+          ImageTagMutabilityExclusionFilterValue: latest
       Tags:
         - Key: Name
           Value: emmanuel-ecs-lab-app
@@ -194,7 +200,7 @@ Resources:
       TaskRoleArn: !GetAtt TaskRole.Arn
       ContainerDefinitions:
         - Name: ecs-lab-app
-          Image: !Sub "${EcrRepository.RepositoryUri}:emmanuelshyirambere_ecslab"
+          Image: !Sub "${EcrRepository.RepositoryUri}:latest"
           PortMappings:
             - ContainerPort: !Ref ContainerPort
               Protocol: tcp
@@ -424,7 +430,7 @@ Resources:
                 Version: "1"
               Configuration:
                 RepositoryName: !Ref EcrRepository
-                ImageTag: emmanuelshyirambere_ecslab
+                ImageTag: latest
               OutputArtifacts:
                 - Name: ImageSourceOutput
               RunOrder: 1
