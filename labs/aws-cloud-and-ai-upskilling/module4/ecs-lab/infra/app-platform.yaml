@@ -200,7 +200,7 @@ Resources:
       TaskRoleArn: !GetAtt TaskRole.Arn
       ContainerDefinitions:
         - Name: ecs-lab-app
-          Image: !Sub "${EcrRepository.RepositoryUri}:latest"
+          Image: !Sub "${EcrRepository.RepositoryUri}:emmanuelshyirambere_ecslab"
           PortMappings:
             - ContainerPort: !Ref ContainerPort
               Protocol: tcp
