@@ -400,6 +400,11 @@ Resources:
                   - codedeploy:RegisterApplicationRevision
                 Resource: "*"
               - Effect: Allow
+                Action:
+                  - codebuild:StartBuild
+                  - codebuild:BatchGetBuilds
+                Resource: !GetAtt DeploySpecRepackageProject.Arn
+              - Effect: Allow
                 Action: iam:PassRole
                 Resource:
                   - !GetAtt TaskExecutionRole.Arn
@@ -411,6 +416,70 @@ Resources:
       Tags:
         - Key: Name
           Value: emmanuel-ecs-lab-pipeline-role
+
+  # ── IAM: CodeBuild role (repackages deploy spec files to artifact root) ──
+  CodeBuildServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: emmanuel-ecs-lab-codebuild-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: emmanuel-ecs-lab-codebuild-policy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                  - s3:PutObject
+                Resource: !Sub "${PipelineArtifactBucket.Arn}/*"
+      Tags:
+        - Key: Name
+          Value: emmanuel-ecs-lab-codebuild-role
+
+  # Copies app/deploy/{appspec.yaml,taskdef.json} to the artifact root so
+  # CodeDeployToECS reads them unambiguously (its path resolution against a
+  # full monorepo checkout is not officially documented for nested paths).
+  DeploySpecRepackageProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: emmanuel-ecs-lab-repackage-deployspec
+      ServiceRole: !GetAtt CodeBuildServiceRole.Arn
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/amazonlinux2-x86_64-standard:5.0
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: |
+          version: 0.2
+          phases:
+            build:
+              commands:
+                - cp labs/aws-cloud-and-ai-upskilling/module4/ecs-lab/app/deploy/appspec.yaml .
+                - cp labs/aws-cloud-and-ai-upskilling/module4/ecs-lab/app/deploy/taskdef.json .
+          artifacts:
+            files:
+              - appspec.yaml
+              - taskdef.json
+      Tags:
+        - Key: Name
+          Value: emmanuel-ecs-lab-repackage-deployspec
 
   # ── CodePipeline ───────────────────────────────
   AppPipeline:
@@ -450,6 +519,21 @@ Resources:
               OutputArtifacts:
                 - Name: DeploySpecOutput
               RunOrder: 1
+        - Name: Build
+          Actions:
+            - Name: RepackageDeploySpec
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName: !Ref DeploySpecRepackageProject
+              InputArtifacts:
+                - Name: DeploySpecOutput
+              OutputArtifacts:
+                - Name: DeploySpecRootOutput
+              RunOrder: 1
         - Name: Deploy
           Actions:
             - Name: BlueGreenDeploy
@@ -461,15 +545,15 @@ Resources:
               Configuration:
                 ApplicationName: !Ref CodeDeployApplication
                 DeploymentGroupName: !Ref CodeDeployDeploymentGroup
-                TaskDefinitionTemplateArtifact: DeploySpecOutput
-                TaskDefinitionTemplatePath: labs/aws-cloud-and-ai-upskilling/module4/ecs-lab/app/deploy/taskdef.json
-                AppSpecTemplateArtifact: DeploySpecOutput
-                AppSpecTemplatePath: labs/aws-cloud-and-ai-upskilling/module4/ecs-lab/app/deploy/appspec.yaml
+                TaskDefinitionTemplateArtifact: DeploySpecRootOutput
+                TaskDefinitionTemplatePath: taskdef.json
+                AppSpecTemplateArtifact: DeploySpecRootOutput
+                AppSpecTemplatePath: appspec.yaml
                 Image1ArtifactName: ImageSourceOutput
                 Image1ContainerName: IMAGE1_NAME
               InputArtifacts:
                 - Name: ImageSourceOutput
-                - Name: DeploySpecOutput
+                - Name: DeploySpecRootOutput
               RunOrder: 1
 
   # ── EventBridge: ECR push → CodePipeline ──────
