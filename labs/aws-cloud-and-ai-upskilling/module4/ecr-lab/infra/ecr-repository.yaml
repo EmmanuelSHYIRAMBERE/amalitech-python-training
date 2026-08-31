@@ -1,0 +1,116 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  ECR Lab — ECR repository stack. Private container image repository with
+  vulnerability scanning, immutable tagging, a lifecycle policy to bound
+  storage growth, and a repository policy scoped to the lab's own
+  OIDC-federated GitHub Actions push role.
+  Trainee: Emmanuel SHYIRAMBERE
+
+# ─────────────────────────────────────────────
+# PARAMETERS
+# ─────────────────────────────────────────────
+Parameters:
+  RepositoryName:
+    Type: String
+    Default: emmanuelshyirambere-nodeapp
+    Description: Name of the private ECR repository for the ECR Lab app image.
+
+  GitHubActionsPushRoleArn:
+    Type: String
+    Description: >
+      ARN of the OIDC-federated IAM role GitHub Actions assumes to push
+      images (e.g. arn:aws:iam::<account>:role/github-actions-ecr-push).
+      The repository policy below grants push/pull permissions to this
+      role only.
+
+  ImageRetentionCount:
+    Type: Number
+    Default: 10
+    Description: Number of most-recent tagged images to retain before older ones expire.
+
+# ─────────────────────────────────────────────
+# RESOURCES
+# ─────────────────────────────────────────────
+Resources:
+
+  # ── ECR Repository ─────────────────────────────
+  EcrRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Ref RepositoryName
+      ImageScanningConfiguration:
+        ScanOnPush: true
+      ImageTagMutability: IMMUTABLE
+      EncryptionConfiguration:
+        EncryptionType: AES256
+      LifecyclePolicy:
+        LifecyclePolicyText: !Sub |
+          {
+            "rules": [
+              {
+                "rulePriority": 1,
+                "description": "Keep only the most recent ${ImageRetentionCount} tagged images",
+                "selection": {
+                  "tagStatus": "tagged",
+                  "tagPrefixList": ["emmanuelshyirambere"],
+                  "countType": "imageCountMoreThan",
+                  "countNumber": ${ImageRetentionCount}
+                },
+                "action": { "type": "expire" }
+              },
+              {
+                "rulePriority": 2,
+                "description": "Expire untagged images after 1 day",
+                "selection": {
+                  "tagStatus": "untagged",
+                  "countType": "sinceImagePushed",
+                  "countUnit": "days",
+                  "countNumber": 1
+                },
+                "action": { "type": "expire" }
+              }
+            ]
+          }
+      # ── Repository policy: least-privilege — only the lab's own
+      # OIDC-federated GitHub Actions role may push/pull; no account-wide
+      # or public access is granted.
+      RepositoryPolicyText:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowGitHubActionsPushPull
+            Effect: Allow
+            Principal:
+              AWS: !Ref GitHubActionsPushRoleArn
+            Action:
+              - ecr:BatchCheckLayerAvailability
+              - ecr:BatchGetImage
+              - ecr:CompleteLayerUpload
+              - ecr:GetDownloadUrlForLayer
+              - ecr:InitiateLayerUpload
+              - ecr:PutImage
+              - ecr:UploadLayerPart
+      Tags:
+        - Key: Name
+          Value: !Ref RepositoryName
+        - Key: Lab
+          Value: ecr-lab
+        - Key: Trainee
+          Value: Emmanuel-SHYIRAMBERE
+        - Key: ManagedBy
+          Value: CloudFormation
+
+# ─────────────────────────────────────────────
+# OUTPUTS
+# ─────────────────────────────────────────────
+Outputs:
+  RepositoryName:
+    Description: ECR repository name
+    Value: !Ref EcrRepository
+
+  RepositoryUri:
+    Description: Full ECR repository URI — use this to push/pull images
+    Value: !GetAtt EcrRepository.RepositoryUri
+
+  RepositoryArn:
+    Description: ECR repository ARN
+    Value: !GetAtt EcrRepository.Arn
