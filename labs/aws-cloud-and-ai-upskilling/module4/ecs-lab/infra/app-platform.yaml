@@ -49,6 +49,11 @@ Parameters:
     Type: String
     Default: feat/ecs-lab-ecs-cicd
 
+  ImageRetentionCount:
+    Type: Number
+    Default: 10
+    Description: Number of most-recent tagged images to retain before older ones expire.
+
 # ─────────────────────────────────────────────
 # RESOURCES
 # ─────────────────────────────────────────────
@@ -68,6 +73,34 @@ Resources:
         # <student>_<app>-<sha> tag for permanent, tamper-proof history.
         - ImageTagMutabilityExclusionFilterType: WILDCARD
           ImageTagMutabilityExclusionFilterValue: latest
+      LifecyclePolicy:
+        LifecyclePolicyText: !Sub |
+          {
+            "rules": [
+              {
+                "rulePriority": 1,
+                "description": "Expire untagged images after 1 day",
+                "selection": {
+                  "tagStatus": "untagged",
+                  "countType": "sinceImagePushed",
+                  "countUnit": "days",
+                  "countNumber": 1
+                },
+                "action": { "type": "expire" }
+              },
+              {
+                "rulePriority": 2,
+                "description": "Keep only the most recent ${ImageRetentionCount} tagged images (any tag)",
+                "selection": {
+                  "tagStatus": "tagged",
+                  "tagPatternList": ["*"],
+                  "countType": "imageCountMoreThan",
+                  "countNumber": ${ImageRetentionCount}
+                },
+                "action": { "type": "expire" }
+              }
+            ]
+          }
       Tags:
         - Key: Name
           Value: emmanuel-ecs-lab-app
