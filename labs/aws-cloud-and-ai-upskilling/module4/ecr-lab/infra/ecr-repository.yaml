@@ -12,7 +12,7 @@ Description: >
 Parameters:
   RepositoryName:
     Type: String
-    Default: emmanuelshyirambere-nodeapp
+    Default: emmanuelshyirambere-items-api-nodeapp
     Description: Name of the private ECR repository for the ECR Lab app image.
 
   GitHubActionsPushRoleArn:
@@ -40,7 +40,14 @@ Resources:
       RepositoryName: !Ref RepositoryName
       ImageScanningConfiguration:
         ScanOnPush: true
-      ImageTagMutability: IMMUTABLE
+      ImageTagMutability: IMMUTABLE_WITH_EXCLUSION
+      ImageTagMutabilityExclusionFilters:
+        # "latest" stays mutable — the workflow pushes it on every build as a
+        # convenient, always-current pointer. Every build also gets a unique,
+        # immutable <student>_itemsapi-<sha> tag for permanent, tamper-proof
+        # history (see .github/workflows/ecr-lab.yml).
+        - ImageTagMutabilityExclusionFilterType: WILDCARD
+          ImageTagMutabilityExclusionFilterValue: latest
       EncryptionConfiguration:
         EncryptionType: AES256
       LifecyclePolicy:
@@ -49,23 +56,23 @@ Resources:
             "rules": [
               {
                 "rulePriority": 1,
-                "description": "Keep only the most recent ${ImageRetentionCount} tagged images",
-                "selection": {
-                  "tagStatus": "tagged",
-                  "tagPrefixList": ["emmanuelshyirambere"],
-                  "countType": "imageCountMoreThan",
-                  "countNumber": ${ImageRetentionCount}
-                },
-                "action": { "type": "expire" }
-              },
-              {
-                "rulePriority": 2,
                 "description": "Expire untagged images after 1 day",
                 "selection": {
                   "tagStatus": "untagged",
                   "countType": "sinceImagePushed",
                   "countUnit": "days",
                   "countNumber": 1
+                },
+                "action": { "type": "expire" }
+              },
+              {
+                "rulePriority": 2,
+                "description": "Keep only the most recent ${ImageRetentionCount} tagged images (any tag)",
+                "selection": {
+                  "tagStatus": "tagged",
+                  "tagPatternList": ["*"],
+                  "countType": "imageCountMoreThan",
+                  "countNumber": ${ImageRetentionCount}
                 },
                 "action": { "type": "expire" }
               }

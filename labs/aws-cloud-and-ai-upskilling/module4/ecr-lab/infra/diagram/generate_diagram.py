@@ -43,7 +43,7 @@ with Diagram(
             cfn = Cloudformation("CloudFormation\nGit Sync")
 
         with Cluster("Container Registry"):
-            ecr = ECR("Amazon ECR\nemmanuelshyirambere-nodeapp")
+            ecr = ECR("Amazon ECR\nemmanuelshyirambere-items-api-nodeapp")
 
         actions >> Edge(label="assumes role via OIDC") >> push_role
         push_role >> Edge(label="docker push\n(image + scan)") >> ecr
