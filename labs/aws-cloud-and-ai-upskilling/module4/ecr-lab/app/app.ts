@@ -63,7 +63,7 @@ app.get('/', (_req, res) => {
   res.status(200).json({
     success: true,
     message: 'ECR Lab API — Emmanuel Shyirambere',
-    version: '1.0.0',
+    version: '1.0.1',
   });
 });
 
