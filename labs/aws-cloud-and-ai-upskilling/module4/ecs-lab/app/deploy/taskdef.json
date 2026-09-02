@@ -16,6 +16,16 @@
           "protocol": "tcp"
         }
       ],
+      "healthCheck": {
+        "command": [
+          "CMD-SHELL",
+          "wget -qO- http://127.0.0.1:8080/actuator/health | grep -q '\"status\":\"UP\"' || exit 1"
+        ],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 15
+      },
       "logConfiguration": {
         "logDriver": "awslogs",
         "options": {
