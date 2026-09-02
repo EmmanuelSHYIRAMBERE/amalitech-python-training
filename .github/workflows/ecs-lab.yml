@@ -1,0 +1,60 @@
+name: Build and Push ECS Lab Image
+
+on:
+  push:
+    branches: [feat/ecs-lab-ecs-cicd]
+    paths:
+      - "labs/aws-cloud-and-ai-upskilling/module4/ecs-lab/app/**"
+  workflow_dispatch: {}
+
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  ECR_REPOSITORY: ${{ secrets.ECS_LAB_ECR_REPOSITORY }}
+  PIPELINE_ARTIFACT_BUCKET: ${{ secrets.ECS_LAB_PIPELINE_BUCKET }}
+  DEPLOY_SPEC_S3_KEY: deploy-spec/deploy-spec.zip
+
+jobs:
+  build-and-push:
+    name: Build, Upload Deploy Spec, and Push Image
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.ECS_LAB_AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Build image
+        run: |
+          docker build \
+            -t local/ecs-lab-app:build \
+            labs/aws-cloud-and-ai-upskilling/module4/ecs-lab/app
+
+      # Uploaded BEFORE the image push below, since EventBridge triggers
+      # the pipeline off the ECR push - the deploy-spec zip must already
+      # exist in S3 by the time that happens, or the pipeline's S3 source
+      # action would read a stale (or missing) object.
+      - name: Zip and upload deploy spec to S3
+        run: |
+          cd labs/aws-cloud-and-ai-upskilling/module4/ecs-lab/app/deploy
+          zip deploy-spec.zip appspec.yaml taskdef.json
+          aws s3 cp deploy-spec.zip \
+            "s3://${PIPELINE_ARTIFACT_BUCKET}/${DEPLOY_SPEC_S3_KEY}"
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Tag and push image as latest
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          docker tag local/ecs-lab-app:build $REGISTRY/$ECR_REPOSITORY:latest
+          docker push $REGISTRY/$ECR_REPOSITORY:latest

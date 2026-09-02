@@ -1,0 +1,246 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  ECS CI/CD Lab — Pipeline stack. CodePipeline triggered by EventBridge on
+  new "latest" ECR image pushes, deploying straight to CodeDeploy blue/green.
+  The deploy-spec (appspec.yaml + taskdef.json) is sourced directly from a
+  zip object in S3 (uploaded by the GitHub Actions workflow) - no CodeBuild
+  repackage stage and no GitHub source action.
+  Trainee: Emmanuel SHYIRAMBERE
+  Depends on: emmanuel-ecs-lab-ecr (ecr.yaml) and emmanuel-ecs-lab-alb-ecs
+  (alb-ecs.yaml) — their outputs are imported below.
+
+# ─────────────────────────────────────────────
+# PARAMETERS
+# ─────────────────────────────────────────────
+Parameters:
+  EcrStackName:
+    Type: String
+    Default: emmanuel-ecs-lab-ecr
+
+  AlbEcsStackName:
+    Type: String
+    Default: emmanuel-ecs-lab-alb-ecs
+
+  DeploySpecS3Key:
+    Type: String
+    Default: deploy-spec/deploy-spec.zip
+    Description: >
+      S3 key (inside the pipeline artifact bucket) that the GitHub Actions
+      workflow uploads deploy-spec.zip (appspec.yaml + taskdef.json) to,
+      before pushing the "latest" image tag.
+
+# ─────────────────────────────────────────────
+# RESOURCES
+# ─────────────────────────────────────────────
+Resources:
+
+  # ── CodePipeline artifact bucket ──────────────
+  # Also holds the deploy-spec.zip the GitHub Actions workflow uploads.
+  # Versioning is enabled so the S3 source action's output artifact always
+  # reflects the exact object version present when a run starts - the S3
+  # source itself does not trigger runs (PollForSourceChanges: false);
+  # only the EventBridge rule below (on ECR "latest" pushes) does.
+  PipelineArtifactBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "emmanuel-ecs-lab-pipeline-artifacts-${AWS::AccountId}"
+      VersioningConfiguration:
+        Status: Enabled
+      Tags:
+        - Key: Name
+          Value: emmanuel-ecs-lab-pipeline-artifacts
+
+  # ── IAM: EventBridge → CodePipeline trigger ───
+  EventBridgeInvokePipelineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: emmanuel-ecs-lab-eventbridge-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: StartPipelineExecution
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: codepipeline:StartPipelineExecution
+                Resource: !Sub "arn:aws:codepipeline:${AWS::Region}:${AWS::AccountId}:${AppPipeline}"
+      Tags:
+        - Key: Name
+          Value: emmanuel-ecs-lab-eventbridge-role
+
+  # ── IAM: CodePipeline service role ────────────
+  CodePipelineServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: emmanuel-ecs-lab-pipeline-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: emmanuel-ecs-lab-pipeline-policy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                  - s3:PutObject
+                  - s3:GetObjectTagging
+                  - s3:GetObjectVersionTagging
+                Resource: !Sub "${PipelineArtifactBucket.Arn}/*"
+              - Effect: Allow
+                Action:
+                  - s3:GetBucketVersioning
+                  - s3:GetBucketAcl
+                  - s3:GetBucketLocation
+                Resource: !GetAtt PipelineArtifactBucket.Arn
+              - Effect: Allow
+                Action:
+                  - ecr:DescribeImages
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:BatchGetImage
+                  - ecr:GetAuthorizationToken
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - ecs:DescribeServices
+                  - ecs:DescribeTaskDefinition
+                  - ecs:RegisterTaskDefinition
+                  - ecs:UpdateService
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - codedeploy:CreateDeployment
+                  - codedeploy:GetApplication
+                  - codedeploy:GetApplicationRevision
+                  - codedeploy:GetDeployment
+                  - codedeploy:GetDeploymentConfig
+                  - codedeploy:GetDeploymentGroup
+                  - codedeploy:RegisterApplicationRevision
+                Resource: "*"
+              - Effect: Allow
+                Action: iam:PassRole
+                Resource:
+                  - Fn::ImportValue: !Sub "${AlbEcsStackName}-TaskExecutionRoleArn"
+                  - Fn::ImportValue: !Sub "${AlbEcsStackName}-TaskRoleArn"
+                  - Fn::ImportValue: !Sub "${AlbEcsStackName}-CodeDeployServiceRoleArn"
+      Tags:
+        - Key: Name
+          Value: emmanuel-ecs-lab-pipeline-role
+
+  # ── CodePipeline ───────────────────────────────
+  # Single S3 source: the GitHub Actions workflow uploads a zip containing
+  # appspec.yaml + taskdef.json (deploy-spec.zip) to the artifact bucket,
+  # and pushes the new "latest" image, in that order. This one artifact
+  # already sits at the zip root, so CodeDeployToECS reads it directly -
+  # no Build stage, no CodeBuild project, no GitHub source action needed.
+  AppPipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      Name: emmanuel-ecs-lab-pipeline
+      RoleArn: !GetAtt CodePipelineServiceRole.Arn
+      ArtifactStore:
+        Type: S3
+        Location: !Ref PipelineArtifactBucket
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: ImageSource
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Provider: ECR
+                Version: "1"
+              Configuration:
+                RepositoryName:
+                  Fn::ImportValue: !Sub "${EcrStackName}-RepositoryName"
+                ImageTag: latest
+              OutputArtifacts:
+                - Name: ImageSourceOutput
+              RunOrder: 1
+            - Name: DeploySpecSource
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Provider: S3
+                Version: "1"
+              Configuration:
+                S3Bucket: !Ref PipelineArtifactBucket
+                S3ObjectKey: !Ref DeploySpecS3Key
+                PollForSourceChanges: false
+              OutputArtifacts:
+                - Name: DeploySpecOutput
+              RunOrder: 1
+        - Name: Deploy
+          Actions:
+            - Name: BlueGreenDeploy
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CodeDeployToECS
+                Version: "1"
+              Configuration:
+                ApplicationName:
+                  Fn::ImportValue: !Sub "${AlbEcsStackName}-CodeDeployApplicationName"
+                DeploymentGroupName:
+                  Fn::ImportValue: !Sub "${AlbEcsStackName}-CodeDeployDeploymentGroupName"
+                TaskDefinitionTemplateArtifact: DeploySpecOutput
+                TaskDefinitionTemplatePath: taskdef.json
+                AppSpecTemplateArtifact: DeploySpecOutput
+                AppSpecTemplatePath: appspec.yaml
+                Image1ArtifactName: ImageSourceOutput
+                Image1ContainerName: IMAGE1_NAME
+              InputArtifacts:
+                - Name: ImageSourceOutput
+                - Name: DeploySpecOutput
+              RunOrder: 1
+
+  # ── EventBridge: ECR "latest" push → CodePipeline ──
+  EcrPushEventRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: emmanuel-ecs-lab-ecr-push-rule
+      Description: Triggers the pipeline when "latest" is pushed to the ecs-lab ECR repo
+      EventPattern:
+        source:
+          - aws.ecr
+        detail-type:
+          - "ECR Image Action"
+        detail:
+          action-type:
+            - PUSH
+          repository-name:
+            - Fn::ImportValue: !Sub "${EcrStackName}-RepositoryName"
+          image-tag:
+            - latest
+          result:
+            - SUCCESS
+      Targets:
+        - Arn: !Sub "arn:aws:codepipeline:${AWS::Region}:${AWS::AccountId}:${AppPipeline}"
+          Id: emmanuel-ecs-lab-pipeline-target
+          RoleArn: !GetAtt EventBridgeInvokePipelineRole.Arn
+
+# ─────────────────────────────────────────────
+# OUTPUTS
+# ─────────────────────────────────────────────
+Outputs:
+  PipelineArtifactBucketName:
+    Description: >
+      S3 bucket the GitHub Actions workflow must upload deploy-spec.zip to,
+      at the key given by the DeploySpecS3Key parameter, before pushing
+      the "latest" image tag.
+    Value: !Ref PipelineArtifactBucket
+
+  CodePipelineName:
+    Value: !Ref AppPipeline

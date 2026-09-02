@@ -1,0 +1,3 @@
+template-file-path: labs/aws-cloud-and-ai-upskilling/module4/ecs-lab/infra/ecr.yaml
+parameters: {}
+tags: {}

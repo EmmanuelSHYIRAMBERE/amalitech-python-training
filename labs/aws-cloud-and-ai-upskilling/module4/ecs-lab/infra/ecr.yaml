@@ -1,0 +1,90 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  ECS CI/CD Lab — ECR stack. Private container image repository for the
+  ecs-lab app, with vulnerability scanning and a lifecycle policy to bound
+  storage growth. Only "latest" is ever pushed (see .github/workflows/ecs-lab.yml)
+  — AWS's own image digest is the permanent per-build identifier.
+  Trainee: Emmanuel SHYIRAMBERE
+
+# ─────────────────────────────────────────────
+# PARAMETERS
+# ─────────────────────────────────────────────
+Parameters:
+  RepositoryName:
+    Type: String
+    Default: emmanuel-ecs-lab-app
+
+  ImageRetentionCount:
+    Type: Number
+    Default: 10
+    Description: Number of most-recent tagged images to retain before older ones expire.
+
+# ─────────────────────────────────────────────
+# RESOURCES
+# ─────────────────────────────────────────────
+Resources:
+
+  # ── ECR Repository ─────────────────────────────
+  EcrRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Ref RepositoryName
+      ImageScanningConfiguration:
+        ScanOnPush: true
+      # Only "latest" is ever pushed - it must stay mutable so every build
+      # can overwrite it. AWS's own image digest (sha256:...) remains the
+      # permanent, unique identifier for each build regardless of tag reuse.
+      ImageTagMutability: MUTABLE
+      LifecyclePolicy:
+        LifecyclePolicyText: !Sub |
+          {
+            "rules": [
+              {
+                "rulePriority": 1,
+                "description": "Expire untagged images after 1 day",
+                "selection": {
+                  "tagStatus": "untagged",
+                  "countType": "sinceImagePushed",
+                  "countUnit": "days",
+                  "countNumber": 1
+                },
+                "action": { "type": "expire" }
+              },
+              {
+                "rulePriority": 2,
+                "description": "Keep only the most recent ${ImageRetentionCount} tagged images (any tag)",
+                "selection": {
+                  "tagStatus": "tagged",
+                  "tagPatternList": ["*"],
+                  "countType": "imageCountMoreThan",
+                  "countNumber": ${ImageRetentionCount}
+                },
+                "action": { "type": "expire" }
+              }
+            ]
+          }
+      Tags:
+        - Key: Name
+          Value: !Ref RepositoryName
+
+# ─────────────────────────────────────────────
+# OUTPUTS
+# ─────────────────────────────────────────────
+Outputs:
+  RepositoryName:
+    Description: ECR repository name
+    Value: !Ref EcrRepository
+    Export:
+      Name: !Sub "${AWS::StackName}-RepositoryName"
+
+  RepositoryUri:
+    Description: Full ECR repository URI
+    Value: !GetAtt EcrRepository.RepositoryUri
+    Export:
+      Name: !Sub "${AWS::StackName}-RepositoryUri"
+
+  RepositoryArn:
+    Description: ECR repository ARN
+    Value: !GetAtt EcrRepository.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-RepositoryArn"
