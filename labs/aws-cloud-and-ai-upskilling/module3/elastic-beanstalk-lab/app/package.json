@@ -1,0 +1,16 @@
+{
+  "name": "eb-lab-app",
+  "version": "1.0.0",
+  "description": "Elastic Beanstalk lab — Node.js + DynamoDB",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.600.0",
+    "express": "^4.19.2"
+  }
+}

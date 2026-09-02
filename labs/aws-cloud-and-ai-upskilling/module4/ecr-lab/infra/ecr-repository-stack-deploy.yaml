@@ -1,0 +1,4 @@
+template-file-path: labs/aws-cloud-and-ai-upskilling/module4/ecr-lab/infra/ecr-repository.yaml
+parameters:
+  GitHubActionsPushRoleArn: "arn:aws:iam::195275667627:role/github-actions-ecr-push"
+tags: {}
