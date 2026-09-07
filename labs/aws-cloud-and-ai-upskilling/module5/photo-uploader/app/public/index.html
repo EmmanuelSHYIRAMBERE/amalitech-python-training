@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Photo Gallery</title>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background: #0f172a;
+        color: #f8fafc;
+        margin: 0;
+        padding: 2rem;
+      }
+      h1 {
+        text-align: center;
+        margin-bottom: 0.25rem;
+      }
+      h2 {
+        text-align: center;
+        font-weight: 400;
+        color: #94a3b8;
+        margin-top: 0;
+      }
+      form {
+        max-width: 480px;
+        margin: 2rem auto;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        background: #1e293b;
+        padding: 1.5rem;
+        border-radius: 0.5rem;
+      }
+      input,
+      textarea,
+      button {
+        font: inherit;
+        padding: 0.5rem;
+        border-radius: 0.25rem;
+        border: 1px solid #334155;
+        background: #0f172a;
+        color: #f8fafc;
+      }
+      button {
+        background: #2563eb;
+        border: none;
+        cursor: pointer;
+        font-weight: 600;
+      }
+      button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+      #status {
+        text-align: center;
+        min-height: 1.5rem;
+        color: #94a3b8;
+      }
+      .gallery {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 1rem;
+        max-width: 1100px;
+        margin: 2rem auto;
+      }
+      .card {
+        background: #1e293b;
+        border-radius: 0.5rem;
+        overflow: hidden;
+      }
+      .card img {
+        width: 100%;
+        height: 160px;
+        object-fit: cover;
+        display: block;
+      }
+      .card p {
+        padding: 0.5rem 0.75rem;
+        margin: 0;
+        font-size: 0.875rem;
+      }
+      footer {
+        text-align: center;
+        margin-top: 3rem;
+        font-size: 0.75rem;
+        color: #475569;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Emmanuel Shyirambere</h1>
+    <h2>Photo Uploader Lab</h2>
+
+    <form id="upload-form">
+      <input type="file" id="photo" name="photo" accept="image/*" required />
+      <textarea id="description" name="description" placeholder="Description" required></textarea>
+      <button type="submit">Upload Photo</button>
+    </form>
+    <div id="status"></div>
+
+    <div class="gallery" id="gallery"></div>
+
+    <footer>Deployed on Amazon ECS Fargate &mdash; images served via CloudFront</footer>
+
+    <script>
+      const form = document.getElementById('upload-form');
+      const statusEl = document.getElementById('status');
+      const galleryEl = document.getElementById('gallery');
+
+      async function loadPhotos() {
+        const res = await fetch('/api/v1/photos');
+        const { data } = await res.json();
+        galleryEl.innerHTML = data
+          .map(
+            (p) => `
+              <div class="card">
+                <img src="${p.url}" alt="${p.description}" loading="lazy" />
+                <p>${p.description}</p>
+              </div>
+            `
+          )
+          .join('');
+      }
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const submitBtn = form.querySelector('button');
+        submitBtn.disabled = true;
+        statusEl.textContent = 'Uploading...';
+
+        try {
+          const formData = new FormData(form);
+          const res = await fetch('/api/v1/photos', { method: 'POST', body: formData });
+          const body = await res.json();
+          if (!res.ok) throw new Error(body.message || 'Upload failed');
+          statusEl.textContent = 'Uploaded!';
+          form.reset();
+          await loadPhotos();
+        } catch (err) {
+          statusEl.textContent = `Error: ${err.message}`;
+        } finally {
+          submitBtn.disabled = false;
+        }
+      });
+
+      loadPhotos();
+    </script>
+  </body>
+</html>
