@@ -1,0 +1,51 @@
+{
+  "family": "emmanuel-photo-uploader-task",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "256",
+  "memory": "512",
+  "executionRoleArn": "arn:aws:iam::195275667627:role/emmanuel-photo-uploader-task-execution-role",
+  "taskRoleArn": "arn:aws:iam::195275667627:role/emmanuel-photo-uploader-task-role",
+  "containerDefinitions": [
+    {
+      "name": "photo-uploader-app",
+      "image": "<IMAGE1_NAME>",
+      "portMappings": [
+        {
+          "containerPort": 3000,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        { "name": "PORT", "value": "3000" },
+        { "name": "NODE_ENV", "value": "production" },
+        { "name": "AWS_REGION", "value": "eu-north-1" },
+        { "name": "PHOTOS_BUCKET", "value": "REPLACE_WITH_PHOTOS_BUCKET_NAME" },
+        { "name": "CLOUDFRONT_DOMAIN", "value": "REPLACE_WITH_CLOUDFRONT_DOMAIN" },
+        { "name": "DB_HOST", "value": "REPLACE_WITH_DB_ENDPOINT_ADDRESS" },
+        { "name": "DB_PORT", "value": "5432" },
+        { "name": "DB_NAME", "value": "photouploader" },
+        { "name": "DB_USER", "value": "photoapp" },
+        { "name": "DB_SECRET_ARN", "value": "REPLACE_WITH_DB_SECRET_ARN" }
+      ],
+      "healthCheck": {
+        "command": [
+          "CMD-SHELL",
+          "node -e \"require('http').get('http://127.0.0.1:3000/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))\""
+        ],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 15
+      },
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/emmanuel-photo-uploader",
+          "awslogs-region": "eu-north-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }
+    }
+  ]
+}
