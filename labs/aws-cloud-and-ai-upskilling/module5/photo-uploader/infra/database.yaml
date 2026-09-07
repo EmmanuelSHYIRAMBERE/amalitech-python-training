@@ -1,0 +1,122 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Photo Uploader Lab — Database stack. RDS PostgreSQL instance (db.t3
+  family) in the private subnets, with an AWS-managed master password
+  stored in Secrets Manager — no password ever appears in this template,
+  a parameter, or a GitHub secret. The ECS task role is granted read-only
+  access to the generated secret at runtime.
+  Trainee: Emmanuel SHYIRAMBERE
+  Depends on: emmanuel-photo-uploader-network (network.yaml) — its
+  outputs are imported below via Fn::ImportValue.
+
+# ─────────────────────────────────────────────
+# PARAMETERS
+# ─────────────────────────────────────────────
+Parameters:
+  NetworkStackName:
+    Type: String
+    Default: emmanuel-photo-uploader-network
+
+  DbInstanceClass:
+    Type: String
+    Default: db.t3.micro
+
+  DbName:
+    Type: String
+    Default: photouploader
+
+  DbMasterUsername:
+    Type: String
+    Default: photoapp
+
+  DbAllocatedStorage:
+    Type: Number
+    Default: 20
+    Description: Allocated storage in GiB.
+
+# ─────────────────────────────────────────────
+# RESOURCES
+# ─────────────────────────────────────────────
+Resources:
+
+  # ── DB Subnet Group ────────────────────────────
+  DbSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Private subnets for the Photo Uploader RDS instance
+      SubnetIds:
+        - Fn::ImportValue: !Sub "${NetworkStackName}-PrivateSubnet1Id"
+        - Fn::ImportValue: !Sub "${NetworkStackName}-PrivateSubnet2Id"
+      Tags:
+        - Key: Name
+          Value: emmanuel-photo-uploader-db-subnet-group
+
+  # ── RDS PostgreSQL Instance ─────────────────────
+  # ManageMasterUserPassword lets RDS itself generate and rotate the
+  # master password, stored as a new Secrets Manager secret - the
+  # password is never visible in this template, the console, or a
+  # parameter value.
+  PostgresInstance:
+    Type: AWS::RDS::DBInstance
+    DeletionPolicy: Snapshot
+    Properties:
+      DBInstanceIdentifier: emmanuel-photo-uploader-db
+      Engine: postgres
+      # Major version only - AWS resolves this to its current default
+      # minor version at creation time, and AutoMinorVersionUpgrade keeps
+      # it current afterward. If CloudFormation ever rejects a bare major
+      # version for this engine, replace with an explicit "16.x" - check
+      # currently supported versions first (they change over time):
+      # aws rds describe-db-engine-versions --engine postgres --query "DBEngineVersions[?starts_with(EngineVersion, '16.')].EngineVersion"
+      EngineVersion: "16"
+      AutoMinorVersionUpgrade: true
+      DBInstanceClass: !Ref DbInstanceClass
+      AllocatedStorage: !Ref DbAllocatedStorage
+      StorageType: gp3
+      DBName: !Ref DbName
+      MasterUsername: !Ref DbMasterUsername
+      ManageMasterUserPassword: true
+      DBSubnetGroupName: !Ref DbSubnetGroup
+      VPCSecurityGroups:
+        - Fn::ImportValue: !Sub "${NetworkStackName}-DbSecurityGroupId"
+      MultiAZ: false
+      PubliclyAccessible: false
+      BackupRetentionPeriod: 7
+      StorageEncrypted: true
+      Tags:
+        - Key: Name
+          Value: emmanuel-photo-uploader-db
+
+# ─────────────────────────────────────────────
+# OUTPUTS
+# ─────────────────────────────────────────────
+Outputs:
+  DbEndpointAddress:
+    Description: RDS PostgreSQL endpoint hostname
+    Value: !GetAtt PostgresInstance.Endpoint.Address
+    Export:
+      Name: !Sub "${AWS::StackName}-DbEndpointAddress"
+
+  DbEndpointPort:
+    Description: RDS PostgreSQL endpoint port
+    Value: !GetAtt PostgresInstance.Endpoint.Port
+    Export:
+      Name: !Sub "${AWS::StackName}-DbEndpointPort"
+
+  DbName:
+    Description: Database name
+    Value: !Ref DbName
+    Export:
+      Name: !Sub "${AWS::StackName}-DbName"
+
+  DbMasterUsername:
+    Description: Database master username
+    Value: !Ref DbMasterUsername
+    Export:
+      Name: !Sub "${AWS::StackName}-DbMasterUsername"
+
+  DbSecretArn:
+    Description: Secrets Manager secret ARN holding the auto-generated master password
+    Value: !GetAtt PostgresInstance.MasterUserSecret.SecretArn
+    Export:
+      Name: !Sub "${AWS::StackName}-DbSecretArn"
