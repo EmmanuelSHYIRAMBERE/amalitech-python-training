@@ -26,12 +26,15 @@
         { "name": "DB_PORT", "value": "5432" },
         { "name": "DB_NAME", "value": "photouploader" },
         { "name": "DB_USER", "value": "photoapp" },
-        { "name": "DB_SECRET_ARN", "value": "arn:aws:secretsmanager:eu-north-1:195275667627:secret:rds!db-fb47a495-189b-4066-8a4c-107a06917e53-UZfOHS" }
+        { "name": "DB_SECRET_ARN", "value": "arn:aws:secretsmanager:eu-north-1:195275667627:secret:rds!db-fb47a495-189b-4066-8a4c-107a06917e53-UZfOHS" },
+        { "name": "SECRET_KEY", "value": "VEQgsGZUVYMuWZUbyNpz9EyHPyNj9sjtvt34uT7c4FaNFUcRX8Yl1Q_-1K3fuUwaj_U" },
+        { "name": "ALLOWED_HOSTS", "value": "*" },
+        { "name": "DEBUG", "value": "false" }
       ],
       "healthCheck": {
         "command": [
           "CMD-SHELL",
-          "node -e \"require('http').get('http://127.0.0.1:3000/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))\""
+          "curl -f http://127.0.0.1:3000/health || exit 1"
         ],
         "interval": 30,
         "timeout": 5,
