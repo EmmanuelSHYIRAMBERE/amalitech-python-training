@@ -177,6 +177,16 @@ Resources:
                   - secretsmanager:GetSecretValue
                 Resource:
                   - Fn::ImportValue: !Sub "${DatabaseStackName}-DbSecretArn"
+              # Required for ECS Exec (aws ecs execute-command) -- without
+              # this, the SSM agent inside the container can never open its
+              # control/data channel, even if the VPC path to SSM exists.
+              - Effect: Allow
+                Action:
+                  - ssmmessages:CreateControlChannel
+                  - ssmmessages:CreateDataChannel
+                  - ssmmessages:OpenControlChannel
+                  - ssmmessages:OpenDataChannel
+                Resource: "*"
       Tags:
         - Key: Name
           Value: emmanuel-photo-uploader-task-role
