@@ -16,7 +16,7 @@ from diagrams.aws.database import RDS
 from diagrams.onprem.vcs import Github
 from diagrams.onprem.ci import GithubActions
 from diagrams.onprem.client import Users
-from diagrams.programming.language import Nodejs
+from diagrams.programming.language import Python
 
 graph_attr = {
     "fontsize": "20",
@@ -34,7 +34,7 @@ with Diagram(
     direction="LR",
 ):
     with Cluster("GitHub"):
-        code = Nodejs("Express/TS App\n+ Dockerfile")
+        code = Python("Django/DRF App\n+ Dockerfile")
         repo = Github("Repository\n(feat/module5-photo-uploader)")
         actions = GithubActions("GitHub Actions\n(photo-uploader.yml)")
         code >> Edge(label="git push app/**") >> repo
@@ -73,7 +73,11 @@ with Diagram(
                 green = Fargate("Green Task Set")
 
             with Cluster("VPC Endpoints"):
-                vpce = Endpoint("ecr.api / ecr.dkr\nlogs / s3 gateway")
+                vpce = Endpoint(
+                    "ecr.api / ecr.dkr / logs\n"
+                    "secretsmanager / s3 gateway\n"
+                    "ssm / ssmmessages / ec2messages"
+                )
 
             with Cluster("Database Subnet"):
                 db = RDS("RDS PostgreSQL\n(db.t3.micro)\ncredentials via\nSecrets Manager")
