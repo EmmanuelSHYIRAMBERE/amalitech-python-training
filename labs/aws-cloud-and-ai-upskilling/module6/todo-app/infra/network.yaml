@@ -1,0 +1,569 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  To-Do App Lab — Network stack. Multi-AZ VPC with public subnets (ALB) and
+  three dedicated private subnet pairs — one each for ECS Fargate tasks, RDS
+  PostgreSQL + RDS Proxy, and ElastiCache Redis — with no NAT Gateway. Private
+  subnets reach ECR, CloudWatch Logs, Secrets Manager, S3, and SSM (for ECS
+  Exec) exclusively via VPC endpoints.
+  Trainee: Emmanuel SHYIRAMBERE
+
+# ─────────────────────────────────────────────
+# PARAMETERS
+# ─────────────────────────────────────────────
+Parameters:
+  VpcCIDR:
+    Type: String
+    Default: 10.4.0.0/16
+
+  PublicSubnet1CIDR:
+    Type: String
+    Default: 10.4.0.0/24
+
+  PublicSubnet2CIDR:
+    Type: String
+    Default: 10.4.1.0/24
+
+  PrivateSubnetEcs1CIDR:
+    Type: String
+    Default: 10.4.10.0/24
+
+  PrivateSubnetEcs2CIDR:
+    Type: String
+    Default: 10.4.11.0/24
+
+  PrivateSubnetDb1CIDR:
+    Type: String
+    Default: 10.4.20.0/24
+
+  PrivateSubnetDb2CIDR:
+    Type: String
+    Default: 10.4.21.0/24
+
+  PrivateSubnetCache1CIDR:
+    Type: String
+    Default: 10.4.30.0/24
+
+  PrivateSubnetCache2CIDR:
+    Type: String
+    Default: 10.4.31.0/24
+
+# ─────────────────────────────────────────────
+# RESOURCES
+# ─────────────────────────────────────────────
+Resources:
+
+  # ── VPC ──────────────────────────────────────
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCIDR
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: emmanuel-todo-app-vpc
+
+  # ── Internet Gateway ─────────────────────────
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: emmanuel-todo-app-igw
+
+  IGWAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  # ── Subnets ───────────────────────────────────
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PublicSubnet1CIDR
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: emmanuel-todo-app-public-subnet-az1
+
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PublicSubnet2CIDR
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: emmanuel-todo-app-public-subnet-az2
+
+  # Dedicated to ECS Fargate tasks only (segregated from RDS/Proxy and Redis)
+  PrivateSubnetEcs1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PrivateSubnetEcs1CIDR
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      Tags:
+        - Key: Name
+          Value: emmanuel-todo-app-private-ecs-subnet-az1
+
+  PrivateSubnetEcs2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PrivateSubnetEcs2CIDR
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      Tags:
+        - Key: Name
+          Value: emmanuel-todo-app-private-ecs-subnet-az2
+
+  # Dedicated to RDS PostgreSQL + RDS Proxy ENIs only
+  PrivateSubnetDb1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PrivateSubnetDb1CIDR
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      Tags:
+        - Key: Name
+          Value: emmanuel-todo-app-private-db-subnet-az1
+
+  PrivateSubnetDb2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PrivateSubnetDb2CIDR
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      Tags:
+        - Key: Name
+          Value: emmanuel-todo-app-private-db-subnet-az2
+
+  # Dedicated to ElastiCache Redis node only
+  PrivateSubnetCache1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PrivateSubnetCache1CIDR
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      Tags:
+        - Key: Name
+          Value: emmanuel-todo-app-private-cache-subnet-az1
+
+  PrivateSubnetCache2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PrivateSubnetCache2CIDR
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      Tags:
+        - Key: Name
+          Value: emmanuel-todo-app-private-cache-subnet-az2
+
+  # ── Route Tables ──────────────────────────────
+
+  # Public route table → IGW
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: emmanuel-todo-app-public-rt
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: IGWAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnet1RTAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet1
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicSubnet2RTAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet2
+      RouteTableId: !Ref PublicRouteTable
+
+  # Single shared private route table — NO internet route (zero NAT Gateway).
+  # All 6 private subnets (ECS/DB/Cache) use it; segregation between resource
+  # types comes from distinct subnets + distinct security groups, not routing.
+  # Egress for ECS tasks is via VPC endpoints only (ECR api/dkr, logs,
+  # secretsmanager, ssm/ssmmessages/ec2messages, s3 gateway). RDS, RDS Proxy,
+  # and ElastiCache need no internet route at all — reached only from
+  # within the VPC.
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: emmanuel-todo-app-private-rt
+
+  PrivateSubnetEcs1RTAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetEcs1
+      RouteTableId: !Ref PrivateRouteTable
+
+  PrivateSubnetEcs2RTAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetEcs2
+      RouteTableId: !Ref PrivateRouteTable
+
+  PrivateSubnetDb1RTAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetDb1
+      RouteTableId: !Ref PrivateRouteTable
+
+  PrivateSubnetDb2RTAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetDb2
+      RouteTableId: !Ref PrivateRouteTable
+
+  PrivateSubnetCache1RTAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetCache1
+      RouteTableId: !Ref PrivateRouteTable
+
+  PrivateSubnetCache2RTAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetCache2
+      RouteTableId: !Ref PrivateRouteTable
+
+  # ── Security Groups ───────────────────────────
+  # Chain: ALB -> ECS Task -> {VPC Endpoints, RDS Proxy, ElastiCache}
+  #                                   RDS Proxy -> RDS (never ECS Task -> RDS
+  #                                   directly — the app must go through the
+  #                                   proxy for every write).
+
+  # ALB SG: HTTP from internet only
+  AlbSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow HTTP from internet to ALB
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+          Description: HTTP from internet
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: emmanuel-todo-app-alb-sg
+
+  # ECS task SG: container port only from ALB SG — no direct internet access
+  EcsTaskSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow traffic from ALB only to ECS Fargate tasks
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          SourceSecurityGroupId: !Ref AlbSecurityGroup
+          Description: App traffic from ALB only
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+          Description: Egress to VPC endpoints, RDS Proxy, and ElastiCache (resolved within the VPC)
+      Tags:
+        - Key: Name
+          Value: emmanuel-todo-app-ecs-task-sg
+
+  # RDS Proxy SG: Postgres port only from the ECS task SG.
+  RdsProxySecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow PostgreSQL traffic from ECS tasks to RDS Proxy only
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          SourceSecurityGroupId: !Ref EcsTaskSecurityGroup
+          Description: PostgreSQL from ECS tasks only
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: emmanuel-todo-app-rds-proxy-sg
+
+  # RDS SG: Postgres port only from RDS Proxy SG — deliberately NOT from
+  # EcsTaskSecurityGroup, so every app connection must go through the proxy.
+  DbSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow PostgreSQL traffic from RDS Proxy only (never direct from ECS)
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          SourceSecurityGroupId: !Ref RdsProxySecurityGroup
+          Description: PostgreSQL from RDS Proxy only
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: emmanuel-todo-app-db-sg
+
+  # ElastiCache SG: Redis port only from the ECS task SG.
+  ElastiCacheSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow Redis traffic from ECS tasks only
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 6379
+          ToPort: 6379
+          SourceSecurityGroupId: !Ref EcsTaskSecurityGroup
+          Description: Redis from ECS tasks only
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: emmanuel-todo-app-elasticache-sg
+
+  # VPC endpoint SG: HTTPS only from ECS task SG
+  VpcEndpointSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow HTTPS from ECS tasks only to VPC interface endpoints
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          SourceSecurityGroupId: !Ref EcsTaskSecurityGroup
+          Description: HTTPS from ECS tasks only
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: emmanuel-todo-app-vpce-sg
+
+  # ── VPC Endpoints ──────────────────────────────
+  # Required so private-subnet Fargate tasks (no NAT/internet route) can
+  # pull images from ECR, ship logs to CloudWatch, and read Secrets Manager.
+  # ENIs are placed in the ECS subnets only, since that's the only place
+  # that originates these AWS API calls.
+
+  EcrApiEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPC
+      VpcEndpointType: Interface
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.ecr.api"
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref PrivateSubnetEcs1
+        - !Ref PrivateSubnetEcs2
+      SecurityGroupIds:
+        - !Ref VpcEndpointSecurityGroup
+
+  EcrDkrEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPC
+      VpcEndpointType: Interface
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.ecr.dkr"
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref PrivateSubnetEcs1
+        - !Ref PrivateSubnetEcs2
+      SecurityGroupIds:
+        - !Ref VpcEndpointSecurityGroup
+
+  LogsEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPC
+      VpcEndpointType: Interface
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.logs"
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref PrivateSubnetEcs1
+        - !Ref PrivateSubnetEcs2
+      SecurityGroupIds:
+        - !Ref VpcEndpointSecurityGroup
+
+  SecretsManagerEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPC
+      VpcEndpointType: Interface
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.secretsmanager"
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref PrivateSubnetEcs1
+        - !Ref PrivateSubnetEcs2
+      SecurityGroupIds:
+        - !Ref VpcEndpointSecurityGroup
+
+  S3GatewayEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPC
+      VpcEndpointType: Gateway
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.s3"
+      RouteTableIds:
+        - !Ref PrivateRouteTable
+
+  # Required for ECS Exec (aws ecs execute-command) to reach a running
+  # Fargate task's Session Manager agent — without these, the exec agent
+  # starts but can never connect (TargetNotConnectedException), since
+  # private subnets have no internet route to SSM's public endpoints. Added
+  # from the start this time (a lesson learned the hard way in the prior
+  # lab) — this is also the only way to verify RDS Proxy/Redis connectivity
+  # live from inside a running task.
+  SsmEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPC
+      VpcEndpointType: Interface
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.ssm"
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref PrivateSubnetEcs1
+        - !Ref PrivateSubnetEcs2
+      SecurityGroupIds:
+        - !Ref VpcEndpointSecurityGroup
+
+  SsmMessagesEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPC
+      VpcEndpointType: Interface
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.ssmmessages"
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref PrivateSubnetEcs1
+        - !Ref PrivateSubnetEcs2
+      SecurityGroupIds:
+        - !Ref VpcEndpointSecurityGroup
+
+  Ec2MessagesEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPC
+      VpcEndpointType: Interface
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.ec2messages"
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref PrivateSubnetEcs1
+        - !Ref PrivateSubnetEcs2
+      SecurityGroupIds:
+        - !Ref VpcEndpointSecurityGroup
+
+# ─────────────────────────────────────────────
+# OUTPUTS
+# ─────────────────────────────────────────────
+Outputs:
+  VpcId:
+    Description: VPC ID
+    Value: !Ref VPC
+    Export:
+      Name: !Sub "${AWS::StackName}-VpcId"
+
+  PublicSubnet1Id:
+    Description: Public subnet (AZ1) ID — for ALB
+    Value: !Ref PublicSubnet1
+    Export:
+      Name: !Sub "${AWS::StackName}-PublicSubnet1Id"
+
+  PublicSubnet2Id:
+    Description: Public subnet (AZ2) ID — for ALB
+    Value: !Ref PublicSubnet2
+    Export:
+      Name: !Sub "${AWS::StackName}-PublicSubnet2Id"
+
+  PrivateSubnetEcs1Id:
+    Description: Private subnet (AZ1) ID — for ECS Fargate tasks
+    Value: !Ref PrivateSubnetEcs1
+    Export:
+      Name: !Sub "${AWS::StackName}-PrivateSubnetEcs1Id"
+
+  PrivateSubnetEcs2Id:
+    Description: Private subnet (AZ2) ID — for ECS Fargate tasks
+    Value: !Ref PrivateSubnetEcs2
+    Export:
+      Name: !Sub "${AWS::StackName}-PrivateSubnetEcs2Id"
+
+  PrivateSubnetDb1Id:
+    Description: Private subnet (AZ1) ID — for RDS PostgreSQL + RDS Proxy
+    Value: !Ref PrivateSubnetDb1
+    Export:
+      Name: !Sub "${AWS::StackName}-PrivateSubnetDb1Id"
+
+  PrivateSubnetDb2Id:
+    Description: Private subnet (AZ2) ID — for RDS PostgreSQL + RDS Proxy
+    Value: !Ref PrivateSubnetDb2
+    Export:
+      Name: !Sub "${AWS::StackName}-PrivateSubnetDb2Id"
+
+  PrivateSubnetCache1Id:
+    Description: Private subnet (AZ1) ID — for ElastiCache Redis
+    Value: !Ref PrivateSubnetCache1
+    Export:
+      Name: !Sub "${AWS::StackName}-PrivateSubnetCache1Id"
+
+  PrivateSubnetCache2Id:
+    Description: Private subnet (AZ2) ID — for ElastiCache Redis
+    Value: !Ref PrivateSubnetCache2
+    Export:
+      Name: !Sub "${AWS::StackName}-PrivateSubnetCache2Id"
+
+  AlbSecurityGroupId:
+    Description: Security group ID for the ALB
+    Value: !Ref AlbSecurityGroup
+    Export:
+      Name: !Sub "${AWS::StackName}-AlbSecurityGroupId"
+
+  EcsTaskSecurityGroupId:
+    Description: Security group ID for ECS Fargate tasks
+    Value: !Ref EcsTaskSecurityGroup
+    Export:
+      Name: !Sub "${AWS::StackName}-EcsTaskSecurityGroupId"
+
+  RdsProxySecurityGroupId:
+    Description: Security group ID for RDS Proxy
+    Value: !Ref RdsProxySecurityGroup
+    Export:
+      Name: !Sub "${AWS::StackName}-RdsProxySecurityGroupId"
+
+  DbSecurityGroupId:
+    Description: Security group ID for RDS PostgreSQL
+    Value: !Ref DbSecurityGroup
+    Export:
+      Name: !Sub "${AWS::StackName}-DbSecurityGroupId"
+
+  ElastiCacheSecurityGroupId:
+    Description: Security group ID for ElastiCache Redis
+    Value: !Ref ElastiCacheSecurityGroup
+    Export:
+      Name: !Sub "${AWS::StackName}-ElastiCacheSecurityGroupId"

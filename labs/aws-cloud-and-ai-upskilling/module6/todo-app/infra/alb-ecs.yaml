@@ -1,0 +1,408 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  To-Do App Lab — ALB + ECS stack. Public ALB, ECS Fargate service with
+  blue/green deployments via CodeDeploy, and target-tracking autoscaling
+  (1-4 tasks on CPU).
+  Trainee: Emmanuel SHYIRAMBERE
+  Depends on: emmanuel-todo-app-network (network.yaml), emmanuel-todo-app-ecr
+  (ecr.yaml), emmanuel-todo-app-database (database.yaml), and
+  emmanuel-todo-app-cache (cache.yaml) — their outputs are imported below.
+
+# ─────────────────────────────────────────────
+# PARAMETERS
+# ─────────────────────────────────────────────
+Parameters:
+  NetworkStackName:
+    Type: String
+    Default: emmanuel-todo-app-network
+
+  EcrStackName:
+    Type: String
+    Default: emmanuel-todo-app-ecr
+
+  DatabaseStackName:
+    Type: String
+    Default: emmanuel-todo-app-database
+
+  CacheStackName:
+    Type: String
+    Default: emmanuel-todo-app-cache
+
+  ContainerPort:
+    Type: Number
+    Default: 8080
+
+  TaskCpu:
+    Type: String
+    Default: "256"
+
+  TaskMemory:
+    Type: String
+    Default: "512"
+
+# ─────────────────────────────────────────────
+# RESOURCES
+# ─────────────────────────────────────────────
+Resources:
+
+  # ── Application Load Balancer ─────────────────
+  Alb:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: emmanuel-todo-app-alb
+      Scheme: internet-facing
+      Type: application
+      Subnets:
+        - Fn::ImportValue: !Sub "${NetworkStackName}-PublicSubnet1Id"
+        - Fn::ImportValue: !Sub "${NetworkStackName}-PublicSubnet2Id"
+      SecurityGroups:
+        - Fn::ImportValue: !Sub "${NetworkStackName}-AlbSecurityGroupId"
+      Tags:
+        - Key: Name
+          Value: emmanuel-todo-app-alb
+
+  BlueTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: emmanuel-todo-app-tg-blue
+      VpcId:
+        Fn::ImportValue: !Sub "${NetworkStackName}-VpcId"
+      Protocol: HTTP
+      Port: !Ref ContainerPort
+      TargetType: ip
+      HealthCheckProtocol: HTTP
+      HealthCheckPath: /actuator/health
+      HealthCheckIntervalSeconds: 15
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 3
+      Tags:
+        - Key: Name
+          Value: emmanuel-todo-app-tg-blue
+
+  GreenTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: emmanuel-todo-app-tg-green
+      VpcId:
+        Fn::ImportValue: !Sub "${NetworkStackName}-VpcId"
+      Protocol: HTTP
+      Port: !Ref ContainerPort
+      TargetType: ip
+      HealthCheckProtocol: HTTP
+      HealthCheckPath: /actuator/health
+      HealthCheckIntervalSeconds: 15
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 3
+      Tags:
+        - Key: Name
+          Value: emmanuel-todo-app-tg-green
+
+  AlbListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref Alb
+      Protocol: HTTP
+      Port: 80
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref BlueTargetGroup
+
+  # ── ECS Cluster ────────────────────────────────
+  EcsCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: emmanuel-todo-app-cluster
+      ClusterSettings:
+        - Name: containerInsights
+          Value: enabled
+      Tags:
+        - Key: Name
+          Value: emmanuel-todo-app-cluster
+
+  # ── CloudWatch Logs ────────────────────────────
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /ecs/emmanuel-todo-app
+      RetentionInDays: 14
+
+  # ── IAM: ECS task roles ────────────────────────
+  # TaskExecutionRole additionally needs secretsmanager:GetSecretValue,
+  # since it is ECS itself (not the app) that resolves the DB_PASSWORD
+  # secret at container-start time, via the container definition's
+  # "Secrets" field below.
+  TaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: emmanuel-todo-app-task-execution-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      Policies:
+        - PolicyName: emmanuel-todo-app-secrets-read-policy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource:
+                  - Fn::ImportValue: !Sub "${DatabaseStackName}-DbSecretArn"
+      Tags:
+        - Key: Name
+          Value: emmanuel-todo-app-task-execution-role
+
+  # TaskRole is what the running application code itself uses at runtime.
+  # This app needs no AWS SDK calls (DB_PASSWORD arrives as a plain env var
+  # via ECS-native secret injection, not fetched by the app itself), so the
+  # only permissions needed here are for ECS Exec debugging.
+  TaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: emmanuel-todo-app-task-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: emmanuel-todo-app-task-policy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              # Required for ECS Exec (aws ecs execute-command) -- without
+              # this, the SSM agent inside the container can never open its
+              # control/data channel, even if the VPC path to SSM exists.
+              - Effect: Allow
+                Action:
+                  - ssmmessages:CreateControlChannel
+                  - ssmmessages:CreateDataChannel
+                  - ssmmessages:OpenControlChannel
+                  - ssmmessages:OpenDataChannel
+                Resource: "*"
+      Tags:
+        - Key: Name
+          Value: emmanuel-todo-app-task-role
+
+  # ── ECS Task Definition ────────────────────────
+  # Image reference here is a bootstrap placeholder only. Once EcsService
+  # uses DeploymentController: CODE_DEPLOY, CloudFormation can never again
+  # update the task definition/service directly (AWS rejects it) - every
+  # real deployment after the first must go through CodeDeploy via
+  # app/deploy/taskdef.json.
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: emmanuel-todo-app-task
+      RequiresCompatibilities:
+        - FARGATE
+      NetworkMode: awsvpc
+      Cpu: !Ref TaskCpu
+      Memory: !Ref TaskMemory
+      ExecutionRoleArn: !GetAtt TaskExecutionRole.Arn
+      TaskRoleArn: !GetAtt TaskRole.Arn
+      ContainerDefinitions:
+        - Name: todo-app
+          Image:
+            Fn::Sub:
+              - "${RepositoryUri}:latest"
+              - RepositoryUri:
+                  Fn::ImportValue: !Sub "${EcrStackName}-RepositoryUri"
+          PortMappings:
+            - ContainerPort: !Ref ContainerPort
+              Protocol: tcp
+          Environment:
+            - Name: SERVER_PORT
+              Value: !Ref ContainerPort
+            - Name: AWS_REGION
+              Value: !Ref AWS::Region
+            - Name: DB_HOST
+              Value:
+                Fn::ImportValue: !Sub "${DatabaseStackName}-DbProxyEndpoint"
+            - Name: DB_PORT
+              Value:
+                Fn::ImportValue: !Sub "${DatabaseStackName}-DbEndpointPort"
+            - Name: DB_NAME
+              Value:
+                Fn::ImportValue: !Sub "${DatabaseStackName}-DbName"
+            - Name: DB_USER
+              Value:
+                Fn::ImportValue: !Sub "${DatabaseStackName}-DbMasterUsername"
+            - Name: REDIS_HOST
+              Value:
+                Fn::ImportValue: !Sub "${CacheStackName}-RedisEndpointAddress"
+            - Name: REDIS_PORT
+              Value:
+                Fn::ImportValue: !Sub "${CacheStackName}-RedisEndpointPort"
+          Secrets:
+            - Name: DB_PASSWORD
+              ValueFrom:
+                Fn::Sub:
+                  - "${SecretArn}:password::"
+                  - SecretArn:
+                      Fn::ImportValue: !Sub "${DatabaseStackName}-DbSecretArn"
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref LogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: ecs
+
+  # ── ECS Service (blue/green via CodeDeploy) ───
+  EcsService:
+    Type: AWS::ECS::Service
+    DependsOn: AlbListener
+    Properties:
+      ServiceName: emmanuel-todo-app-service
+      Cluster: !Ref EcsCluster
+      TaskDefinition: !Ref TaskDefinition
+      LaunchType: FARGATE
+      DesiredCount: 1
+      DeploymentController:
+        Type: CODE_DEPLOY
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: DISABLED
+          Subnets:
+            - Fn::ImportValue: !Sub "${NetworkStackName}-PrivateSubnetEcs1Id"
+            - Fn::ImportValue: !Sub "${NetworkStackName}-PrivateSubnetEcs2Id"
+          SecurityGroups:
+            - Fn::ImportValue: !Sub "${NetworkStackName}-EcsTaskSecurityGroupId"
+      LoadBalancers:
+        - ContainerName: todo-app
+          ContainerPort: !Ref ContainerPort
+          TargetGroupArn: !Ref BlueTargetGroup
+      Tags:
+        - Key: Name
+          Value: emmanuel-todo-app-service
+
+  # ── Auto Scaling (target tracking on CPU, 1-4 tasks) ──
+  ScalableTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      MinCapacity: 1
+      MaxCapacity: 4
+      ResourceId: !Sub "service/${EcsCluster}/${EcsService.Name}"
+      ScalableDimension: ecs:service:DesiredCount
+      ServiceNamespace: ecs
+      RoleARN: !Sub "arn:aws:iam::${AWS::AccountId}:role/aws-service-role/ecs.application-autoscaling.amazonaws.com/AWSServiceRoleForApplicationAutoScaling_ECSService"
+
+  CpuScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: emmanuel-todo-app-cpu-scaling
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref ScalableTarget
+      TargetTrackingScalingPolicyConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ECSServiceAverageCPUUtilization
+        TargetValue: 50.0
+
+  # ── IAM: CodeDeploy service role ──────────────
+  CodeDeployServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: emmanuel-todo-app-codedeploy-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codedeploy.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AWSCodeDeployRoleForECS
+      Tags:
+        - Key: Name
+          Value: emmanuel-todo-app-codedeploy-role
+
+  # ── CodeDeploy Application + Deployment Group ─
+  CodeDeployApplication:
+    Type: AWS::CodeDeploy::Application
+    Properties:
+      ApplicationName: emmanuel-todo-app-app
+      ComputePlatform: ECS
+
+  CodeDeployDeploymentGroup:
+    Type: AWS::CodeDeploy::DeploymentGroup
+    Properties:
+      ApplicationName: !Ref CodeDeployApplication
+      DeploymentGroupName: emmanuel-todo-app-deployment-group
+      ServiceRoleArn: !GetAtt CodeDeployServiceRole.Arn
+      DeploymentConfigName: CodeDeployDefault.ECSAllAtOnce
+      DeploymentStyle:
+        DeploymentType: BLUE_GREEN
+        DeploymentOption: WITH_TRAFFIC_CONTROL
+      BlueGreenDeploymentConfiguration:
+        DeploymentReadyOption:
+          ActionOnTimeout: CONTINUE_DEPLOYMENT
+        TerminateBlueInstancesOnDeploymentSuccess:
+          Action: TERMINATE
+          TerminationWaitTimeInMinutes: 5
+      ECSServices:
+        - ClusterName: !Ref EcsCluster
+          ServiceName: !GetAtt EcsService.Name
+      LoadBalancerInfo:
+        TargetGroupPairInfoList:
+          - ProdTrafficRoute:
+              ListenerArns:
+                - !Ref AlbListener
+            TargetGroups:
+              - Name: !GetAtt BlueTargetGroup.TargetGroupName
+              - Name: !GetAtt GreenTargetGroup.TargetGroupName
+
+# ─────────────────────────────────────────────
+# OUTPUTS
+# ─────────────────────────────────────────────
+Outputs:
+  AlbDnsName:
+    Description: ALB DNS name — use this to access the running application
+    Value: !Sub "http://${Alb.DNSName}"
+
+  AlbListenerArn:
+    Value: !Ref AlbListener
+    Export:
+      Name: !Sub "${AWS::StackName}-AlbListenerArn"
+
+  EcsClusterName:
+    Value: !Ref EcsCluster
+    Export:
+      Name: !Sub "${AWS::StackName}-EcsClusterName"
+
+  EcsServiceName:
+    Value: !GetAtt EcsService.Name
+    Export:
+      Name: !Sub "${AWS::StackName}-EcsServiceName"
+
+  CodeDeployApplicationName:
+    Value: !Ref CodeDeployApplication
+    Export:
+      Name: !Sub "${AWS::StackName}-CodeDeployApplicationName"
+
+  CodeDeployDeploymentGroupName:
+    Value: !Ref CodeDeployDeploymentGroup
+    Export:
+      Name: !Sub "${AWS::StackName}-CodeDeployDeploymentGroupName"
+
+  TaskExecutionRoleArn:
+    Value: !GetAtt TaskExecutionRole.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-TaskExecutionRoleArn"
+
+  TaskRoleArn:
+    Value: !GetAtt TaskRole.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-TaskRoleArn"
+
+  CodeDeployServiceRoleArn:
+    Value: !GetAtt CodeDeployServiceRole.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-CodeDeployServiceRoleArn"
