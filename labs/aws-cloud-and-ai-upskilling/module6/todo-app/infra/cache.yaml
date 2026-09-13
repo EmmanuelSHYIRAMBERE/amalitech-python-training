@@ -1,0 +1,72 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  To-Do App Lab — Cache stack. A single-node ElastiCache Redis cluster in its
+  own dedicated private subnets, used to accelerate reads via the Spring
+  Cache abstraction (cache-aside on the To-Do list endpoints).
+  Trainee: Emmanuel SHYIRAMBERE
+  Depends on: emmanuel-todo-app-network (network.yaml) — its outputs are
+  imported below via Fn::ImportValue.
+
+# ─────────────────────────────────────────────
+# PARAMETERS
+# ─────────────────────────────────────────────
+Parameters:
+  NetworkStackName:
+    Type: String
+    Default: emmanuel-todo-app-network
+
+  CacheNodeType:
+    Type: String
+    Default: cache.t3.micro
+
+# ─────────────────────────────────────────────
+# RESOURCES
+# ─────────────────────────────────────────────
+Resources:
+
+  # ── Cache Subnet Group ──────────────────────────
+  # Dedicated subnets (private-cache, not shared with ECS or RDS/Proxy) per
+  # the lab's subnet-segregation requirement.
+  CacheSubnetGroup:
+    Type: AWS::ElastiCache::SubnetGroup
+    Properties:
+      Description: Dedicated private subnets for ElastiCache Redis
+      SubnetIds:
+        - Fn::ImportValue: !Sub "${NetworkStackName}-PrivateSubnetCache1Id"
+        - Fn::ImportValue: !Sub "${NetworkStackName}-PrivateSubnetCache2Id"
+
+  # ── ElastiCache Redis Cluster ────────────────────
+  # Single-node — the lab requires caching for read acceleration, not cache
+  # high availability, so a ReplicationGroup would add cost/complexity with
+  # no rubric benefit.
+  RedisCluster:
+    Type: AWS::ElastiCache::CacheCluster
+    Properties:
+      ClusterName: emmanuel-todo-app-redis
+      Engine: redis
+      EngineVersion: "7.1"
+      CacheNodeType: !Ref CacheNodeType
+      NumCacheNodes: 1
+      Port: 6379
+      CacheSubnetGroupName: !Ref CacheSubnetGroup
+      VpcSecurityGroupIds:
+        - Fn::ImportValue: !Sub "${NetworkStackName}-ElastiCacheSecurityGroupId"
+      Tags:
+        - Key: Name
+          Value: emmanuel-todo-app-redis
+
+# ─────────────────────────────────────────────
+# OUTPUTS
+# ─────────────────────────────────────────────
+Outputs:
+  RedisEndpointAddress:
+    Description: ElastiCache Redis endpoint hostname
+    Value: !GetAtt RedisCluster.RedisEndpoint.Address
+    Export:
+      Name: !Sub "${AWS::StackName}-RedisEndpointAddress"
+
+  RedisEndpointPort:
+    Description: ElastiCache Redis endpoint port
+    Value: !GetAtt RedisCluster.RedisEndpoint.Port
+    Export:
+      Name: !Sub "${AWS::StackName}-RedisEndpointPort"
