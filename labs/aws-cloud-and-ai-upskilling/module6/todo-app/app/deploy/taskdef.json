@@ -19,15 +19,15 @@
       "environment": [
         { "name": "SERVER_PORT", "value": "8080" },
         { "name": "AWS_REGION", "value": "eu-north-1" },
-        { "name": "DB_HOST", "value": "REPLACE_WITH_DB_PROXY_ENDPOINT" },
+        { "name": "DB_HOST", "value": "emmanuel-todo-app-db-proxy.proxy-cx8e66g2o0sx.eu-north-1.rds.amazonaws.com" },
         { "name": "DB_PORT", "value": "5432" },
         { "name": "DB_NAME", "value": "todoapp" },
         { "name": "DB_USER", "value": "todoapp" },
-        { "name": "REDIS_HOST", "value": "REPLACE_WITH_REDIS_ENDPOINT" },
+        { "name": "REDIS_HOST", "value": "emmanuel-todo-app-redis.psslv9.0001.eun1.cache.amazonaws.com" },
         { "name": "REDIS_PORT", "value": "6379" }
       ],
       "secrets": [
-        { "name": "DB_PASSWORD", "valueFrom": "REPLACE_WITH_DB_SECRET_ARN:password::" }
+        { "name": "DB_PASSWORD", "valueFrom": "arn:aws:secretsmanager:eu-north-1:195275667627:secret:rds!db-22575948-3b04-40d5-9071-f9732eae38be-SDjoBN:password::" }
       ],
       "healthCheck": {
         "command": [
