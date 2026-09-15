@@ -1,0 +1,3 @@
+template-file-path: labs/aws-cloud-and-ai-upskilling/module6/todo-app/infra/database.yaml
+parameters: {}
+tags: {}

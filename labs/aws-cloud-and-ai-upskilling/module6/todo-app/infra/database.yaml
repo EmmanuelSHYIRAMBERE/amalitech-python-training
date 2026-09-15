@@ -1,0 +1,194 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  To-Do App Lab — Database stack. RDS PostgreSQL instance (db.t3 family) in
+  its own dedicated private subnets, fronted by RDS Proxy so the application
+  never connects to RDS directly — every write goes through the proxy. The
+  master password is AWS-managed and stored in Secrets Manager; RDS Proxy
+  itself authenticates against Postgres using that same secret.
+  Trainee: Emmanuel SHYIRAMBERE
+  Depends on: emmanuel-todo-app-network (network.yaml) — its outputs are
+  imported below via Fn::ImportValue.
+
+# ─────────────────────────────────────────────
+# PARAMETERS
+# ─────────────────────────────────────────────
+Parameters:
+  NetworkStackName:
+    Type: String
+    Default: emmanuel-todo-app-network
+
+  DbInstanceClass:
+    Type: String
+    Default: db.t3.micro
+
+  DbName:
+    Type: String
+    Default: todoapp
+
+  DbMasterUsername:
+    Type: String
+    Default: todoapp
+
+  DbAllocatedStorage:
+    Type: Number
+    Default: 20
+    Description: Allocated storage in GiB.
+
+# ─────────────────────────────────────────────
+# RESOURCES
+# ─────────────────────────────────────────────
+Resources:
+
+  # ── DB Subnet Group ────────────────────────────
+  # Dedicated subnets (private-db, not shared with ECS or ElastiCache) per
+  # the lab's subnet-segregation requirement.
+  DbSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Dedicated private subnets for RDS PostgreSQL + RDS Proxy
+      SubnetIds:
+        - Fn::ImportValue: !Sub "${NetworkStackName}-PrivateSubnetDb1Id"
+        - Fn::ImportValue: !Sub "${NetworkStackName}-PrivateSubnetDb2Id"
+      Tags:
+        - Key: Name
+          Value: emmanuel-todo-app-db-subnet-group
+
+  # ── RDS PostgreSQL Instance ─────────────────────
+  # ManageMasterUserPassword lets RDS itself generate and rotate the master
+  # password, stored as a new Secrets Manager secret — the password is never
+  # visible in this template, the console, or a parameter value.
+  PostgresInstance:
+    Type: AWS::RDS::DBInstance
+    DeletionPolicy: Snapshot
+    Properties:
+      DBInstanceIdentifier: emmanuel-todo-app-db
+      Engine: postgres
+      # Major version only — AWS resolves this to its current default minor
+      # version at creation time; AutoMinorVersionUpgrade keeps it current
+      # afterward. If CloudFormation ever rejects a bare major version,
+      # replace with an explicit "16.x" (check currently supported versions
+      # first, they change over time):
+      # aws rds describe-db-engine-versions --engine postgres --query "DBEngineVersions[?starts_with(EngineVersion, '16.')].EngineVersion"
+      EngineVersion: "16"
+      AutoMinorVersionUpgrade: true
+      DBInstanceClass: !Ref DbInstanceClass
+      AllocatedStorage: !Ref DbAllocatedStorage
+      StorageType: gp3
+      DBName: !Ref DbName
+      MasterUsername: !Ref DbMasterUsername
+      ManageMasterUserPassword: true
+      DBSubnetGroupName: !Ref DbSubnetGroup
+      VPCSecurityGroups:
+        - Fn::ImportValue: !Sub "${NetworkStackName}-DbSecurityGroupId"
+      MultiAZ: false
+      PubliclyAccessible: false
+      BackupRetentionPeriod: 7
+      StorageEncrypted: true
+      Tags:
+        - Key: Name
+          Value: emmanuel-todo-app-db
+
+  # ── RDS Proxy IAM Role ──────────────────────────
+  # RDS Proxy needs to read the master-password secret itself, to
+  # authenticate to Postgres on the application's behalf.
+  RdsProxyRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: emmanuel-todo-app-rds-proxy-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: rds.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: emmanuel-todo-app-rds-proxy-secret-policy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource:
+                  - !GetAtt PostgresInstance.MasterUserSecret.SecretArn
+      Tags:
+        - Key: Name
+          Value: emmanuel-todo-app-rds-proxy-role
+
+  # ── RDS Proxy ───────────────────────────────────
+  # The application connects only to this proxy's endpoint, never directly
+  # to PostgresInstance — enforced at the network layer too, since
+  # DbSecurityGroup only accepts 5432 from RdsProxySecurityGroup.
+  DbProxy:
+    Type: AWS::RDS::DBProxy
+    Properties:
+      DBProxyName: emmanuel-todo-app-db-proxy
+      EngineFamily: POSTGRESQL
+      Auth:
+        - AuthScheme: SECRETS
+          SecretArn: !GetAtt PostgresInstance.MasterUserSecret.SecretArn
+          IAMAuth: DISABLED
+      RoleArn: !GetAtt RdsProxyRole.Arn
+      VpcSubnetIds:
+        - Fn::ImportValue: !Sub "${NetworkStackName}-PrivateSubnetDb1Id"
+        - Fn::ImportValue: !Sub "${NetworkStackName}-PrivateSubnetDb2Id"
+      VpcSecurityGroupIds:
+        - Fn::ImportValue: !Sub "${NetworkStackName}-RdsProxySecurityGroupId"
+      RequireTLS: true
+      IdleClientTimeout: 1800
+      DebugLogging: false
+      Tags:
+        - Key: Name
+          Value: emmanuel-todo-app-db-proxy
+
+  DbProxyTargetGroup:
+    Type: AWS::RDS::DBProxyTargetGroup
+    Properties:
+      DBProxyName: !Ref DbProxy
+      TargetGroupName: default
+      DBInstanceIdentifiers:
+        - !Ref PostgresInstance
+      ConnectionPoolConfigurationInfo:
+        MaxConnectionsPercent: 100
+        MaxIdleConnectionsPercent: 50
+
+# ─────────────────────────────────────────────
+# OUTPUTS
+# ─────────────────────────────────────────────
+Outputs:
+  DbEndpointAddress:
+    Description: RDS PostgreSQL endpoint hostname (not used by the app directly — see DbProxyEndpoint)
+    Value: !GetAtt PostgresInstance.Endpoint.Address
+    Export:
+      Name: !Sub "${AWS::StackName}-DbEndpointAddress"
+
+  DbProxyEndpoint:
+    Description: RDS Proxy endpoint hostname — the application connects here, not to RDS directly
+    Value: !GetAtt DbProxy.Endpoint
+    Export:
+      Name: !Sub "${AWS::StackName}-DbProxyEndpoint"
+
+  DbEndpointPort:
+    Description: PostgreSQL port (same for RDS and the proxy)
+    Value: !GetAtt PostgresInstance.Endpoint.Port
+    Export:
+      Name: !Sub "${AWS::StackName}-DbEndpointPort"
+
+  DbName:
+    Description: Database name
+    Value: !Ref DbName
+    Export:
+      Name: !Sub "${AWS::StackName}-DbName"
+
+  DbMasterUsername:
+    Description: Database master username
+    Value: !Ref DbMasterUsername
+    Export:
+      Name: !Sub "${AWS::StackName}-DbMasterUsername"
+
+  DbSecretArn:
+    Description: Secrets Manager secret ARN holding the auto-generated master password
+    Value: !GetAtt PostgresInstance.MasterUserSecret.SecretArn
+    Export:
+      Name: !Sub "${AWS::StackName}-DbSecretArn"
