@@ -4,8 +4,12 @@ const listEl = document.getElementById('task-list');
 
 async function loadTasks() {
   const res = await fetch('/api/tasks');
-  const tasks = await res.json();
-  listEl.innerHTML = tasks
+  const body = await res.json();
+  if (!res.ok || !Array.isArray(body)) {
+    statusEl.textContent = `Error: ${body.message || 'Failed to load tasks'}`;
+    return;
+  }
+  listEl.innerHTML = body
     .map(
       (t) => `
         <li class="task-item ${t.completed ? 'completed' : ''}" data-id="${t.id}">
