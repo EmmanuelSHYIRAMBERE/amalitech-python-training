@@ -43,10 +43,10 @@ Resources:
   DbSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
-      DBSubnetGroupDescription: Private subnets for the Photo Uploader RDS instance
+      DBSubnetGroupDescription: Dedicated private subnets for the Photo Uploader RDS instance (separate from the ECS task subnets)
       SubnetIds:
-        - Fn::ImportValue: !Sub "${NetworkStackName}-PrivateSubnet1Id"
-        - Fn::ImportValue: !Sub "${NetworkStackName}-PrivateSubnet2Id"
+        - Fn::ImportValue: !Sub "${NetworkStackName}-PrivateSubnetDb1Id"
+        - Fn::ImportValue: !Sub "${NetworkStackName}-PrivateSubnetDb2Id"
       Tags:
         - Key: Name
           Value: emmanuel-photo-uploader-db-subnet-group
