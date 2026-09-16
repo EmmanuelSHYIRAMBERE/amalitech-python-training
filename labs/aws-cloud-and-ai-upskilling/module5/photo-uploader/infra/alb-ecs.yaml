@@ -46,19 +46,38 @@ Parameters:
     Description: Secrets Manager ARN holding the Django SECRET_KEY (created out-of-band, not managed by this template).
     Default: arn:aws:secretsmanager:eu-north-1:195275667627:secret:emmanuel-photo-uploader-django-secret-key-mcNg8V
 
-  # TEMPORARY: hardcoded directly (not via Fn::ImportValue from
-  # database.yaml) to break the cross-stack dependency during the RDS
-  # subnet migration cutover - database.yaml's PostgresInstance now
-  # points at the migrated emmanuel-photo-uploader-db-v2 instance, but
-  # CloudFormation refuses to let an export's value change while another
-  # stack's template still references it, even if the referencing
-  # resource itself wouldn't be touched. Revert to Fn::ImportValue once
-  # both stacks are confirmed stable on the new instance.
+  # NOTE: TaskDefinition is a bootstrap reference only (see the comment
+  # above its resource definition below) - once EcsServiceV2 has
+  # DeploymentController: CODE_DEPLOY, CloudFormation can never again
+  # call ecs:UpdateService on it for ANY reason, including registering a
+  # new (even functionally-identical-to-live) revision. So this
+  # parameter is deliberately frozen at the value CloudFormation itself
+  # last successfully registered (task-definition revision 5), even
+  # though the LIVE service has long since moved on to a corrected
+  # revision via CodeDeploy (see app/deploy/taskdef.json, which holds
+  # the real, current value). Do not "fix" this to match the live value
+  # - that will just fail with:
+  #   "Unable to update task definition on services with a CODE_DEPLOY
+  #    deployment controller. Use AWS CodeDeploy to trigger a new
+  #    deployment."
+  # and roll back this whole stack again.
   DbHostOverride:
     Type: String
-    Default: emmanuel-photo-uploader-db-v2.cx8e66g2o0sx.eu-north-1.rds.amazonaws.com
+    Default: emmanuel-photo-uploader-db.cx8e66g2o0sx.eu-north-1.rds.amazonaws.com
 
+  # Same reasoning as DbHostOverride above, for TaskDefinition's
+  # DB_SECRET_ARN env var only.
   DbSecretArnOverride:
+    Type: String
+    Default: arn:aws:secretsmanager:eu-north-1:195275667627:secret:rds!db-fb47a495-189b-4066-8a4c-107a06917e53-UZfOHS
+
+  # Unlike DbSecretArnOverride above, this one IS kept current: it feeds
+  # TaskRole's IAM policy, and TaskRole is a plain IAM::Role - not
+  # coupled to EcsServiceV2's CODE_DEPLOY restriction - so CloudFormation
+  # can update it normally. It must grant access to the secret the LIVE
+  # task (running revision 7, not the bootstrap TaskDefinition resource)
+  # actually reads at runtime.
+  LiveDbSecretArn:
     Type: String
     Default: arn:aws:secretsmanager:eu-north-1:195275667627:secret:rds!db-2526f8eb-070a-4158-846d-a8babef90640-BhAf96
 
@@ -209,7 +228,7 @@ Resources:
                 Action:
                   - secretsmanager:GetSecretValue
                 Resource:
-                  - !Ref DbSecretArnOverride
+                  - !Ref LiveDbSecretArn
               # Required for ECS Exec (aws ecs execute-command) -- without
               # this, the SSM agent inside the container can never open its
               # control/data channel, even if the VPC path to SSM exists.
