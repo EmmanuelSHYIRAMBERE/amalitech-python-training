@@ -41,6 +41,11 @@ Parameters:
     Type: String
     Default: "512"
 
+  DjangoSecretKeyArn:
+    Type: String
+    Description: Secrets Manager ARN holding the Django SECRET_KEY (created out-of-band, not managed by this template).
+    Default: arn:aws:secretsmanager:eu-north-1:195275667627:secret:emmanuel-photo-uploader-django-secret-key-mcNg8V
+
 # ─────────────────────────────────────────────
 # RESOURCES
 # ─────────────────────────────────────────────
@@ -141,6 +146,18 @@ Resources:
             Action: sts:AssumeRole
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      Policies:
+        # ECS resolves the task definition's "secrets" field using this
+        # role (not TaskRole) before the container starts.
+        - PolicyName: emmanuel-photo-uploader-task-execution-secrets-policy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource:
+                  - !Ref DjangoSecretKeyArn
       Tags:
         - Key: Name
           Value: emmanuel-photo-uploader-task-execution-role
@@ -246,6 +263,13 @@ Resources:
             - Name: DB_SECRET_ARN
               Value:
                 Fn::ImportValue: !Sub "${DatabaseStackName}-DbSecretArn"
+            - Name: ALLOWED_HOSTS
+              Value: "*"
+            - Name: DEBUG
+              Value: "false"
+          Secrets:
+            - Name: SECRET_KEY
+              ValueFrom: !Sub "${DjangoSecretKeyArn}:SECRET_KEY::"
           LogConfiguration:
             LogDriver: awslogs
             Options:
