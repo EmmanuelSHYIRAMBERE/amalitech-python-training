@@ -25,11 +25,15 @@ Parameters:
 
   PrivateSubnetEcs1CIDR:
     Type: String
-    Default: 10.3.10.0/24
+    # Deliberately NOT 10.3.10.0/24 (the old PrivateSubnet1's CIDR): renaming
+    # this subnet's logical ID makes CloudFormation create the new subnet
+    # before deleting the old one, and AWS rejects a duplicate CIDR within
+    # the same VPC while both still exist.
+    Default: 10.3.12.0/24
 
   PrivateSubnetEcs2CIDR:
     Type: String
-    Default: 10.3.11.0/24
+    Default: 10.3.13.0/24
 
   PrivateSubnetDb1CIDR:
     Type: String
