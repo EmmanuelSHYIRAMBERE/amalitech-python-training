@@ -426,6 +426,23 @@ Outputs:
     Export:
       Name: !Sub "${AWS::StackName}-PrivateSubnetEcs2Id"
 
+  # TEMPORARY: kept only until alb-ecs.yaml and database.yaml have been
+  # redeployed against the PrivateSubnetEcs1Id/Ecs2Id names above — an
+  # export cannot be removed while another stack still imports it via
+  # Fn::ImportValue. Remove these two once both consumer stacks are
+  # confirmed on the new names.
+  PrivateSubnet1Id:
+    Description: (transitional — use PrivateSubnetEcs1Id) Private subnet (AZ1) ID
+    Value: !Ref PrivateSubnetEcs1
+    Export:
+      Name: !Sub "${AWS::StackName}-PrivateSubnet1Id"
+
+  PrivateSubnet2Id:
+    Description: (transitional — use PrivateSubnetEcs2Id) Private subnet (AZ2) ID
+    Value: !Ref PrivateSubnetEcs2
+    Export:
+      Name: !Sub "${AWS::StackName}-PrivateSubnet2Id"
+
   PrivateSubnetDb1Id:
     Description: Private subnet (AZ1) ID — for RDS PostgreSQL only
     Value: !Ref PrivateSubnetDb1
