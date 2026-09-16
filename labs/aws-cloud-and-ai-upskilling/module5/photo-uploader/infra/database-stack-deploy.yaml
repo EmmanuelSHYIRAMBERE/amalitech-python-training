@@ -1,3 +1,8 @@
 template-file-path: labs/aws-cloud-and-ai-upskilling/module5/photo-uploader/infra/database.yaml
-parameters: {}
+parameters:
+  DbAllocatedStorage: '20'
+  NetworkStackName: emmanuel-photo-uploader-network
+  DbName: photouploader
+  DbMasterUsername: photoapp
+  DbInstanceClass: db.t3.micro
 tags: {}
