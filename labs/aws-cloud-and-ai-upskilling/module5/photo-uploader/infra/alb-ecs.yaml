@@ -192,10 +192,11 @@ Resources:
           Value: emmanuel-photo-uploader-task-role
 
   # ── ECS Task Definition ────────────────────────
-  # Image reference here is a bootstrap placeholder only. Once EcsService
-  # uses DeploymentController: CODE_DEPLOY, CloudFormation can never again
-  # update the task definition/service directly (AWS rejects it) - every
-  # real deployment after the first must go through CodeDeploy via taskdef.json.
+  # Image reference here is a bootstrap placeholder only. Once the ECS
+  # service uses DeploymentController: CODE_DEPLOY, CloudFormation can
+  # never again update the task definition/service directly (AWS rejects
+  # it) - every real deployment after the first must go through
+  # CodeDeploy via taskdef.json.
   TaskDefinition:
     Type: AWS::ECS::TaskDefinition
     Properties:
@@ -253,7 +254,7 @@ Resources:
               awslogs-stream-prefix: ecs
 
   # ── ECS Service (blue/green via CodeDeploy) ───
-  EcsService:
+  EcsServiceV2:
     Type: AWS::ECS::Service
     DependsOn: AlbListener
     Properties:
@@ -286,7 +287,7 @@ Resources:
     Properties:
       MinCapacity: 1
       MaxCapacity: 4
-      ResourceId: !Sub "service/${EcsCluster}/${EcsService.Name}"
+      ResourceId: !Sub "service/${EcsCluster}/${EcsServiceV2.Name}"
       ScalableDimension: ecs:service:DesiredCount
       ServiceNamespace: ecs
       RoleARN: !Sub "arn:aws:iam::${AWS::AccountId}:role/aws-service-role/ecs.application-autoscaling.amazonaws.com/AWSServiceRoleForApplicationAutoScaling_ECSService"
@@ -345,7 +346,7 @@ Resources:
           TerminationWaitTimeInMinutes: 5
       ECSServices:
         - ClusterName: !Ref EcsCluster
-          ServiceName: !GetAtt EcsService.Name
+          ServiceName: !GetAtt EcsServiceV2.Name
       LoadBalancerInfo:
         TargetGroupPairInfoList:
           - ProdTrafficRoute:
@@ -374,7 +375,7 @@ Outputs:
       Name: !Sub "${AWS::StackName}-EcsClusterName"
 
   EcsServiceName:
-    Value: !GetAtt EcsService.Name
+    Value: !GetAtt EcsServiceV2.Name
     Export:
       Name: !Sub "${AWS::StackName}-EcsServiceName"
 
