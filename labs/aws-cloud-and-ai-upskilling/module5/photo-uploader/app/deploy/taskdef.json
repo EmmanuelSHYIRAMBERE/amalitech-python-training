@@ -22,14 +22,19 @@
         { "name": "AWS_REGION", "value": "eu-north-1" },
         { "name": "PHOTOS_BUCKET", "value": "emmanuel-photo-uploader-photos-195275667627" },
         { "name": "CLOUDFRONT_DOMAIN", "value": "d1lj859yanr9en.cloudfront.net" },
-        { "name": "DB_HOST", "value": "emmanuel-photo-uploader-db.cx8e66g2o0sx.eu-north-1.rds.amazonaws.com" },
+        { "name": "DB_HOST", "value": "emmanuel-photo-uploader-db-v2.cx8e66g2o0sx.eu-north-1.rds.amazonaws.com" },
         { "name": "DB_PORT", "value": "5432" },
         { "name": "DB_NAME", "value": "photouploader" },
         { "name": "DB_USER", "value": "photoapp" },
-        { "name": "DB_SECRET_ARN", "value": "arn:aws:secretsmanager:eu-north-1:195275667627:secret:rds!db-fb47a495-189b-4066-8a4c-107a06917e53-UZfOHS" },
-        { "name": "SECRET_KEY", "value": "VEQgsGZUVYMuWZUbyNpz9EyHPyNj9sjtvt34uT7c4FaNFUcRX8Yl1Q_-1K3fuUwaj_U" },
+        { "name": "DB_SECRET_ARN", "value": "arn:aws:secretsmanager:eu-north-1:195275667627:secret:rds!db-2526f8eb-070a-4158-846d-a8babef90640-BhAf96" },
         { "name": "ALLOWED_HOSTS", "value": "*" },
         { "name": "DEBUG", "value": "false" }
+      ],
+      "secrets": [
+        {
+          "name": "SECRET_KEY",
+          "valueFrom": "arn:aws:secretsmanager:eu-north-1:195275667627:secret:emmanuel-photo-uploader-django-secret-key-mcNg8V:SECRET_KEY::"
+        }
       ],
       "healthCheck": {
         "command": [
