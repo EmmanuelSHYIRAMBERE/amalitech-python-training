@@ -292,20 +292,13 @@ Resources:
               awslogs-stream-prefix: ecs
 
   # ── ECS Service (blue/green via CodeDeploy) ───
-  # TaskDefinition is pinned to the actual running revision (not !Ref
-  # TaskDefinition) so future edits to the TaskDefinition resource above
-  # register new revisions without CloudFormation ever trying to push
-  # them onto this live, CODE_DEPLOY-controlled service - that always
-  # fails ("Unable to update task definition/network parameters on
-  # services with a CODE_DEPLOY deployment controller"). Real deployments
-  # go through CodeDeploy (see pipeline.yaml / taskdef.json) instead.
   EcsServiceV2:
     Type: AWS::ECS::Service
     DependsOn: AlbListener
     Properties:
       ServiceName: emmanuel-photo-uploader-service
       Cluster: !Ref EcsCluster
-      TaskDefinition: arn:aws:ecs:eu-north-1:195275667627:task-definition/emmanuel-photo-uploader-task:7
+      TaskDefinition: !Ref TaskDefinition
       LaunchType: FARGATE
       DesiredCount: 1
       DeploymentController:
