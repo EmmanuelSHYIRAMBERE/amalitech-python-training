@@ -137,6 +137,32 @@ Resources:
         - Key: Name
           Value: emmanuel-photo-uploader-private-db-subnet-az2
 
+  # TEMPORARY (transitional, remove once alb-ecs.yaml and database.yaml
+  # have redeployed onto PrivateSubnetEcs1Id/2Id): these are the old
+  # ECS+RDS shared subnets, kept alive and byte-for-byte unchanged so the
+  # PrivateSubnet1Id/2Id exports below can keep resolving to the same
+  # physical subnet — CloudFormation refuses to change an export's value
+  # while another stack still imports it.
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.3.10.0/24
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      Tags:
+        - Key: Name
+          Value: emmanuel-photo-uploader-private-subnet-az1-deprecated
+
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.3.11.0/24
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      Tags:
+        - Key: Name
+          Value: emmanuel-photo-uploader-private-subnet-az2-deprecated
+
   # ── Route Tables ──────────────────────────────
 
   # Public route table → IGW
@@ -203,6 +229,19 @@ Resources:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       SubnetId: !Ref PrivateSubnetDb2
+      RouteTableId: !Ref PrivateRouteTable
+
+  # TEMPORARY (transitional — see PrivateSubnet1/2 above)
+  PrivateSubnet1RTAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet1
+      RouteTableId: !Ref PrivateRouteTable
+
+  PrivateSubnet2RTAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet2
       RouteTableId: !Ref PrivateRouteTable
 
   # ── Security Groups ───────────────────────────
@@ -432,18 +471,20 @@ Outputs:
 
   # TEMPORARY: kept only until alb-ecs.yaml and database.yaml have been
   # redeployed against the PrivateSubnetEcs1Id/Ecs2Id names above — an
-  # export cannot be removed while another stack still imports it via
-  # Fn::ImportValue. Remove these two once both consumer stacks are
-  # confirmed on the new names.
+  # export's value cannot change (nor be removed) while another stack
+  # still imports it via Fn::ImportValue, so this must keep resolving to
+  # the same physical (now-deprecated) subnet until both consumers cut
+  # over. Remove these two outputs and the PrivateSubnet1/2 subnets once
+  # both consumer stacks are confirmed on the new names.
   PrivateSubnet1Id:
-    Description: (transitional — use PrivateSubnetEcs1Id) Private subnet (AZ1) ID
-    Value: !Ref PrivateSubnetEcs1
+    Description: (transitional, deprecated — use PrivateSubnetEcs1Id) Private subnet (AZ1) ID
+    Value: !Ref PrivateSubnet1
     Export:
       Name: !Sub "${AWS::StackName}-PrivateSubnet1Id"
 
   PrivateSubnet2Id:
-    Description: (transitional — use PrivateSubnetEcs2Id) Private subnet (AZ2) ID
-    Value: !Ref PrivateSubnetEcs2
+    Description: (transitional, deprecated — use PrivateSubnetEcs2Id) Private subnet (AZ2) ID
+    Value: !Ref PrivateSubnet2
     Export:
       Name: !Sub "${AWS::StackName}-PrivateSubnet2Id"
 
