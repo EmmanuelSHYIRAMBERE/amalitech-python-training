@@ -60,14 +60,14 @@ with Diagram(
         ecr >> Edge(label="image source", style="dashed", color="gray") >> pipeline
         pipeline >> deploy
 
-    with Cluster("VPC — eu-north-1 (2 AZs)"):
+    with Cluster("VPC — eu-north-1 (2 AZs, dedicated subnet per resource type)"):
         user = Users("Internet\nVisitor")
         igw = InternetGateway("Internet\nGateway")
 
-        with Cluster("Public Subnets"):
+        with Cluster("Public Subnets (ALB) — 2 AZs"):
             alb = ELB("ALB\n(photo-uploader-alb)")
 
-        with Cluster("Private Subnets (no NAT)"):
+        with Cluster("Private Subnets — ECS (no NAT) — 2 AZs"):
             with Cluster("ECS Fargate Service"):
                 blue = Fargate("Blue Task Set")
                 green = Fargate("Green Task Set")
@@ -79,8 +79,8 @@ with Diagram(
                     "ssm / ssmmessages / ec2messages"
                 )
 
-            with Cluster("Database Subnet"):
-                db = RDS("RDS PostgreSQL\n(db.t3.micro)\ncredentials via\nSecrets Manager")
+        with Cluster("Private Subnets — Database — 2 AZs"):
+            db = RDS("RDS PostgreSQL\n(db.t3.micro)\ncredentials via\nSecrets Manager")
 
         user >> Edge(label="HTTP :80") >> igw >> alb
         alb >> Edge(label="active", color="blue") >> blue
