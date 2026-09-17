@@ -403,59 +403,39 @@ Outputs:
   VpcId:
     Description: VPC ID
     Value: !Ref VPC
-    Export:
-      Name: !Sub "${AWS::StackName}-VpcId"
 
   PublicSubnet1Id:
     Description: Public subnet (AZ1) ID — for ALB
     Value: !Ref PublicSubnet1
-    Export:
-      Name: !Sub "${AWS::StackName}-PublicSubnet1Id"
 
   PublicSubnet2Id:
     Description: Public subnet (AZ2) ID — for ALB
     Value: !Ref PublicSubnet2
-    Export:
-      Name: !Sub "${AWS::StackName}-PublicSubnet2Id"
 
   PrivateSubnetEcs1Id:
     Description: Private subnet (AZ1) ID — for ECS Fargate tasks only
     Value: !Ref PrivateSubnetEcs1
-    Export:
-      Name: !Sub "${AWS::StackName}-PrivateSubnetEcs1Id"
 
   PrivateSubnetEcs2Id:
     Description: Private subnet (AZ2) ID — for ECS Fargate tasks only
     Value: !Ref PrivateSubnetEcs2
-    Export:
-      Name: !Sub "${AWS::StackName}-PrivateSubnetEcs2Id"
 
   PrivateSubnetDb1Id:
     Description: Private subnet (AZ1) ID — for RDS PostgreSQL only
     Value: !Ref PrivateSubnetDb1
-    Export:
-      Name: !Sub "${AWS::StackName}-PrivateSubnetDb1Id"
 
   PrivateSubnetDb2Id:
     Description: Private subnet (AZ2) ID — for RDS PostgreSQL only
     Value: !Ref PrivateSubnetDb2
-    Export:
-      Name: !Sub "${AWS::StackName}-PrivateSubnetDb2Id"
 
   AlbSecurityGroupId:
     Description: Security group ID for the ALB
     Value: !Ref AlbSecurityGroup
-    Export:
-      Name: !Sub "${AWS::StackName}-AlbSecurityGroupId"
 
   EcsTaskSecurityGroupId:
     Description: Security group ID for ECS Fargate tasks
     Value: !Ref EcsTaskSecurityGroup
-    Export:
-      Name: !Sub "${AWS::StackName}-EcsTaskSecurityGroupId"
 
   DbSecurityGroupId:
     Description: Security group ID for RDS PostgreSQL
     Value: !Ref DbSecurityGroup
-    Export:
-      Name: !Sub "${AWS::StackName}-DbSecurityGroupId"

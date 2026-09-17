@@ -6,21 +6,38 @@ Description: >
   directly from a zip object in S3 (uploaded by the GitHub Actions
   workflow) - no CodeBuild repackage stage and no GitHub source action.
   Trainee: Emmanuel SHYIRAMBERE
-  Depends on: emmanuel-photo-uploader-ecr (ecr.yaml) and
-  emmanuel-photo-uploader-alb-ecs (alb-ecs.yaml) — their outputs are
-  imported below.
+  Deployed as a nested stack under the root template (root.yaml) — every
+  value below that used to come from another stack's Fn::ImportValue
+  (ecr/alb-ecs outputs) is now a plain parameter that the root stack
+  supplies via Fn::GetAtt on the relevant sibling nested stack.
 
 # ─────────────────────────────────────────────
 # PARAMETERS
 # ─────────────────────────────────────────────
 Parameters:
-  EcrStackName:
+  EcrRepositoryName:
     Type: String
-    Default: emmanuel-photo-uploader-ecr
+    Description: ECR repository name — from the ECR nested stack.
 
-  AlbEcsStackName:
+  AlbEcsTaskExecutionRoleArn:
     Type: String
-    Default: emmanuel-photo-uploader-alb-ecs
+    Description: ECS task execution role ARN — from the alb-ecs nested stack.
+
+  AlbEcsTaskRoleArn:
+    Type: String
+    Description: ECS task role ARN — from the alb-ecs nested stack.
+
+  AlbEcsCodeDeployServiceRoleArn:
+    Type: String
+    Description: CodeDeploy service role ARN — from the alb-ecs nested stack.
+
+  AlbEcsCodeDeployApplicationName:
+    Type: String
+    Description: CodeDeploy application name — from the alb-ecs nested stack.
+
+  AlbEcsCodeDeployDeploymentGroupName:
+    Type: String
+    Description: CodeDeploy deployment group name — from the alb-ecs nested stack.
 
   DeploySpecS3Key:
     Type: String
@@ -133,9 +150,9 @@ Resources:
               - Effect: Allow
                 Action: iam:PassRole
                 Resource:
-                  - Fn::ImportValue: !Sub "${AlbEcsStackName}-TaskExecutionRoleArn"
-                  - Fn::ImportValue: !Sub "${AlbEcsStackName}-TaskRoleArn"
-                  - Fn::ImportValue: !Sub "${AlbEcsStackName}-CodeDeployServiceRoleArn"
+                  - !Ref AlbEcsTaskExecutionRoleArn
+                  - !Ref AlbEcsTaskRoleArn
+                  - !Ref AlbEcsCodeDeployServiceRoleArn
       Tags:
         - Key: Name
           Value: emmanuel-photo-uploader-pipeline-role
@@ -164,8 +181,7 @@ Resources:
                 Provider: ECR
                 Version: "1"
               Configuration:
-                RepositoryName:
-                  Fn::ImportValue: !Sub "${EcrStackName}-RepositoryName"
+                RepositoryName: !Ref EcrRepositoryName
                 ImageTag: latest
               OutputArtifacts:
                 - Name: ImageSourceOutput
@@ -192,10 +208,8 @@ Resources:
                 Provider: CodeDeployToECS
                 Version: "1"
               Configuration:
-                ApplicationName:
-                  Fn::ImportValue: !Sub "${AlbEcsStackName}-CodeDeployApplicationName"
-                DeploymentGroupName:
-                  Fn::ImportValue: !Sub "${AlbEcsStackName}-CodeDeployDeploymentGroupName"
+                ApplicationName: !Ref AlbEcsCodeDeployApplicationName
+                DeploymentGroupName: !Ref AlbEcsCodeDeployDeploymentGroupName
                 TaskDefinitionTemplateArtifact: DeploySpecOutput
                 TaskDefinitionTemplatePath: taskdef.json
                 AppSpecTemplateArtifact: DeploySpecOutput
@@ -222,7 +236,7 @@ Resources:
           action-type:
             - PUSH
           repository-name:
-            - Fn::ImportValue: !Sub "${EcrStackName}-RepositoryName"
+            - !Ref EcrRepositoryName
           image-tag:
             - latest
           result:
