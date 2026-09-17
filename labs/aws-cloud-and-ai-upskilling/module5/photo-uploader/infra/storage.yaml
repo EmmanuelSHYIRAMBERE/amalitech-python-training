@@ -100,23 +100,15 @@ Outputs:
   PhotosBucketName:
     Description: S3 bucket name for uploaded photos
     Value: !Ref PhotosBucket
-    Export:
-      Name: !Sub "${AWS::StackName}-PhotosBucketName"
 
   PhotosBucketArn:
     Description: S3 bucket ARN for uploaded photos
     Value: !GetAtt PhotosBucket.Arn
-    Export:
-      Name: !Sub "${AWS::StackName}-PhotosBucketArn"
 
   CloudFrontDomainName:
     Description: CloudFront distribution domain — use this to view uploaded photos
     Value: !GetAtt PhotosDistribution.DomainName
-    Export:
-      Name: !Sub "${AWS::StackName}-CloudFrontDomainName"
 
   CloudFrontDistributionId:
     Description: CloudFront distribution ID
     Value: !Ref PhotosDistribution
-    Export:
-      Name: !Sub "${AWS::StackName}-CloudFrontDistributionId"
