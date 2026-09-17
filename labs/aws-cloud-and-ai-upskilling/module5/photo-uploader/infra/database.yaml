@@ -87,6 +87,7 @@ Resources:
       PubliclyAccessible: false
       BackupRetentionPeriod: 7
       StorageEncrypted: true
+      KmsKeyId: alias/aws/rds
       Tags:
         - Key: Name
           Value: emmanuel-photo-uploader-db
