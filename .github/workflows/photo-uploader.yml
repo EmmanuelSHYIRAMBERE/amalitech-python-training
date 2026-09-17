@@ -1,0 +1,60 @@
+name: Build and Push Photo Uploader Image
+
+on:
+  push:
+    branches: [feat/module5-photo-uploader]
+    paths:
+      - "labs/aws-cloud-and-ai-upskilling/module5/photo-uploader/app/**"
+  workflow_dispatch: {}
+
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  ECR_REPOSITORY: ${{ secrets.PHOTO_UPLOADER_ECR_REPOSITORY }}
+  PIPELINE_ARTIFACT_BUCKET: ${{ secrets.PHOTO_UPLOADER_PIPELINE_BUCKET }}
+  DEPLOY_SPEC_S3_KEY: deploy-spec/deploy-spec.zip
+
+jobs:
+  build-and-push:
+    name: Build, Upload Deploy Spec, and Push Image
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.PHOTO_UPLOADER_AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Build image
+        run: |
+          docker build \
+            -t local/photo-uploader-app:build \
+            labs/aws-cloud-and-ai-upskilling/module5/photo-uploader/app
+
+      # Uploaded BEFORE the image push below, since EventBridge triggers
+      # the pipeline off the ECR push - the deploy-spec zip must already
+      # exist in S3 by the time that happens, or the pipeline's S3 source
+      # action would read a stale (or missing) object.
+      - name: Zip and upload deploy spec to S3
+        run: |
+          cd labs/aws-cloud-and-ai-upskilling/module5/photo-uploader/app/deploy
+          zip deploy-spec.zip appspec.yaml taskdef.json
+          aws s3 cp deploy-spec.zip \
+            "s3://${PIPELINE_ARTIFACT_BUCKET}/${DEPLOY_SPEC_S3_KEY}"
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Tag and push image as latest
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          docker tag local/photo-uploader-app:build $REGISTRY/$ECR_REPOSITORY:latest
+          docker push $REGISTRY/$ECR_REPOSITORY:latest

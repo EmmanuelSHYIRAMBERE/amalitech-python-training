@@ -1,0 +1,81 @@
+name: Deploy Photo Uploader Infrastructure
+
+# Deploys the nested-stack CloudFormation architecture for the Photo
+# Uploader Lab: syncs the 6 child templates to S3, then deploys/updates
+# the root stack, which references them via TemplateURL.
+#
+# One-time manual prerequisites (not automated here, since the templates
+# bucket must exist before the root stack can reference anything inside
+# it — a chicken-and-egg problem no workflow run can solve on its own):
+#   1. Create the S3 bucket referenced by TEMPLATES_BUCKET below
+#      (versioned, private), e.g.:
+#        aws s3api create-bucket --bucket <name> --region <region> \
+#          --create-bucket-configuration LocationConstraint=<region>
+#        aws s3api put-bucket-versioning --bucket <name> \
+#          --versioning-configuration Status=Enabled
+#   2. Grant the OIDC role assumed below (secrets.PHOTO_UPLOADER_AWS_ROLE_ARN)
+#      s3:PutObject/s3:ListBucket on that bucket, and
+#      cloudformation:* + iam:PassRole (scoped as appropriate) on the
+#      emmanuel-photo-uploader root stack and its nested nested stacks.
+
+on:
+  push:
+    branches: [feat/module5-photo-uploader]
+    paths:
+      - "labs/aws-cloud-and-ai-upskilling/module5/photo-uploader/infra/**"
+  workflow_dispatch: {}
+
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  TEMPLATES_BUCKET: ${{ secrets.PHOTO_UPLOADER_TEMPLATES_BUCKET }}
+  TEMPLATES_PREFIX: templates/
+  INFRA_DIR: labs/aws-cloud-and-ai-upskilling/module5/photo-uploader/infra
+  ROOT_STACK_NAME: emmanuel-photo-uploader
+
+jobs:
+  deploy-infra:
+    name: Sync Templates and Deploy Root Stack
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.PHOTO_UPLOADER_AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # Every child template except root.yaml itself (root.yaml is
+      # deployed directly from the local checkout by `aws cloudformation
+      # deploy` below, not referenced by TemplateURL, so it never needs
+      # to live in S3).
+      - name: Sync child templates to S3
+        run: |
+          for f in network storage database ecr alb-ecs pipeline; do
+            aws s3 cp \
+              "${INFRA_DIR}/${f}.yaml" \
+              "s3://${TEMPLATES_BUCKET}/${TEMPLATES_PREFIX}${f}.yaml"
+          done
+
+      - name: Deploy root stack
+        run: |
+          aws cloudformation deploy \
+            --stack-name "${ROOT_STACK_NAME}" \
+            --template-file "${INFRA_DIR}/root.yaml" \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --no-fail-on-empty-changeset \
+            --parameter-overrides \
+              TemplatesBucketName="${TEMPLATES_BUCKET}" \
+              TemplatesPrefix="${TEMPLATES_PREFIX}"
+
+      - name: Show stack outputs
+        run: |
+          aws cloudformation describe-stacks \
+            --stack-name "${ROOT_STACK_NAME}" \
+            --query "Stacks[0].Outputs" \
+            --output table
