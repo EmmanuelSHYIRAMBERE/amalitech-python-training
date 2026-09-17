@@ -21,9 +21,10 @@ from diagrams.programming.language import Python
 graph_attr = {
     "fontsize": "20",
     "bgcolor": "white",
-    "nodesep": "0.8",
-    "ranksep": "1.1",
+    "nodesep": "0.6",
+    "ranksep": "0.9",
     "pad": "0.5",
+    "splines": "ortho",
 }
 
 with Diagram(
@@ -31,7 +32,7 @@ with Diagram(
     filename="network-architecture",
     show=False,
     graph_attr=graph_attr,
-    direction="LR",
+    direction="TB",
 ):
     with Cluster("GitHub"):
         code = Python("Django/DRF App\n+ Dockerfile")
@@ -60,37 +61,53 @@ with Diagram(
         ecr >> Edge(label="image source", style="dashed", color="gray") >> pipeline
         pipeline >> deploy
 
-    with Cluster("VPC — eu-north-1 (2 AZs, dedicated subnet per resource type)"):
-        user = Users("Internet\nVisitor")
-        igw = InternetGateway("Internet\nGateway")
+    user = Users("Internet\nVisitor")
+    igw = InternetGateway("Internet\nGateway")
 
-        with Cluster("Public Subnets (ALB) — 2 AZs"):
-            alb = ELB("ALB\n(photo-uploader-alb)")
+    with Cluster("Region — eu-north-1"):
+        with Cluster("VPC — 10.3.0.0/16"):
 
-        with Cluster("Private Subnets — ECS (no NAT) — 2 AZs"):
-            with Cluster("ECS Fargate Service"):
-                blue = Fargate("Blue Task Set")
-                green = Fargate("Green Task Set")
+            with Cluster("Availability Zone A"):
+                with Cluster("Public subnet — ALB"):
+                    alb_a = ELB("ALB\n(spans both AZs)")
+                with Cluster("Private subnet — ECS"):
+                    blue = Fargate("Blue Task Set")
+                with Cluster("Private subnet — Database"):
+                    db = RDS("RDS PostgreSQL\n(db.t3.micro, Single-AZ)\ncredentials via\nSecrets Manager")
 
-            with Cluster("VPC Endpoints"):
+                alb_a >> Edge(style="invis") >> blue >> Edge(style="invis") >> db
+
+            with Cluster("Availability Zone B"):
+                with Cluster("Public subnet — ALB "):
+                    alb_b = ELB("ALB\n(spans both AZs)")
+                with Cluster("Private subnet — ECS "):
+                    green = Fargate("Green Task Set")
+                with Cluster("Private subnet — Database "):
+                    db_reserved = RDS("(DB subnet group\nreserved capacity —\nno standby today)")
+
+                alb_b >> Edge(style="invis") >> green >> Edge(style="invis") >> db_reserved
+
+            with Cluster("VPC Endpoints (ECS subnets only)"):
                 vpce = Endpoint(
                     "ecr.api / ecr.dkr / logs\n"
-                    "secretsmanager / s3 gateway\n"
+                    "secretsmanager\n"
                     "ssm / ssmmessages / ec2messages"
                 )
+                s3_gw = S3("S3 Gateway\nEndpoint")
 
-        with Cluster("Private Subnets — Database — 2 AZs"):
-            db = RDS("RDS PostgreSQL\n(db.t3.micro)\ncredentials via\nSecrets Manager")
-
-        user >> Edge(label="HTTP :80") >> igw >> alb
-        alb >> Edge(label="active", color="blue") >> blue
-        alb >> Edge(label="idle", style="dashed", color="gray") >> green
+        user >> Edge(label="HTTP :80") >> igw
+        igw >> alb_a
+        igw >> alb_b
+        alb_a >> Edge(label="active", color="blue") >> blue
+        alb_b >> Edge(label="idle", style="dashed", color="gray") >> green
         blue >> Edge(style="dashed", color="gray") >> vpce
         green >> Edge(style="dashed", color="gray") >> vpce
         blue >> Edge(label="photo metadata") >> db
         green >> Edge(style="dashed", color="gray") >> db
+        s3_gw >> Edge(style="dashed", color="gray") >> blue
+        s3_gw >> Edge(style="dashed", color="gray") >> green
 
-    deploy >> Edge(label="registers task def,\nshifts ALB traffic") >> alb
+    deploy >> Edge(label="registers task def,\nshifts ALB traffic") >> alb_a
 
     with Cluster("Image Delivery"):
         photos_bucket = S3("Photos Bucket\n(private, no public access)")
@@ -104,4 +121,4 @@ with Diagram(
         cfn = Cloudformation("CloudFormation Git Sync\n(network / storage / database /\necr / alb-ecs / pipeline)")
 
     repo >> Edge(label="Git Sync watches infra/*.yaml", style="dashed", color="gray") >> cfn
-    cfn >> Edge(label="provisions", style="dashed", color="gray") >> alb
+    cfn >> Edge(label="provisions", style="dashed", color="gray") >> alb_a
