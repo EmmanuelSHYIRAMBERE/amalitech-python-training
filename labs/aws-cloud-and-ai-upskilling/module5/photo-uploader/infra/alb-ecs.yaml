@@ -315,6 +315,15 @@ Resources:
               awslogs-stream-prefix: ecs
 
   # ── ECS Service (blue/green via CodeDeploy) ───
+  # DesiredCount starts at 0 deliberately: on first creation there is no
+  # real app image/task definition yet (TaskDefinition above is a
+  # bootstrap placeholder - see its comment), so a task at DesiredCount 1
+  # would never pass the ALB health check and the service would never
+  # reach steady state, timing out this whole nested stack's creation.
+  # After this stack first succeeds, scale to 1 manually and push a real
+  # CodeDeploy deployment (see app/deploy/{appspec.yaml,taskdef.json}) to
+  # bring up the actual app - the same bootstrap sequence already used
+  # for this project's ECS services before.
   EcsServiceV2:
     Type: AWS::ECS::Service
     DependsOn: AlbListener
@@ -323,7 +332,7 @@ Resources:
       Cluster: !Ref EcsCluster
       TaskDefinition: !Ref TaskDefinition
       LaunchType: FARGATE
-      DesiredCount: 1
+      DesiredCount: 0
       DeploymentController:
         Type: CODE_DEPLOY
       NetworkConfiguration:
