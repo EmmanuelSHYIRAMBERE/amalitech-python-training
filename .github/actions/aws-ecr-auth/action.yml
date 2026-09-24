@@ -1,0 +1,30 @@
+name: AWS OIDC Auth + ECR Login
+description: >
+  Assumes the given OIDC role and authenticates to Amazon ECR. Shared by
+  every lab's build-and-push workflow so the credentials/login boilerplate
+  isn't repeated per lab. Callers must checkout the repo themselves first
+  (a composite action can't check out the repo that contains itself).
+
+inputs:
+  aws-region:
+    required: true
+  aws-role-arn:
+    required: true
+
+outputs:
+  registry:
+    description: ECR registry hostname
+    value: ${{ steps.login-ecr.outputs.registry }}
+
+runs:
+  using: composite
+  steps:
+    - name: Configure AWS credentials via OIDC
+      uses: ./.github/actions/aws-oidc-auth
+      with:
+        aws-region: ${{ inputs.aws-region }}
+        aws-role-arn: ${{ inputs.aws-role-arn }}
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2

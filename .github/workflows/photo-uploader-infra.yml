@@ -45,10 +45,10 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Configure AWS credentials via OIDC
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: ./.github/actions/aws-oidc-auth
         with:
-          role-to-assume: ${{ secrets.PHOTO_UPLOADER_AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
+          aws-role-arn: ${{ secrets.PHOTO_UPLOADER_AWS_ROLE_ARN }}
 
       # Every child template except root.yaml itself (root.yaml is
       # deployed directly from the local checkout by `aws cloudformation

@@ -1,0 +1,22 @@
+name: AWS OIDC Auth
+description: >
+  Assumes the given OIDC role via configure-aws-credentials. Shared by
+  every lab's workflow that needs AWS credentials, whether or not it also
+  needs ECR (see the aws-ecr-auth action for the ECR-login variant).
+  Callers must checkout the repo themselves first (a composite action
+  can't check out the repo that contains itself).
+
+inputs:
+  aws-region:
+    required: true
+  aws-role-arn:
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Configure AWS credentials via OIDC
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ inputs.aws-role-arn }}
+        aws-region: ${{ inputs.aws-region }}
