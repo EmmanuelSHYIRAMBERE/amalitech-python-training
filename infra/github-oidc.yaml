@@ -1,0 +1,284 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Shared GitHub Actions OIDC stack — the single source of truth for GitHub
+  Actions AWS authentication across every lab in this repository. Declares
+  the OIDC identity provider once (imported from the pre-existing,
+  manually-created provider — AWS allows only one provider per URL per
+  account, so this is adopted rather than recreated) and one IAM role per
+  workflow identity, each trusted for exactly one branch — never a
+  wildcard. Adding a new lab that needs its own GitHub Actions credentials
+  means adding one more role block to this file; it does not mean
+  repeating the OIDC provider setup.
+  Trainee: Emmanuel SHYIRAMBERE
+  Deployed manually (via CloudShell/console `aws cloudformation deploy`),
+  not by a GitHub Actions workflow — a workflow can't have permissions to
+  deploy the very stack that grants it permissions in the first place.
+
+# ─────────────────────────────────────────────
+# PARAMETERS
+# ─────────────────────────────────────────────
+Parameters:
+  GitHubOrg:
+    Type: String
+    Default: EmmanuelSHYIRAMBERE
+    Description: GitHub organization/user that owns the repository.
+
+  GitHubRepo:
+    Type: String
+    Default: amalitech-python-training
+    Description: Repository name (without the org prefix).
+
+# ─────────────────────────────────────────────
+# RESOURCES
+# ─────────────────────────────────────────────
+Resources:
+
+  # ── Shared OIDC Identity Provider ──────────────
+  # Imported from the existing, manually-created provider (AWS permits
+  # only one provider per URL per account, so a fresh Create here would
+  # fail with "already exists"). Values below match the live provider
+  # exactly (Url, ClientIdList, ThumbprintList), which is required for
+  # the CloudFormation resource-import operation to succeed.
+  GitHubOidcProvider:
+    Type: AWS::IAM::OIDCProvider
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList:
+        - sts.amazonaws.com
+      ThumbprintList:
+        - ab9d0263244dd0326eb67015705a667e79cfe998
+      Tags:
+        - Key: Name
+          Value: github-actions-oidc-provider
+
+  # ── ecr-lab: Module 4 ECR CI/CD Lab ────────────
+  # Used by .github/workflows/ecr-lab.yml on feat/ecr-lab-docker-push only.
+  EcrLabPushRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: github-actions-ecr-lab-push
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !Ref GitHubOidcProvider
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+              StringLike:
+                token.actions.githubusercontent.com:sub: !Sub "repo:${GitHubOrg}/${GitHubRepo}:ref:refs/heads/feat/ecr-lab-docker-push"
+      Policies:
+        - PolicyName: ecr-lab-ci-push
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: ecr:GetAuthorizationToken
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:CompleteLayerUpload
+                  - ecr:InitiateLayerUpload
+                  - ecr:PutImage
+                  - ecr:UploadLayerPart
+                Resource: !Sub "arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/emmanuelshyirambere-items-api-nodeapp"
+      Tags:
+        - Key: Name
+          Value: github-actions-ecr-lab-push
+
+  # ── ecs-lab: Module 4 ECS CI/CD Lab ────────────
+  # Used by .github/workflows/ecs-lab.yml on feat/ecs-lab-ecs-cicd only.
+  EcsLabPushRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: github-actions-ecs-lab-push
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !Ref GitHubOidcProvider
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+              StringLike:
+                token.actions.githubusercontent.com:sub: !Sub "repo:${GitHubOrg}/${GitHubRepo}:ref:refs/heads/feat/ecs-lab-ecs-cicd"
+      Policies:
+        - PolicyName: ecs-lab-ci-push
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: ecr:GetAuthorizationToken
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:CompleteLayerUpload
+                  - ecr:InitiateLayerUpload
+                  - ecr:PutImage
+                  - ecr:UploadLayerPart
+                Resource: !Sub "arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/emmanuel-ecs-lab-app"
+              - Effect: Allow
+                Action: s3:PutObject
+                Resource: !Sub "arn:aws:s3:::emmanuel-ecs-lab-pipeline-artifacts-${AWS::AccountId}/deploy-spec/*"
+      Tags:
+        - Key: Name
+          Value: github-actions-ecs-lab-push
+
+  # ── photo-uploader: Module 5 Photo Uploader Lab ─
+  # Used by BOTH .github/workflows/photo-uploader.yml (app build/push) and
+  # photo-uploader-infra.yml (nested-stack CFN deploy) on
+  # feat/module5-photo-uploader only. Permissions below are the union of
+  # what each workflow needs; the CFN-deploy statements were already
+  # live-verified against this exact set of actions during this project's
+  # nested-stack migration.
+  PhotoUploaderPushRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: github-actions-photo-uploader-push
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !Ref GitHubOidcProvider
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+              StringLike:
+                token.actions.githubusercontent.com:sub: !Sub "repo:${GitHubOrg}/${GitHubRepo}:ref:refs/heads/feat/module5-photo-uploader"
+      Policies:
+        # From photo-uploader.yml: build + push the app image, stage the
+        # CodeDeploy deploy-spec zip.
+        - PolicyName: photo-uploader-ci-push
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: ecr:GetAuthorizationToken
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:CompleteLayerUpload
+                  - ecr:InitiateLayerUpload
+                  - ecr:PutImage
+                  - ecr:UploadLayerPart
+                Resource: !Sub "arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/emmanuel-photo-uploader-app"
+              - Effect: Allow
+                Action: s3:PutObject
+                Resource: !Sub "arn:aws:s3:::emmanuel-photo-uploader-pipeline-artifacts-${AWS::AccountId}/deploy-spec/*"
+        # From photo-uploader-infra.yml: sync the 6 nested-stack child
+        # templates to S3 and deploy/update the root CloudFormation stack,
+        # which in turn creates/updates every resource type declared
+        # across all 6 child templates.
+        - PolicyName: photo-uploader-infra-deploy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: CloudFormationStackManagement
+                Effect: Allow
+                Action: cloudformation:*
+                Resource:
+                  - !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/emmanuel-photo-uploader/*"
+                  - !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/emmanuel-photo-uploader-*/*"
+              - Sid: TemplatesBucketAccess
+                Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:ListBucket
+                Resource:
+                  - !Sub "arn:aws:s3:::emmanuel-photo-uploader-cfn-templates-${AWS::AccountId}"
+                  - !Sub "arn:aws:s3:::emmanuel-photo-uploader-cfn-templates-${AWS::AccountId}/*"
+              - Sid: IamRoleManagementForNestedStacks
+                Effect: Allow
+                Action:
+                  - iam:CreateRole
+                  - iam:DeleteRole
+                  - iam:GetRole
+                  - iam:PutRolePolicy
+                  - iam:DeleteRolePolicy
+                  - iam:GetRolePolicy
+                  - iam:AttachRolePolicy
+                  - iam:DetachRolePolicy
+                  - iam:ListRolePolicies
+                  - iam:ListAttachedRolePolicies
+                  - iam:TagRole
+                  - iam:UntagRole
+                  - iam:PassRole
+                Resource: !Sub "arn:aws:iam::${AWS::AccountId}:role/emmanuel-photo-uploader-*"
+              - Sid: RdsAndSecretsManagerKmsEncryption
+                Effect: Allow
+                Action:
+                  - kms:DescribeKey
+                  - kms:CreateGrant
+                  - kms:Decrypt
+                  - kms:Encrypt
+                  - kms:GenerateDataKey
+                  - kms:ListGrants
+                  - kms:RevokeGrant
+                Resource:
+                  - !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/7401ae5c-5d65-44cc-9ac4-8d754f537092"
+                  - !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/f9bed277-1434-461e-baf5-5cc5700d5f47"
+              - Sid: UnderlyingResourceManagement
+                Effect: Allow
+                Action:
+                  - ec2:*
+                  - rds:*
+                  - ecs:*
+                  - ecr:*
+                  - elasticloadbalancing:*
+                  - application-autoscaling:*
+                  - logs:*
+                  - secretsmanager:*
+                  - codedeploy:*
+                  - codepipeline:*
+                  - events:*
+                  - s3:CreateBucket
+                  - s3:DeleteBucket
+                  - s3:PutBucketPolicy
+                  - s3:GetBucketPolicy
+                  - s3:DeleteBucketPolicy
+                  - s3:PutBucketVersioning
+                  - s3:PutEncryptionConfiguration
+                  - s3:GetEncryptionConfiguration
+                  - s3:PutBucketPublicAccessBlock
+                  - s3:GetBucketPublicAccessBlock
+                  - s3:PutBucketCORS
+                  - s3:GetBucketCORS
+                  - s3:PutBucketTagging
+                  - s3:TagResource
+                  - s3:UntagResource
+                  - s3:GetBucketTagging
+                  - cloudfront:*
+                Resource: "*"
+      Tags:
+        - Key: Name
+          Value: github-actions-photo-uploader-push
+
+# ─────────────────────────────────────────────
+# OUTPUTS
+# ─────────────────────────────────────────────
+Outputs:
+  GitHubOidcProviderArn:
+    Description: ARN of the shared GitHub Actions OIDC provider.
+    Value: !Ref GitHubOidcProvider
+
+  EcrLabPushRoleArn:
+    Description: Role ARN for ecr-lab.yml (feat/ecr-lab-docker-push only) — paste into the AWS_ROLE_ARN GitHub secret.
+    Value: !GetAtt EcrLabPushRole.Arn
+
+  EcsLabPushRoleArn:
+    Description: Role ARN for ecs-lab.yml (feat/ecs-lab-ecs-cicd only) — paste into the ECS_LAB_AWS_ROLE_ARN GitHub secret.
+    Value: !GetAtt EcsLabPushRole.Arn
+
+  PhotoUploaderPushRoleArn:
+    Description: Role ARN for photo-uploader.yml and photo-uploader-infra.yml (feat/module5-photo-uploader only) — paste into the PHOTO_UPLOADER_AWS_ROLE_ARN GitHub secret.
+    Value: !GetAtt PhotoUploaderPushRole.Arn
