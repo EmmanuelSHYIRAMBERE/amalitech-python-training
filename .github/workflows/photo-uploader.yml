@@ -25,11 +25,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Configure AWS credentials via OIDC
-        uses: aws-actions/configure-aws-credentials@v4
+      - name: Authenticate to AWS and ECR
+        id: login-ecr
+        uses: ./.github/actions/aws-ecr-auth
         with:
-          role-to-assume: ${{ secrets.PHOTO_UPLOADER_AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
+          aws-role-arn: ${{ secrets.PHOTO_UPLOADER_AWS_ROLE_ARN }}
 
       - name: Build image
         run: |
@@ -47,10 +48,6 @@ jobs:
           zip deploy-spec.zip appspec.yaml taskdef.json
           aws s3 cp deploy-spec.zip \
             "s3://${PIPELINE_ARTIFACT_BUCKET}/${DEPLOY_SPEC_S3_KEY}"
-
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
 
       - name: Tag and push image as latest
         env:
