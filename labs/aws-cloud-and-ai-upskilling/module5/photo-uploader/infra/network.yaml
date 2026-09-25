@@ -1,0 +1,441 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Photo Uploader Lab — Network stack. Multi-AZ VPC with a dedicated subnet
+  per resource type per AZ: public subnets for the ALB, private subnets for
+  ECS Fargate tasks, and separate private subnets for RDS PostgreSQL (no NAT
+  Gateway). Private subnets reach ECR, CloudWatch Logs, Secrets Manager, S3,
+  and SSM exclusively via VPC endpoints.
+  Trainee: Emmanuel SHYIRAMBERE
+
+# ─────────────────────────────────────────────
+# PARAMETERS
+# ─────────────────────────────────────────────
+Parameters:
+  VpcCIDR:
+    Type: String
+    Default: 10.3.0.0/16
+
+  PublicSubnet1CIDR:
+    Type: String
+    Default: 10.3.0.0/24
+
+  PublicSubnet2CIDR:
+    Type: String
+    Default: 10.3.1.0/24
+
+  PrivateSubnetEcs1CIDR:
+    Type: String
+    # Deliberately NOT 10.3.10.0/24 (the old PrivateSubnet1's CIDR): renaming
+    # this subnet's logical ID makes CloudFormation create the new subnet
+    # before deleting the old one, and AWS rejects a duplicate CIDR within
+    # the same VPC while both still exist.
+    Default: 10.3.12.0/24
+
+  PrivateSubnetEcs2CIDR:
+    Type: String
+    Default: 10.3.13.0/24
+
+  PrivateSubnetDb1CIDR:
+    Type: String
+    Default: 10.3.20.0/24
+
+  PrivateSubnetDb2CIDR:
+    Type: String
+    Default: 10.3.21.0/24
+
+# ─────────────────────────────────────────────
+# RESOURCES
+# ─────────────────────────────────────────────
+Resources:
+
+  # ── VPC ──────────────────────────────────────
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCIDR
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: emmanuel-photo-uploader-vpc
+
+  # ── Internet Gateway ─────────────────────────
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: emmanuel-photo-uploader-igw
+
+  IGWAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  # ── Subnets ───────────────────────────────────
+  # One dedicated subnet per resource type (ALB / ECS / Database) per AZ.
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PublicSubnet1CIDR
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: emmanuel-photo-uploader-public-subnet-az1
+
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PublicSubnet2CIDR
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: emmanuel-photo-uploader-public-subnet-az2
+
+  PrivateSubnetEcs1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PrivateSubnetEcs1CIDR
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      Tags:
+        - Key: Name
+          Value: emmanuel-photo-uploader-private-ecs-subnet-az1
+
+  PrivateSubnetEcs2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PrivateSubnetEcs2CIDR
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      Tags:
+        - Key: Name
+          Value: emmanuel-photo-uploader-private-ecs-subnet-az2
+
+  PrivateSubnetDb1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PrivateSubnetDb1CIDR
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      Tags:
+        - Key: Name
+          Value: emmanuel-photo-uploader-private-db-subnet-az1
+
+  PrivateSubnetDb2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PrivateSubnetDb2CIDR
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      Tags:
+        - Key: Name
+          Value: emmanuel-photo-uploader-private-db-subnet-az2
+
+  # ── Route Tables ──────────────────────────────
+
+  # Public route table → IGW
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: emmanuel-photo-uploader-public-rt
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: IGWAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnet1RTAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet1
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicSubnet2RTAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet2
+      RouteTableId: !Ref PublicRouteTable
+
+  # Private route table — NO internet route (zero NAT Gateway). Shared by
+  # all private subnets (ECS + Database); segregation between resource
+  # types comes from distinct subnets + distinct security groups, not
+  # routing. Egress is via VPC endpoints only (ECR api/dkr, logs,
+  # secretsmanager, ssm/ssmmessages/ec2messages, S3 gateway).
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: emmanuel-photo-uploader-private-rt
+
+  PrivateSubnetEcs1RTAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetEcs1
+      RouteTableId: !Ref PrivateRouteTable
+
+  PrivateSubnetEcs2RTAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetEcs2
+      RouteTableId: !Ref PrivateRouteTable
+
+  PrivateSubnetDb1RTAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetDb1
+      RouteTableId: !Ref PrivateRouteTable
+
+  PrivateSubnetDb2RTAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetDb2
+      RouteTableId: !Ref PrivateRouteTable
+
+  # ── Security Groups ───────────────────────────
+
+  # ALB SG: HTTP from internet only
+  AlbSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow HTTP from internet to ALB
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+          Description: HTTP from internet
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: emmanuel-photo-uploader-alb-sg
+
+  # ECS task SG: container port only from ALB SG — no direct internet access
+  EcsTaskSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow traffic from ALB only to ECS Fargate tasks
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3000
+          ToPort: 3000
+          SourceSecurityGroupId: !Ref AlbSecurityGroup
+          Description: App traffic from ALB only
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+          Description: Egress to VPC endpoints and RDS (resolved within the VPC)
+      Tags:
+        - Key: Name
+          Value: emmanuel-photo-uploader-ecs-task-sg
+
+  # RDS SG: Postgres port only from the ECS task SG — nothing else, no
+  # internet-facing rule of any kind.
+  DbSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow PostgreSQL traffic from ECS tasks only
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          SourceSecurityGroupId: !Ref EcsTaskSecurityGroup
+          Description: PostgreSQL from ECS tasks only
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: emmanuel-photo-uploader-db-sg
+
+  # VPC endpoint SG: HTTPS only from ECS task SG
+  VpcEndpointSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow HTTPS from ECS tasks only to VPC interface endpoints
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          SourceSecurityGroupId: !Ref EcsTaskSecurityGroup
+          Description: HTTPS from ECS tasks only
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: emmanuel-photo-uploader-vpce-sg
+
+  # ── VPC Endpoints ──────────────────────────────
+  # Required so private-subnet Fargate tasks (no NAT/internet route) can
+  # pull images from ECR, ship logs to CloudWatch, and write photos to S3.
+  # ENIs are placed only in the ECS subnets, since ECS tasks are the only
+  # resource that originates these AWS API calls (RDS never calls ECR,
+  # Logs, Secrets Manager, SSM, or S3).
+
+  EcrApiEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPC
+      VpcEndpointType: Interface
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.ecr.api"
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref PrivateSubnetEcs1
+        - !Ref PrivateSubnetEcs2
+      SecurityGroupIds:
+        - !Ref VpcEndpointSecurityGroup
+
+  EcrDkrEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPC
+      VpcEndpointType: Interface
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.ecr.dkr"
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref PrivateSubnetEcs1
+        - !Ref PrivateSubnetEcs2
+      SecurityGroupIds:
+        - !Ref VpcEndpointSecurityGroup
+
+  LogsEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPC
+      VpcEndpointType: Interface
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.logs"
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref PrivateSubnetEcs1
+        - !Ref PrivateSubnetEcs2
+      SecurityGroupIds:
+        - !Ref VpcEndpointSecurityGroup
+
+  SecretsManagerEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPC
+      VpcEndpointType: Interface
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.secretsmanager"
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref PrivateSubnetEcs1
+        - !Ref PrivateSubnetEcs2
+      SecurityGroupIds:
+        - !Ref VpcEndpointSecurityGroup
+
+  S3GatewayEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPC
+      VpcEndpointType: Gateway
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.s3"
+      RouteTableIds:
+        - !Ref PrivateRouteTable
+
+  # Required for ECS Exec (aws ecs execute-command) to reach a running
+  # Fargate task's Session Manager agent — without these, the exec agent
+  # starts but can never connect (TargetNotConnectedException), since
+  # private subnets have no internet route to SSM's public endpoints.
+  SsmEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPC
+      VpcEndpointType: Interface
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.ssm"
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref PrivateSubnetEcs1
+        - !Ref PrivateSubnetEcs2
+      SecurityGroupIds:
+        - !Ref VpcEndpointSecurityGroup
+
+  SsmMessagesEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPC
+      VpcEndpointType: Interface
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.ssmmessages"
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref PrivateSubnetEcs1
+        - !Ref PrivateSubnetEcs2
+      SecurityGroupIds:
+        - !Ref VpcEndpointSecurityGroup
+
+  Ec2MessagesEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPC
+      VpcEndpointType: Interface
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.ec2messages"
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref PrivateSubnetEcs1
+        - !Ref PrivateSubnetEcs2
+      SecurityGroupIds:
+        - !Ref VpcEndpointSecurityGroup
+
+# ─────────────────────────────────────────────
+# OUTPUTS
+# ─────────────────────────────────────────────
+Outputs:
+  VpcId:
+    Description: VPC ID
+    Value: !Ref VPC
+
+  PublicSubnet1Id:
+    Description: Public subnet (AZ1) ID — for ALB
+    Value: !Ref PublicSubnet1
+
+  PublicSubnet2Id:
+    Description: Public subnet (AZ2) ID — for ALB
+    Value: !Ref PublicSubnet2
+
+  PrivateSubnetEcs1Id:
+    Description: Private subnet (AZ1) ID — for ECS Fargate tasks only
+    Value: !Ref PrivateSubnetEcs1
+
+  PrivateSubnetEcs2Id:
+    Description: Private subnet (AZ2) ID — for ECS Fargate tasks only
+    Value: !Ref PrivateSubnetEcs2
+
+  PrivateSubnetDb1Id:
+    Description: Private subnet (AZ1) ID — for RDS PostgreSQL only
+    Value: !Ref PrivateSubnetDb1
+
+  PrivateSubnetDb2Id:
+    Description: Private subnet (AZ2) ID — for RDS PostgreSQL only
+    Value: !Ref PrivateSubnetDb2
+
+  AlbSecurityGroupId:
+    Description: Security group ID for the ALB
+    Value: !Ref AlbSecurityGroup
+
+  EcsTaskSecurityGroupId:
+    Description: Security group ID for ECS Fargate tasks
+    Value: !Ref EcsTaskSecurityGroup
+
+  DbSecurityGroupId:
+    Description: Security group ID for RDS PostgreSQL
+    Value: !Ref DbSecurityGroup
