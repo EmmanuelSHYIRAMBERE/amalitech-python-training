@@ -21,9 +21,10 @@ from diagrams.programming.language import Java
 graph_attr = {
     "fontsize": "20",
     "bgcolor": "white",
-    "nodesep": "0.8",
-    "ranksep": "1.1",
+    "nodesep": "0.6",
+    "ranksep": "0.9",
     "pad": "0.5",
+    "splines": "ortho",
 }
 
 with Diagram(
@@ -31,76 +32,106 @@ with Diagram(
     filename="network-architecture",
     show=False,
     graph_attr=graph_attr,
-    direction="LR",
+    direction="TB",
 ):
-    with Cluster("GitHub"):
+    # ── Deployment pipeline (drawn first so it ranks ABOVE the network
+    # section — every edge below points downward into the network, never
+    # back up, so Graphviz's TB layout can't drag this section out of
+    # order the way an upward edge would). ──
+    with Cluster("Deployment Pipeline (GitHub → OIDC → ECR → CodePipeline → CodeDeploy)"):
         code = Java("Spring Boot App\n+ Dockerfile")
         repo = Github("Repository\n(feat/module6-todo-app)")
         actions = GithubActions("GitHub Actions\n(todo-app.yml)")
-        code >> Edge(label="git push app/**") >> repo
-        repo >> Edge(label="triggers") >> actions
-
-    with Cluster("Identity (OIDC — no stored keys)"):
-        push_role = IAMRole("github-actions-todo-app-push")
-
-    ecr = ECR("Amazon ECR\nemmanuel-todo-app\n(latest only,\nlifecycle policy)")
-    actions >> Edge(label="assumes role via OIDC") >> push_role
-
-    with Cluster("CI/CD Pipeline"):
-        s3_artifacts_icon = S3("Pipeline Artifact\nBucket (versioned)")
-        eb = Eventbridge("EventBridge\nECR 'latest' Push Rule")
+        push_role = IAMRole("OIDC role:\ngithub-actions-todo-app-push")
+        ecr = ECR("Amazon ECR\n(emmanuel-todo-app,\nlatest only)")
+        s3_artifacts = S3("Pipeline Artifact\nBucket (versioned)")
+        eb = Eventbridge("EventBridge\n(ECR 'latest' push rule)")
         pipeline = Codepipeline("CodePipeline")
         deploy = Codedeploy("CodeDeploy\nBlue/Green")
-
-        push_role >> Edge(label="1. zip + upload\ndeploy-spec.zip") >> s3_artifacts_icon
-        push_role >> Edge(label="2. docker push\n(latest)") >> ecr
-        ecr >> Edge(label="PUSH event\n(tag=latest)") >> eb
-        eb >> Edge(label="starts") >> pipeline
-        s3_artifacts_icon >> Edge(label="deploy-spec\nsource", style="dashed", color="gray") >> pipeline
-        ecr >> Edge(label="image source", style="dashed", color="gray") >> pipeline
-        pipeline >> deploy
-
-    with Cluster("VPC — eu-north-1 (2 AZs)"):
-        user = Users("Internet\nVisitor")
-        igw = InternetGateway("Internet\nGateway")
-
-        with Cluster("Public Subnets"):
-            alb = ELB("ALB\n(todo-app-alb)")
-
-        with Cluster("Private Subnets (no NAT)"):
-            with Cluster("ECS Subnets — Fargate Service"):
-                blue = Fargate("Blue Task Set")
-                green = Fargate("Green Task Set")
-
-            with Cluster("VPC Endpoints (ECS subnets)"):
-                vpce = Endpoint(
-                    "ecr.api / ecr.dkr / logs\n"
-                    "secretsmanager / s3 gateway\n"
-                    "ssm / ssmmessages / ec2messages"
-                )
-
-            with Cluster("DB Subnets"):
-                proxy = RDS("RDS Proxy\n(Secrets Manager auth)")
-                db = RDS("RDS PostgreSQL\n(db.t3.micro)")
-                proxy >> Edge(label="proxied connection") >> db
-
-            with Cluster("Cache Subnets"):
-                cache = Elasticache("ElastiCache Redis\n(cache.t3.micro,\nsingle node)")
-
-        user >> Edge(label="HTTP :80") >> igw >> alb
-        alb >> Edge(label="active", color="blue") >> blue
-        alb >> Edge(label="idle", style="dashed", color="gray") >> green
-        blue >> Edge(style="dashed", color="gray") >> vpce
-        green >> Edge(style="dashed", color="gray") >> vpce
-        blue >> Edge(label="writes (via proxy)") >> proxy
-        green >> Edge(style="dashed", color="gray") >> proxy
-        blue >> Edge(label="cached reads") >> cache
-        green >> Edge(style="dashed", color="gray") >> cache
-
-    deploy >> Edge(label="registers task def,\nshifts ALB traffic") >> alb
-
-    with Cluster("Infrastructure as Code"):
         cfn = Cloudformation("CloudFormation Git Sync\n(network / database / cache /\necr / alb-ecs / pipeline)")
 
-    repo >> Edge(label="Git Sync watches infra/*.yaml", style="dashed", color="gray") >> cfn
-    cfn >> Edge(label="provisions", style="dashed", color="gray") >> alb
+        code >> Edge(label="git push app/**") >> repo
+        repo >> Edge(label="triggers") >> actions
+        actions >> Edge(label="assumes via OIDC") >> push_role
+        push_role >> Edge(label="docker push") >> ecr
+        push_role >> Edge(label="upload deploy-spec.zip") >> s3_artifacts
+        ecr >> Edge(label="PUSH event") >> eb
+        eb >> Edge(label="starts") >> pipeline
+        s3_artifacts >> Edge(label="deploy-spec source", style="dashed", color="gray") >> pipeline
+        pipeline >> deploy
+        repo >> Edge(label="Git Sync watches infra/*.yaml", style="dashed", color="gray") >> cfn
+
+    user = Users("Internet\nVisitor")
+    igw = InternetGateway("Internet\nGateway")
+
+    with Cluster("Region — eu-north-1"):
+        with Cluster("VPC — 10.4.0.0/16"):
+
+            with Cluster("Availability Zone A"):
+                with Cluster("Public subnet"):
+                    with Cluster("Security group"):
+                        alb_a = ELB("ALB\n(spans both AZs)")
+                with Cluster("Private subnet — ECS"):
+                    with Cluster("Security group"):
+                        blue = Fargate("Blue Task Set\n(active)")
+                with Cluster("Private subnet — DB + Proxy"):
+                    with Cluster("SG: proxy"):
+                        proxy = RDS("RDS Proxy")
+                    with Cluster("SG: db"):
+                        db = RDS("RDS PostgreSQL\n(db.t3.micro, Single-AZ)")
+                with Cluster("Private subnet — Cache"):
+                    with Cluster("Security group"):
+                        cache = Elasticache("ElastiCache Redis\n(single node)")
+
+                alb_a >> Edge(style="invis") >> blue >> Edge(style="invis") >> proxy >> Edge(style="invis") >> cache
+
+            with Cluster("Availability Zone B"):
+                with Cluster("Public subnet "):
+                    with Cluster("Security group "):
+                        alb_b = ELB("ALB\n(spans both AZs)")
+                with Cluster("Private subnet — ECS "):
+                    with Cluster("Security group  "):
+                        green = Fargate("Green Task Set\n(idle)")
+                with Cluster("Private subnet — DB + Proxy (standby) "):
+                    with Cluster("SG: proxy "):
+                        proxy_reserved = RDS("RDS Proxy ENI\n(standby AZ)")
+                    with Cluster("SG: db "):
+                        db_reserved = RDS(
+                            "DB subnet group\n(reserved — no\nstandby today)"
+                        )
+                with Cluster("Private subnet — Cache "):
+                    with Cluster("Security group   "):
+                        cache_reserved = Elasticache(
+                            "Cache subnet group\n(reserved — single\nnode today)"
+                        )
+
+                alb_b >> Edge(style="invis") >> green >> Edge(style="invis") >> proxy_reserved >> Edge(style="invis") >> cache_reserved
+
+            # Invisible same-rank edge pins AZ A strictly left of AZ B.
+            alb_a >> Edge(style="invis") >> alb_b
+
+            vpce = Endpoint(
+                "VPC Endpoints\necr.api / ecr.dkr / logs\nsecretsmanager"
+            )
+            s3_gw = S3("S3 Gateway\nEndpoint")
+
+        user >> Edge(style="invis") >> igw
+        igw >> alb_a
+        igw >> alb_b
+        alb_a >> Edge(label="active", color="blue") >> blue
+        alb_b >> Edge(label="idle", style="dashed", color="gray") >> green
+        blue >> Edge(label="writes (via proxy)") >> proxy
+        proxy >> Edge(label="proxied conn") >> db
+        green >> Edge(style="dashed", color="gray") >> proxy_reserved
+        blue >> Edge(label="cached reads") >> cache
+        green >> Edge(style="dashed", color="gray") >> cache_reserved
+        blue >> Edge(style="dashed", color="gray") >> vpce
+        green >> Edge(style="dashed", color="gray") >> vpce
+        s3_gw >> Edge(style="dashed", color="gray") >> blue
+        s3_gw >> Edge(style="dashed", color="gray") >> green
+
+    # Pipeline → network references are drawn downward (pipeline was
+    # defined first, so it already ranks above) — kept dashed/gray since
+    # they're deploy-time actions, not steady-state traffic.
+    deploy >> Edge(label="registers task def,\nshifts ALB traffic", style="dashed", color="gray") >> alb_a
+    cfn >> Edge(label="provisions", style="dashed", color="gray") >> alb_a

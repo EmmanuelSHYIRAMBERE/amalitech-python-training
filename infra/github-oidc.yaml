@@ -263,6 +263,47 @@ Resources:
         - Key: Name
           Value: github-actions-photo-uploader-push
 
+  # ── todo-app: Module 6 To-Do App Lab ───────────
+  # Used by .github/workflows/todo-app.yml on feat/module6-todo-app only.
+  TodoAppPushRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: github-actions-todo-app-push
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !Ref GitHubOidcProvider
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+              StringLike:
+                token.actions.githubusercontent.com:sub: !Sub "repo:${GitHubOrg}/${GitHubRepo}:ref:refs/heads/feat/module6-todo-app"
+      Policies:
+        - PolicyName: todo-app-ci-push
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: ecr:GetAuthorizationToken
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:CompleteLayerUpload
+                  - ecr:InitiateLayerUpload
+                  - ecr:PutImage
+                  - ecr:UploadLayerPart
+                Resource: !Sub "arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/emmanuel-todo-app"
+              - Effect: Allow
+                Action: s3:PutObject
+                Resource: !Sub "arn:aws:s3:::emmanuel-todo-app-pipeline-artifacts-${AWS::AccountId}/deploy-spec/*"
+      Tags:
+        - Key: Name
+          Value: github-actions-todo-app-push
+
 # ─────────────────────────────────────────────
 # OUTPUTS
 # ─────────────────────────────────────────────
@@ -282,3 +323,7 @@ Outputs:
   PhotoUploaderPushRoleArn:
     Description: Role ARN for photo-uploader.yml and photo-uploader-infra.yml (feat/module5-photo-uploader only) — paste into the PHOTO_UPLOADER_AWS_ROLE_ARN GitHub secret.
     Value: !GetAtt PhotoUploaderPushRole.Arn
+
+  TodoAppPushRoleArn:
+    Description: Role ARN for todo-app.yml (feat/module6-todo-app only) — paste into the TODO_APP_AWS_ROLE_ARN GitHub secret.
+    Value: !GetAtt TodoAppPushRole.Arn
