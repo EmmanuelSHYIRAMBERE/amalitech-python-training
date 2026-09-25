@@ -11,7 +11,7 @@ from app.services.rag_engine import RAGEngine
 from app.services.summarisation import SummarisationService
 from app.services.vector_store import VectorStore
 
-# openai SDK pointed at Amalitec proxy with SSL verification disabled
+# openai SDK pointed at the AI Gateway with SSL verification disabled
 _openai_client = openai.OpenAI(
     api_key=settings.AMALI_API_KEY,
     base_url=settings.AMALI_BASE_URL,
