@@ -1,198 +1,266 @@
-<mxfile host="app.diagrams.net" modified="2026-09-15T00:00:00.000Z" agent="Claude" version="24.0.0" type="device">
+<mxfile host="app.diagrams.net" agent="Claude">
   <diagram name="To-Do App Lab — Network &amp; Deployment Pipeline" id="todo-app-arch">
-    <mxGraphModel dx="2400" dy="1400" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1900" pageHeight="1300" math="0" shadow="0">
+    <mxGraphModel dx="2200" dy="1500" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1850" pageHeight="1550" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
 
-        <!-- Title -->
-        <mxCell id="title" value="To-Do App Lab — Network &amp; Deployment Pipeline" style="text;html=1;fontSize=22;fontStyle=1;align=center;" vertex="1" parent="1">
-          <mxGeometry x="700" y="1220" width="600" height="40" as="geometry" />
+        <!-- ═══════════════════════════════════════════
+             NETWORK TOPOLOGY (styled per the AWS
+             "VPC with subnets in two AZs" reference)
+             ═══════════════════════════════════════════ -->
+
+        <mxCell id="cl_region" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=28;fontSize=13;fontColor=#232f3e;fontStyle=1;dashed=1;dashPattern=8 4;strokeColor=#248814;fillColor=none;" value="Region" vertex="1">
+          <mxGeometry height="770" width="1180" x="40" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="region_icon" parent="1" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#232F3E;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=10;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.region;" value="" vertex="1">
+          <mxGeometry height="35" width="35" x="55" y="52" as="geometry" />
         </mxCell>
 
-        <!-- ================= GitHub cluster ================= -->
-        <mxCell id="cl_github" value="GitHub" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
-          <mxGeometry x="40" y="920" width="460" height="160" as="geometry" />
+        <mxCell id="cl_vpc" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=28;fontSize=13;fontColor=#232f3e;fontStyle=1;dashed=1;dashPattern=8 4;strokeColor=#248814;fillColor=none;" value="VPC — 10.4.0.0/16" vertex="1">
+          <mxGeometry height="690" width="1120" x="70" y="100" as="geometry" />
         </mxCell>
-        <mxCell id="code" value="Spring Boot App&#10;+ Dockerfile" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e76f00;fontColor=#ffffff;strokeColor=none;" vertex="1" parent="1">
-          <mxGeometry x="60" y="980" width="120" height="60" as="geometry" />
-        </mxCell>
-        <mxCell id="repo" value="Repository&#10;(feat/module6-todo-app)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#24292e;fontColor=#ffffff;strokeColor=none;" vertex="1" parent="1">
-          <mxGeometry x="240" y="980" width="130" height="60" as="geometry" />
-        </mxCell>
-        <mxCell id="actions" value="GitHub Actions&#10;(todo-app.yml)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#2088ff;fontColor=#ffffff;strokeColor=none;" vertex="1" parent="1">
-          <mxGeometry x="400" y="980" width="80" height="60" as="geometry" />
-        </mxCell>
-        <mxCell id="e_code_repo" value="git push app/**" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" parent="1" source="code" target="repo">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="e_repo_actions" value="triggers" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" parent="1" source="repo" target="actions">
-          <mxGeometry relative="1" as="geometry" />
+        <mxCell id="vpc_icon" parent="1" style="sketch=0;outlineConnect=0;fontColor=#248814;gradientColor=none;fillColor=#248814;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=10;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.virtual_private_cloud_vpc;" value="" vertex="1">
+          <mxGeometry height="30" width="30" x="85" y="112" as="geometry" />
         </mxCell>
 
-        <!-- ================= Identity (OIDC) ================= -->
-        <mxCell id="cl_oidc" value="Identity (OIDC — no stored keys)" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
-          <mxGeometry x="580" y="920" width="230" height="120" as="geometry" />
+        <!-- Internet Gateway + entry -->
+        <mxCell id="igw" parent="1" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#8C4FFF;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=11;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.internet_gateway;" value="Internet Gateway" vertex="1">
+          <mxGeometry height="50" width="50" x="595" y="55" as="geometry" />
         </mxCell>
-        <mxCell id="push_role" value="github-actions-todo-app-push" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#b85450;fontColor=#ffffff;strokeColor=none;" vertex="1" parent="1">
-          <mxGeometry x="600" y="980" width="190" height="50" as="geometry" />
+        <mxCell id="user" parent="1" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#232F3E;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=11;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.users;" value="Internet Visitor" vertex="1">
+          <mxGeometry height="50" width="50" x="1160" y="55" as="geometry" />
         </mxCell>
-        <mxCell id="e_actions_role" value="assumes role via OIDC" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" parent="1" source="actions" target="push_role">
+        <mxCell id="e_user_igw" edge="1" parent="1" source="user" target="igw" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;strokeColor=#545B64;">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
 
-        <!-- ECR -->
-        <mxCell id="ecr" value="Amazon ECR&#10;emmanuel-todo-app&#10;(latest only, lifecycle policy)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ff9900;fontColor=#ffffff;strokeColor=none;" vertex="1" parent="1">
-          <mxGeometry x="860" y="980" width="160" height="60" as="geometry" />
+        <!-- AZ A -->
+        <mxCell id="cl_az_a" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=24;fontSize=12;fontColor=#232f3e;fontStyle=1;dashed=1;dashPattern=8 4;strokeColor=#248814;fillColor=none;" value="Availability Zone A" vertex="1">
+          <mxGeometry height="620" width="500" x="100" y="150" as="geometry" />
         </mxCell>
-        <mxCell id="e_role_ecr" value="2. docker push (latest)" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" parent="1" source="push_role" target="ecr">
+
+        <mxCell id="cl_public_a" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=20;fontSize=11;fontColor=#232f3e;fillColor=#E8F4E8;strokeColor=#248814;" value="Public subnet" vertex="1">
+          <mxGeometry height="110" width="460" x="120" y="185" as="geometry" />
+        </mxCell>
+        <mxCell id="sg_alb_a" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=20;fontSize=10;fontColor=#B7950B;fontStyle=1;strokeColor=#D6B656;fillColor=none;dashed=0;" value="Security group" vertex="1">
+          <mxGeometry height="65" width="200" x="330" y="215" as="geometry" />
+        </mxCell>
+        <mxCell id="alb_a" parent="1" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#8C4FFF;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=10;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.application_load_balancer;" value="ALB (spans both AZs)" vertex="1">
+          <mxGeometry height="40" width="40" x="405" y="240" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cl_ecs_a" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=20;fontSize=11;fontColor=#232f3e;fillColor=#E8ECF7;strokeColor=#5A6BA8;" value="Private subnet — ECS" vertex="1">
+          <mxGeometry height="130" width="460" x="120" y="305" as="geometry" />
+        </mxCell>
+        <mxCell id="sg_ecs_a" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=20;fontSize=10;fontColor=#B7950B;fontStyle=1;strokeColor=#D6B656;fillColor=none;dashed=0;" value="Security group" vertex="1">
+          <mxGeometry height="85" width="200" x="330" y="335" as="geometry" />
+        </mxCell>
+        <mxCell id="blue" parent="1" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#ED7100;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=10;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.fargate;" value="Blue Task Set (active)" vertex="1">
+          <mxGeometry height="40" width="40" x="405" y="360" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cl_db_a" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=20;fontSize=11;fontColor=#232f3e;fillColor=#E8F4E8;strokeColor=#248814;" value="Private subnet — DB + Proxy" vertex="1">
+          <mxGeometry height="130" width="460" x="120" y="450" as="geometry" />
+        </mxCell>
+        <mxCell id="sg_proxy_a" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=14;fontSize=9;fontColor=#B7950B;fontStyle=1;strokeColor=#D6B656;fillColor=none;dashed=0;" value="SG: proxy" vertex="1">
+          <mxGeometry height="85" width="150" x="230" y="480" as="geometry" />
+        </mxCell>
+        <mxCell id="proxy_a" parent="1" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#3334B9;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=9;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.rds_proxy_instance;" value="RDS Proxy" vertex="1">
+          <mxGeometry height="38" width="38" x="285" y="505" as="geometry" />
+        </mxCell>
+        <mxCell id="sg_db_a" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=14;fontSize=9;fontColor=#B7950B;fontStyle=1;strokeColor=#D6B656;fillColor=none;dashed=0;" value="SG: db" vertex="1">
+          <mxGeometry height="85" width="150" x="400" y="480" as="geometry" />
+        </mxCell>
+        <mxCell id="db" parent="1" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#3334B9;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=9;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.rds;" value="RDS PostgreSQL (Single-AZ)" vertex="1">
+          <mxGeometry height="38" width="38" x="455" y="505" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cl_cache_a" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=20;fontSize=11;fontColor=#232f3e;fillColor=#FCE9E3;strokeColor=#C26B3E;" value="Private subnet — Cache" vertex="1">
+          <mxGeometry height="120" width="460" x="120" y="600" as="geometry" />
+        </mxCell>
+        <mxCell id="sg_cache_a" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=20;fontSize=10;fontColor=#B7950B;fontStyle=1;strokeColor=#D6B656;fillColor=none;dashed=0;" value="Security group" vertex="1">
+          <mxGeometry height="75" width="200" x="330" y="630" as="geometry" />
+        </mxCell>
+        <mxCell id="cache" parent="1" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#3334B9;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=10;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.elasticache_for_redis;" value="ElastiCache Redis (single node)" vertex="1">
+          <mxGeometry height="40" width="40" x="405" y="655" as="geometry" />
+        </mxCell>
+
+        <!-- AZ B -->
+        <mxCell id="cl_az_b" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=24;fontSize=12;fontColor=#232f3e;fontStyle=1;dashed=1;dashPattern=8 4;strokeColor=#248814;fillColor=none;" value="Availability Zone B" vertex="1">
+          <mxGeometry height="620" width="500" x="650" y="150" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cl_public_b" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=20;fontSize=11;fontColor=#232f3e;fillColor=#E8F4E8;strokeColor=#248814;" value="Public subnet" vertex="1">
+          <mxGeometry height="110" width="460" x="670" y="185" as="geometry" />
+        </mxCell>
+        <mxCell id="sg_alb_b" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=20;fontSize=10;fontColor=#B7950B;fontStyle=1;strokeColor=#D6B656;fillColor=none;dashed=0;" value="Security group" vertex="1">
+          <mxGeometry height="65" width="200" x="880" y="215" as="geometry" />
+        </mxCell>
+        <mxCell id="alb_b" parent="1" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#8C4FFF;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=10;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.application_load_balancer;" value="ALB (spans both AZs)" vertex="1">
+          <mxGeometry height="40" width="40" x="955" y="240" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cl_ecs_b" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=20;fontSize=11;fontColor=#232f3e;fillColor=#E8ECF7;strokeColor=#5A6BA8;" value="Private subnet — ECS" vertex="1">
+          <mxGeometry height="130" width="460" x="670" y="305" as="geometry" />
+        </mxCell>
+        <mxCell id="sg_ecs_b" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=20;fontSize=10;fontColor=#B7950B;fontStyle=1;strokeColor=#D6B656;fillColor=none;dashed=0;" value="Security group" vertex="1">
+          <mxGeometry height="85" width="200" x="880" y="335" as="geometry" />
+        </mxCell>
+        <mxCell id="green" parent="1" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#ED7100;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=10;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.fargate;" value="Green Task Set (idle)" vertex="1">
+          <mxGeometry height="40" width="40" x="955" y="360" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cl_db_b" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=20;fontSize=11;fontColor=#232f3e;fillColor=#E8F4E8;strokeColor=#248814;" value="Private subnet — DB + Proxy (standby)" vertex="1">
+          <mxGeometry height="130" width="460" x="670" y="450" as="geometry" />
+        </mxCell>
+        <mxCell id="sg_proxy_b" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=14;fontSize=9;fontColor=#B7950B;fontStyle=1;strokeColor=#D6B656;fillColor=none;dashed=0;" value="SG: proxy" vertex="1">
+          <mxGeometry height="85" width="150" x="780" y="480" as="geometry" />
+        </mxCell>
+        <mxCell id="proxy_b" parent="1" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#3334B9;strokeColor=none;dashed=1;opacity=55;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=9;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.rds_proxy_instance;" value="RDS Proxy ENI (standby AZ)" vertex="1">
+          <mxGeometry height="38" width="38" x="835" y="505" as="geometry" />
+        </mxCell>
+        <mxCell id="sg_db_b" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=14;fontSize=9;fontColor=#B7950B;fontStyle=1;strokeColor=#D6B656;fillColor=none;dashed=0;" value="SG: db" vertex="1">
+          <mxGeometry height="85" width="150" x="950" y="480" as="geometry" />
+        </mxCell>
+        <mxCell id="db_reserved" parent="1" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#3334B9;strokeColor=none;dashed=1;opacity=55;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=9;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.rds;" value="DB subnet group (reserved — no standby today)" vertex="1">
+          <mxGeometry height="38" width="38" x="1005" y="505" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cl_cache_b" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=20;fontSize=11;fontColor=#232f3e;fillColor=#FCE9E3;strokeColor=#C26B3E;" value="Private subnet — Cache" vertex="1">
+          <mxGeometry height="120" width="460" x="670" y="600" as="geometry" />
+        </mxCell>
+        <mxCell id="sg_cache_b" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=20;fontSize=10;fontColor=#B7950B;fontStyle=1;strokeColor=#D6B656;fillColor=none;dashed=0;" value="Security group" vertex="1">
+          <mxGeometry height="75" width="200" x="880" y="630" as="geometry" />
+        </mxCell>
+        <mxCell id="cache_reserved" parent="1" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#3334B9;strokeColor=none;dashed=1;opacity=55;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=10;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.elasticache_for_redis;" value="Cache subnet group (reserved — single node today)" vertex="1">
+          <mxGeometry height="40" width="40" x="955" y="655" as="geometry" />
+        </mxCell>
+
+        <!-- Shared VPC endpoints, below both AZ columns -->
+        <mxCell id="vpce" parent="1" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#8C4FFF;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=10;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.endpoints;" value="VPC Endpoints: ecr.api / ecr.dkr / logs / secretsmanager / ssm / ssmmessages / ec2messages" vertex="1">
+          <mxGeometry height="40" width="40" x="325" y="745" as="geometry" />
+        </mxCell>
+        <mxCell id="s3_gw" parent="1" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#7AA116;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=10;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.s3;" value="S3 Gateway Endpoint" vertex="1">
+          <mxGeometry height="40" width="40" x="875" y="745" as="geometry" />
+        </mxCell>
+
+        <!-- Network edges -->
+        <mxCell id="e_igw_alb_a" edge="1" parent="1" source="igw" target="alb_a" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#545B64;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_igw_alb_b" edge="1" parent="1" source="igw" target="alb_b" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#545B64;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_alb_blue" edge="1" parent="1" source="alb_a" target="blue" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#1E72BC;fontSize=10;" value="active">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_alb_green" edge="1" parent="1" source="alb_b" target="green" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;strokeColor=#999999;fontSize=10;" value="idle">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_blue_proxy" edge="1" parent="1" source="blue" target="proxy_a" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#545B64;fontSize=9;" value="writes (via proxy)">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_proxy_db" edge="1" parent="1" source="proxy_a" target="db" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#545B64;fontSize=9;" value="proxied conn">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_green_proxy" edge="1" parent="1" source="green" target="proxy_a" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;strokeColor=#999999;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_blue_cache" edge="1" parent="1" source="blue" target="cache" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#545B64;fontSize=9;" value="cached reads">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_green_cache" edge="1" parent="1" source="green" target="cache" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;strokeColor=#999999;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_blue_vpce" edge="1" parent="1" source="blue" target="vpce" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;strokeColor=#999999;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_green_vpce" edge="1" parent="1" source="green" target="vpce" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;strokeColor=#999999;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_s3gw_blue" edge="1" parent="1" source="s3_gw" target="blue" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;strokeColor=#999999;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_s3gw_green" edge="1" parent="1" source="s3_gw" target="green" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;strokeColor=#999999;">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
 
-        <!-- ================= CI/CD Pipeline ================= -->
-        <mxCell id="cl_cicd" value="CI/CD Pipeline" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
-          <mxGeometry x="1060" y="880" width="620" height="200" as="geometry" />
-        </mxCell>
-        <mxCell id="s3_artifacts" value="Pipeline Artifact&#10;Bucket (versioned)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#569a31;fontColor=#ffffff;strokeColor=none;" vertex="1" parent="1">
-          <mxGeometry x="1080" y="1000" width="130" height="60" as="geometry" />
-        </mxCell>
-        <mxCell id="eb" value="EventBridge&#10;ECR 'latest' Push Rule" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ff4f8b;fontColor=#ffffff;strokeColor=none;" vertex="1" parent="1">
-          <mxGeometry x="1240" y="930" width="140" height="60" as="geometry" />
-        </mxCell>
-        <mxCell id="pipeline" value="CodePipeline" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#527fff;fontColor=#ffffff;strokeColor=none;" vertex="1" parent="1">
-          <mxGeometry x="1420" y="930" width="120" height="60" as="geometry" />
-        </mxCell>
-        <mxCell id="deploy" value="CodeDeploy&#10;Blue/Green" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#527fff;fontColor=#ffffff;strokeColor=none;" vertex="1" parent="1">
-          <mxGeometry x="1580" y="930" width="80" height="60" as="geometry" />
+        <!-- ═══════════════════════════════════════════
+             DEPLOYMENT PIPELINE (kept visually separate,
+             below the network topology, plain boxes —
+             not part of the AWS-reference network diagram)
+             ═══════════════════════════════════════════ -->
+
+        <mxCell id="cl_pipeline_section" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=16;fontSize=13;fontColor=#232f3e;fontStyle=1;strokeColor=#999999;fillColor=#FAFAFA;dashed=1;" value="Deployment Pipeline (GitHub → OIDC → ECR → CodePipeline → CodeDeploy)" vertex="1">
+          <mxGeometry height="230" width="1400" x="40" y="850" as="geometry" />
         </mxCell>
 
-        <mxCell id="e_role_s3" value="1. zip + upload deploy-spec.zip" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" parent="1" source="push_role" target="s3_artifacts">
-          <mxGeometry relative="1" as="geometry" />
+        <mxCell id="code" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e76f00;fontColor=#ffffff;strokeColor=none;fontSize=11;" value="Spring Boot App + Dockerfile" vertex="1">
+          <mxGeometry height="50" width="130" x="60" y="900" as="geometry" />
         </mxCell>
-        <mxCell id="e_ecr_eb" value="PUSH event (tag=latest)" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" parent="1" source="ecr" target="eb">
-          <mxGeometry relative="1" as="geometry" />
+        <mxCell id="repo" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#24292e;fontColor=#ffffff;strokeColor=none;fontSize=11;" value="Repository (feat/module6-todo-app)" vertex="1">
+          <mxGeometry height="50" width="150" x="230" y="900" as="geometry" />
         </mxCell>
-        <mxCell id="e_eb_pipeline" value="starts" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" parent="1" source="eb" target="pipeline">
-          <mxGeometry relative="1" as="geometry" />
+        <mxCell id="actions" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#2088ff;fontColor=#ffffff;strokeColor=none;fontSize=11;" value="GitHub Actions (todo-app.yml)" vertex="1">
+          <mxGeometry height="50" width="140" x="420" y="900" as="geometry" />
         </mxCell>
-        <mxCell id="e_s3_pipeline" value="deploy-spec source" style="edgeStyle=orthogonalEdgeStyle;dashed=1;strokeColor=#999999;html=1;fontSize=10;" edge="1" parent="1" source="s3_artifacts" target="pipeline">
-          <mxGeometry relative="1" as="geometry" />
+        <mxCell id="push_role" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#b85450;fontColor=#ffffff;strokeColor=none;fontSize=11;" value="OIDC role: github-actions-todo-app-push" vertex="1">
+          <mxGeometry height="50" width="160" x="600" y="900" as="geometry" />
         </mxCell>
-        <mxCell id="e_ecr_pipeline" value="image source" style="edgeStyle=orthogonalEdgeStyle;dashed=1;strokeColor=#999999;html=1;fontSize=10;" edge="1" parent="1" source="ecr" target="pipeline">
-          <mxGeometry relative="1" as="geometry" />
+        <mxCell id="ecr" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ff9900;fontColor=#ffffff;strokeColor=none;fontSize=11;" value="Amazon ECR (emmanuel-todo-app, latest only)" vertex="1">
+          <mxGeometry height="50" width="160" x="800" y="900" as="geometry" />
         </mxCell>
-        <mxCell id="e_pipeline_deploy" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="1" source="pipeline" target="deploy">
-          <mxGeometry relative="1" as="geometry" />
+        <mxCell id="s3_artifacts" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#569a31;fontColor=#ffffff;strokeColor=none;fontSize=11;" value="Pipeline Artifact Bucket (versioned)" vertex="1">
+          <mxGeometry height="50" width="150" x="800" y="980" as="geometry" />
         </mxCell>
-
-        <!-- ================= VPC cluster ================= -->
-        <mxCell id="cl_vpc" value="VPC — eu-north-1 (2 AZs)" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
-          <mxGeometry x="580" y="40" width="1280" height="720" as="geometry" />
+        <mxCell id="eb" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ff4f8b;fontColor=#ffffff;strokeColor=none;fontSize=11;" value="EventBridge (ECR 'latest' push rule)" vertex="1">
+          <mxGeometry height="50" width="150" x="1000" y="900" as="geometry" />
         </mxCell>
-
-        <mxCell id="user" value="Internet Visitor" style="shape=mxgraph.aws4.users;html=1;sketch=0;outlineConnect=0;fillColor=#232f3e;strokeColor=none;fontColor=#ffffff;verticalLabelPosition=bottom;verticalAlign=top;" vertex="1" parent="1">
-          <mxGeometry x="600" y="360" width="60" height="60" as="geometry" />
+        <mxCell id="pipeline" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#527fff;fontColor=#ffffff;strokeColor=none;fontSize=11;" value="CodePipeline" vertex="1">
+          <mxGeometry height="50" width="130" x="1190" y="940" as="geometry" />
         </mxCell>
-        <mxCell id="igw" value="Internet&#10;Gateway" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#8c4fff;fontColor=#ffffff;strokeColor=none;" vertex="1" parent="1">
-          <mxGeometry x="720" y="365" width="90" height="50" as="geometry" />
+        <mxCell id="deploy" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#527fff;fontColor=#ffffff;strokeColor=none;fontSize=11;" value="CodeDeploy Blue/Green" vertex="1">
+          <mxGeometry height="50" width="130" x="1180" y="1020" as="geometry" />
         </mxCell>
-
-        <mxCell id="cl_public" value="Public Subnets" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
-          <mxGeometry x="880" y="320" width="180" height="140" as="geometry" />
-        </mxCell>
-        <mxCell id="alb" value="ALB&#10;(todo-app-alb)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#8c4fff;fontColor=#ffffff;strokeColor=none;" vertex="1" parent="1">
-          <mxGeometry x="910" y="370" width="120" height="60" as="geometry" />
+        <mxCell id="cfn" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#b85450;fontColor=#ffffff;strokeColor=none;fontSize=11;" value="CloudFormation Git Sync (network / database / cache / ecr / alb-ecs / pipeline)" vertex="1">
+          <mxGeometry height="60" width="180" x="60" y="990" as="geometry" />
         </mxCell>
 
-        <mxCell id="cl_private" value="Private Subnets (no NAT)" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
-          <mxGeometry x="1100" y="80" width="740" height="640" as="geometry" />
-        </mxCell>
-
-        <mxCell id="cl_ecs" value="ECS Subnets — Fargate Service" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
-          <mxGeometry x="1120" y="130" width="180" height="220" as="geometry" />
-        </mxCell>
-        <mxCell id="blue" value="Blue Task Set" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ff9900;fontColor=#ffffff;strokeColor=none;" vertex="1" parent="1">
-          <mxGeometry x="1140" y="170" width="140" height="60" as="geometry" />
-        </mxCell>
-        <mxCell id="green" value="Green Task Set" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ff9900;fontColor=#ffffff;strokeColor=none;" vertex="1" parent="1">
-          <mxGeometry x="1140" y="255" width="140" height="60" as="geometry" />
-        </mxCell>
-
-        <mxCell id="cl_vpce" value="VPC Endpoints (ECS subnets)" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
-          <mxGeometry x="1330" y="130" width="290" height="150" as="geometry" />
-        </mxCell>
-        <mxCell id="vpce" value="ecr.api / ecr.dkr / logs&#10;secretsmanager / s3 gateway&#10;ssm / ssmmessages / ec2messages" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#8c4fff;fontColor=#ffffff;strokeColor=none;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="1350" y="170" width="250" height="80" as="geometry" />
-        </mxCell>
-
-        <mxCell id="cl_db" value="DB Subnets" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
-          <mxGeometry x="1120" y="400" width="360" height="150" as="geometry" />
-        </mxCell>
-        <mxCell id="proxy" value="RDS Proxy&#10;(Secrets Manager auth)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#527fff;fontColor=#ffffff;strokeColor=none;" vertex="1" parent="1">
-          <mxGeometry x="1140" y="440" width="150" height="70" as="geometry" />
-        </mxCell>
-        <mxCell id="db" value="RDS PostgreSQL&#10;(db.t3.micro)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#527fff;fontColor=#ffffff;strokeColor=none;" vertex="1" parent="1">
-          <mxGeometry x="1330" y="440" width="130" height="70" as="geometry" />
-        </mxCell>
-        <mxCell id="e_proxy_db" value="proxied connection" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" parent="1" source="proxy" target="db">
+        <mxCell id="e_code_repo" edge="1" parent="1" source="code" target="repo" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=9;" value="git push app/**">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-
-        <mxCell id="cl_cache" value="Cache Subnets" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;fillColor=#fce4d6;strokeColor=#c26b3e;" vertex="1" parent="1">
-          <mxGeometry x="1500" y="300" width="230" height="150" as="geometry" />
-        </mxCell>
-        <mxCell id="cache" value="ElastiCache Redis&#10;(cache.t3.micro,&#10;single node)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#527fff;fontColor=#ffffff;strokeColor=none;" vertex="1" parent="1">
-          <mxGeometry x="1520" y="350" width="190" height="70" as="geometry" />
-        </mxCell>
-
-        <!-- VPC internal edges -->
-        <mxCell id="e_user_igw" value="HTTP :80" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" parent="1" source="user" target="igw">
+        <mxCell id="e_repo_actions" edge="1" parent="1" source="repo" target="actions" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=9;" value="triggers">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_igw_alb" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="1" source="igw" target="alb">
+        <mxCell id="e_actions_role" edge="1" parent="1" source="actions" target="push_role" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=9;" value="assumes via OIDC">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_alb_blue" value="active" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#0000ff;html=1;fontSize=10;" edge="1" parent="1" source="alb" target="blue">
+        <mxCell id="e_role_ecr" edge="1" parent="1" source="push_role" target="ecr" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=9;" value="docker push">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_alb_green" value="idle" style="edgeStyle=orthogonalEdgeStyle;dashed=1;strokeColor=#999999;html=1;fontSize=10;" edge="1" parent="1" source="alb" target="green">
+        <mxCell id="e_role_s3" edge="1" parent="1" source="push_role" target="s3_artifacts" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=9;" value="upload deploy-spec.zip">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_blue_vpce" style="edgeStyle=orthogonalEdgeStyle;dashed=1;strokeColor=#999999;html=1;" edge="1" parent="1" source="blue" target="vpce">
+        <mxCell id="e_ecr_eb" edge="1" parent="1" source="ecr" target="eb" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=9;" value="PUSH event">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_green_vpce" style="edgeStyle=orthogonalEdgeStyle;dashed=1;strokeColor=#999999;html=1;" edge="1" parent="1" source="green" target="vpce">
+        <mxCell id="e_eb_pipeline" edge="1" parent="1" source="eb" target="pipeline" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=9;" value="starts">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_blue_proxy" value="writes (via proxy)" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" parent="1" source="blue" target="proxy">
+        <mxCell id="e_s3_pipeline" edge="1" parent="1" source="s3_artifacts" target="pipeline" style="edgeStyle=orthogonalEdgeStyle;dashed=1;strokeColor=#999999;html=1;fontSize=9;" value="deploy-spec source">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_green_proxy" style="edgeStyle=orthogonalEdgeStyle;dashed=1;strokeColor=#999999;html=1;" edge="1" parent="1" source="green" target="proxy">
+        <mxCell id="e_pipeline_deploy" edge="1" parent="1" source="pipeline" target="deploy" style="edgeStyle=orthogonalEdgeStyle;html=1;">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_blue_cache" value="cached reads" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" parent="1" source="blue" target="cache">
+        <mxCell id="e_deploy_alb" edge="1" parent="1" source="deploy" target="alb_a" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=9;dashed=1;strokeColor=#999999;" value="registers task def, shifts ALB traffic">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_green_cache" style="edgeStyle=orthogonalEdgeStyle;dashed=1;strokeColor=#999999;html=1;" edge="1" parent="1" source="green" target="cache">
+        <mxCell id="e_repo_cfn" edge="1" parent="1" source="repo" target="cfn" style="edgeStyle=orthogonalEdgeStyle;dashed=1;strokeColor=#999999;html=1;fontSize=9;" value="Git Sync watches infra/*.yaml">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-
-        <mxCell id="e_deploy_alb" value="registers task def, shifts ALB traffic" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" parent="1" source="deploy" target="alb">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-
-        <!-- ================= Infrastructure as Code ================= -->
-        <mxCell id="cl_iac" value="Infrastructure as Code" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
-          <mxGeometry x="1160" y="800" width="300" height="120" as="geometry" />
-        </mxCell>
-        <mxCell id="cfn" value="CloudFormation Git Sync&#10;(network / database / cache /&#10;ecr / alb-ecs / pipeline)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#b85450;fontColor=#ffffff;strokeColor=none;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="1180" y="840" width="260" height="60" as="geometry" />
-        </mxCell>
-
-        <mxCell id="e_repo_cfn" value="Git Sync watches infra/*.yaml" style="edgeStyle=orthogonalEdgeStyle;dashed=1;strokeColor=#999999;html=1;fontSize=10;" edge="1" parent="1" source="repo" target="cfn">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="e_cfn_alb" value="provisions" style="edgeStyle=orthogonalEdgeStyle;dashed=1;strokeColor=#999999;html=1;fontSize=10;" edge="1" parent="1" source="cfn" target="alb">
+        <mxCell id="e_cfn_vpc" edge="1" parent="1" source="cfn" target="cl_vpc" style="edgeStyle=orthogonalEdgeStyle;dashed=1;strokeColor=#999999;html=1;fontSize=9;" value="provisions">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
 
