@@ -25,9 +25,9 @@ def main():
     books_path = Path(__file__).parent.parent / "data" / "books.json"
     books = json.loads(books_path.read_text(encoding="utf-8"))
 
-    # OpenAI SDK pointed at the Amalitec proxy with SSL verification disabled.
-    # EmbeddingService tries the proxy /embeddings endpoint first (neural model)
-    # and falls back to local bag-of-words if the proxy returns a stub response.
+    # OpenAI SDK pointed at the AI Gateway with SSL verification disabled.
+    # EmbeddingService tries the gateway /embeddings endpoint first (neural
+    # model) and falls back to local bag-of-words if that call fails.
     openai_client = openai.OpenAI(
         api_key=settings.AMALI_API_KEY,
         base_url=settings.AMALI_BASE_URL,

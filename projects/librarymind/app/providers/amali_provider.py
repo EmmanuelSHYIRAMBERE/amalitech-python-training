@@ -1,4 +1,4 @@
-"""Amalitec proxy AI provider implementation."""
+"""AI Gateway provider implementation (OpenAI-compatible /v1 API)."""
 
 import logging
 
@@ -16,26 +16,28 @@ logger = logging.getLogger(__name__)
 
 
 class AmaliProvider(AIProvider):
-    """AI provider that routes requests through the Amalitec proxy.
+    """AI provider that routes requests through the AI Gateway.
 
-    Supports both ``openai`` and ``anthropic`` as backends by setting
-    the ``Provider`` request header accordingly.  Retries up to 3 times
-    with exponential backoff on transient failures.
-
-    Response format differs by provider:
-      - openai:    OpenAI chat completions → ``choices[0].message.content``
-      - anthropic: Anthropic messages API  → ``content[0].text``
+    The gateway exposes a standard OpenAI-compatible ``/v1/chat/completions``
+    endpoint; the backend model (OpenAI, Anthropic, etc.) is selected purely
+    by the ``model`` name in the request payload, not by a routing header.
+    ``provider_name`` is kept only as a local label (used for logging and
+    for ``ResilientAIService``'s fallback ordering) — it is never sent to
+    the gateway itself. Retries up to 3 times with exponential backoff on
+    transient failures.
 
     Args:
-        api_key: Amalitec API key sent as ``X-Api-Key`` header.
-        base_url: Full base URL of the proxy (trailing slash optional).
-        provider_name: Backend to route to — ``"openai"`` or ``"anthropic"``.
-        model: Model identifier forwarded to the backend.
+        api_key: Gateway API key sent as a ``Bearer`` token.
+        base_url: Gateway base URL, e.g. ``https://ai-gateway.amalitech.org/v1``.
+        provider_name: Local label for this provider — ``"openai"`` or
+            ``"anthropic"`` — used for logging/fallback ordering only.
+        model: Model identifier forwarded to the gateway (e.g.
+            ``"gpt-4o-mini"``, ``"claude-sonnet-4-6"``).
 
     Example:
         >>> provider = AmaliProvider(
-        ...     api_key="key", base_url="https://ai-api.amalitech.org/api/v2/public/",
-        ...     provider_name="openai", model="gpt-3.5-turbo"
+        ...     api_key="key", base_url="https://ai-gateway.amalitech.org/v1",
+        ...     provider_name="openai", model="gpt-4o-mini"
         ... )
         >>> reply = provider.generate("Say hello", temperature=0.0)
     """
@@ -48,11 +50,11 @@ class AmaliProvider(AIProvider):
         model: str,
     ) -> None:
         self.api_key = api_key
-        self.base_url = base_url.rstrip("/") + "/"
+        self.base_url = base_url.rstrip("/") + "/chat/completions"
         self._provider_name = provider_name
         self.model = model
-        # verify=False: Amalitec proxy cert chain is not in the local Windows
-        # trust store on some machines. Safe for this known training proxy.
+        # verify=False: gateway cert chain is not in the local Windows
+        # trust store on some machines. Safe for this known training gateway.
         self.client = httpx.Client(timeout=30.0, verify=False)
 
     @retry(
@@ -68,11 +70,13 @@ class AmaliProvider(AIProvider):
         temperature: float = 0.7,
         max_tokens: int = 1000,
     ) -> str:
-        """Send a prompt to the Amalitec proxy and return the text response.
+        """Send a prompt to the AI Gateway and return the text response.
 
-        Calls the proxy with the configured ``Provider`` header (openai or
-        anthropic).  Retries up to 3 times with exponential backoff before
-        raising.  Handles both OpenAI and Anthropic native response formats.
+        Calls the gateway's ``/chat/completions`` endpoint with the
+        configured ``model``.  Retries up to 3 times with exponential
+        backoff before raising.  Handles both OpenAI and Anthropic native
+        response formats (the gateway itself always returns OpenAI-shaped
+        responses, but the fallback detection is kept for resilience).
 
         Args:
             prompt: The user-facing message content.
@@ -84,13 +88,13 @@ class AmaliProvider(AIProvider):
             The text content of the AI response.
 
         Raises:
-            RuntimeError: If the proxy returns a non-200 status after
+            RuntimeError: If the gateway returns a non-200 status after
                 all retries are exhausted, or if the response shape is
                 unrecognised.
 
         Example:
             >>> provider = AmaliProvider(api_key="key", base_url="...",
-            ...     provider_name="openai", model="gpt-3.5-turbo")
+            ...     provider_name="openai", model="gpt-4o-mini")
             >>> reply = provider.generate("Say hello", temperature=0.0)
             >>> print(reply)
             Hello!
@@ -111,8 +115,7 @@ class AmaliProvider(AIProvider):
         headers = {
             "accept": "application/json",
             "Content-Type": "application/json",
-            "X-Api-Key": self.api_key,
-            "Provider": self._provider_name,
+            "Authorization": f"Bearer {self.api_key}",
         }
 
         response = self.client.post(
@@ -123,8 +126,8 @@ class AmaliProvider(AIProvider):
 
         if response.status_code != 200:
             raise RuntimeError(
-                f"Amalitec proxy error {response.status_code} "
-                f"(provider={self._provider_name}): {response.text[:300]}"
+                f"AI Gateway error {response.status_code} "
+                f"(provider={self._provider_name}, model={self.model}): {response.text[:300]}"
             )
 
         data = response.json()
@@ -143,7 +146,7 @@ class AmaliProvider(AIProvider):
         temperature: float = 0.7,
         max_tokens: int = 1000,
     ) -> str:
-        """Send a full conversation messages array to the proxy.
+        """Send a full conversation messages array to the AI Gateway.
 
         Builds the payload with the system message first, then appends
         the provided history messages directly so the AI sees the real
@@ -160,7 +163,7 @@ class AmaliProvider(AIProvider):
             The text content of the AI response.
 
         Raises:
-            RuntimeError: On non-200 proxy response after all retries.
+            RuntimeError: On non-200 gateway response after all retries.
         """
         payload_messages = []
         if system:
@@ -177,26 +180,29 @@ class AmaliProvider(AIProvider):
         headers = {
             "accept": "application/json",
             "Content-Type": "application/json",
-            "X-Api-Key": self.api_key,
-            "Provider": self._provider_name,
+            "Authorization": f"Bearer {self.api_key}",
         }
         response = self.client.post(self.base_url, json=payload, headers=headers)
         if response.status_code != 200:
             raise RuntimeError(
-                f"Amalitec proxy error {response.status_code} "
-                f"(provider={self._provider_name}): {response.text[:300]}"
+                f"AI Gateway error {response.status_code} "
+                f"(provider={self._provider_name}, model={self.model}): {response.text[:300]}"
             )
         return self._extract_text(response.json())
 
     def _extract_text(self, data: dict) -> str:
-        """Normalise the proxy response to a plain text string.
+        """Normalise the gateway response to a plain text string.
 
-        Handle both response shapes the proxy may return:
+        Handle both response shapes that may be encountered:
           - OpenAI format:    ``data["choices"][0]["message"]["content"]``
           - Anthropic format: ``data["content"][0]["text"]``
 
+        The gateway always returns OpenAI-shaped responses regardless of
+        the underlying model; the Anthropic-shape check is kept in case
+        that ever changes.
+
         Args:
-            data: Parsed JSON response body from the proxy.
+            data: Parsed JSON response body from the gateway.
 
         Returns:
             The text content extracted from the response.
@@ -209,7 +215,7 @@ class AmaliProvider(AIProvider):
         if "content" in data:
             return data["content"][0]["text"]
         raise RuntimeError(
-            f"Unrecognised response shape from proxy "
+            f"Unrecognised response shape from gateway "
             f"(provider={self._provider_name}): {str(data)[:200]}"
         )
 

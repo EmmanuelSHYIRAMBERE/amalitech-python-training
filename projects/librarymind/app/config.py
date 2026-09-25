@@ -89,6 +89,7 @@ class Settings(BaseSettings):
 
     class Config:
         env_file = ".env"
+        extra = "ignore"  # .env also carries docker-compose-only vars (API_PORT, REDIS_EXTERNAL_PORT, API_CMD)
 
 
 settings = Settings()
