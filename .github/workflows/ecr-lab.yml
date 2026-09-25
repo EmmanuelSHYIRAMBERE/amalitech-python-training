@@ -7,7 +7,6 @@ on:
       - "labs/aws-cloud-and-ai-upskilling/module4/ecr-lab/app/**"
 
 env:
-  AWS_REGION: ${{ secrets.AWS_REGION }}
   ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
   IMAGE_TAG_PREFIX: emmanuelshyirambere_itemsapi
 
@@ -27,7 +26,7 @@ jobs:
         id: login-ecr
         uses: ./.github/actions/aws-ecr-auth
         with:
-          aws-region: ${{ env.AWS_REGION }}
+          aws-region: ${{ secrets.AWS_REGION }}
           aws-role-arn: ${{ secrets.AWS_ROLE_ARN }}
 
       - name: Build, tag, and push image

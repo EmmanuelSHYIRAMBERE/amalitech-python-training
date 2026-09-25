@@ -26,7 +26,6 @@ on:
   workflow_dispatch: {}
 
 env:
-  AWS_REGION: ${{ secrets.AWS_REGION }}
   TEMPLATES_BUCKET: ${{ secrets.PHOTO_UPLOADER_TEMPLATES_BUCKET }}
   TEMPLATES_PREFIX: templates/
   INFRA_DIR: labs/aws-cloud-and-ai-upskilling/module5/photo-uploader/infra
@@ -47,7 +46,7 @@ jobs:
       - name: Configure AWS credentials via OIDC
         uses: ./.github/actions/aws-oidc-auth
         with:
-          aws-region: ${{ env.AWS_REGION }}
+          aws-region: ${{ secrets.AWS_REGION }}
           aws-role-arn: ${{ secrets.PHOTO_UPLOADER_AWS_ROLE_ARN }}
 
       # Every child template except root.yaml itself (root.yaml is

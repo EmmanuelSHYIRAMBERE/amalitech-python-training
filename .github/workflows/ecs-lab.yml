@@ -8,7 +8,6 @@ on:
   workflow_dispatch: {}
 
 env:
-  AWS_REGION: ${{ secrets.AWS_REGION }}
   ECR_REPOSITORY: ${{ secrets.ECS_LAB_ECR_REPOSITORY }}
   PIPELINE_ARTIFACT_BUCKET: ${{ secrets.ECS_LAB_PIPELINE_BUCKET }}
   DEPLOY_SPEC_S3_KEY: deploy-spec/deploy-spec.zip
@@ -29,7 +28,7 @@ jobs:
         id: login-ecr
         uses: ./.github/actions/aws-ecr-auth
         with:
-          aws-region: ${{ env.AWS_REGION }}
+          aws-region: ${{ secrets.AWS_REGION }}
           aws-role-arn: ${{ secrets.ECS_LAB_AWS_ROLE_ARN }}
 
       - name: Build image
