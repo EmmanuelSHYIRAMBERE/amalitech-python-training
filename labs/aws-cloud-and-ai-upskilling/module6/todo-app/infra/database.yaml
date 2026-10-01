@@ -6,16 +6,22 @@ Description: >
   master password is AWS-managed and stored in Secrets Manager; RDS Proxy
   itself authenticates against Postgres using that same secret.
   Trainee: Emmanuel SHYIRAMBERE
-  Depends on: emmanuel-todo-app-network (network.yaml) — its outputs are
-  imported below via Fn::ImportValue.
 
 # ─────────────────────────────────────────────
 # PARAMETERS
 # ─────────────────────────────────────────────
 Parameters:
-  NetworkStackName:
-    Type: String
-    Default: emmanuel-todo-app-network
+  PrivateSubnetDb1Id:
+    Type: AWS::EC2::Subnet::Id
+
+  PrivateSubnetDb2Id:
+    Type: AWS::EC2::Subnet::Id
+
+  DbSecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+
+  RdsProxySecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
 
   DbInstanceClass:
     Type: String
@@ -47,8 +53,8 @@ Resources:
     Properties:
       DBSubnetGroupDescription: Dedicated private subnets for RDS PostgreSQL + RDS Proxy
       SubnetIds:
-        - Fn::ImportValue: !Sub "${NetworkStackName}-PrivateSubnetDb1Id"
-        - Fn::ImportValue: !Sub "${NetworkStackName}-PrivateSubnetDb2Id"
+        - !Ref PrivateSubnetDb1Id
+        - !Ref PrivateSubnetDb2Id
       Tags:
         - Key: Name
           Value: emmanuel-todo-app-db-subnet-group
@@ -57,6 +63,11 @@ Resources:
   # ManageMasterUserPassword lets RDS itself generate and rotate the master
   # password, stored as a new Secrets Manager secret — the password is never
   # visible in this template, the console, or a parameter value.
+  # KmsKeyId is explicit (not implicit) — StorageEncrypted + a ManageMasterUserPassword
+  # secret both need KMS, and the deploying role needs grants on this key AND
+  # alias/aws/secretsmanager (a lesson learned the hard way on the photo-uploader
+  # lab's nested-stack migration — a generic "KmsKeyId [null]" error gave no
+  # indication that the SECOND key was the actual missing piece).
   PostgresInstance:
     Type: AWS::RDS::DBInstance
     DeletionPolicy: Snapshot
@@ -79,11 +90,12 @@ Resources:
       ManageMasterUserPassword: true
       DBSubnetGroupName: !Ref DbSubnetGroup
       VPCSecurityGroups:
-        - Fn::ImportValue: !Sub "${NetworkStackName}-DbSecurityGroupId"
+        - !Ref DbSecurityGroupId
       MultiAZ: false
       PubliclyAccessible: false
       BackupRetentionPeriod: 7
       StorageEncrypted: true
+      KmsKeyId: alias/aws/rds
       Tags:
         - Key: Name
           Value: emmanuel-todo-app-db
@@ -131,10 +143,10 @@ Resources:
           IAMAuth: DISABLED
       RoleArn: !GetAtt RdsProxyRole.Arn
       VpcSubnetIds:
-        - Fn::ImportValue: !Sub "${NetworkStackName}-PrivateSubnetDb1Id"
-        - Fn::ImportValue: !Sub "${NetworkStackName}-PrivateSubnetDb2Id"
+        - !Ref PrivateSubnetDb1Id
+        - !Ref PrivateSubnetDb2Id
       VpcSecurityGroupIds:
-        - Fn::ImportValue: !Sub "${NetworkStackName}-RdsProxySecurityGroupId"
+        - !Ref RdsProxySecurityGroupId
       RequireTLS: true
       IdleClientTimeout: 1800
       DebugLogging: false
@@ -160,35 +172,23 @@ Outputs:
   DbEndpointAddress:
     Description: RDS PostgreSQL endpoint hostname (not used by the app directly — see DbProxyEndpoint)
     Value: !GetAtt PostgresInstance.Endpoint.Address
-    Export:
-      Name: !Sub "${AWS::StackName}-DbEndpointAddress"
 
   DbProxyEndpoint:
     Description: RDS Proxy endpoint hostname — the application connects here, not to RDS directly
     Value: !GetAtt DbProxy.Endpoint
-    Export:
-      Name: !Sub "${AWS::StackName}-DbProxyEndpoint"
 
   DbEndpointPort:
     Description: PostgreSQL port (same for RDS and the proxy)
     Value: !GetAtt PostgresInstance.Endpoint.Port
-    Export:
-      Name: !Sub "${AWS::StackName}-DbEndpointPort"
 
   DbName:
     Description: Database name
     Value: !Ref DbName
-    Export:
-      Name: !Sub "${AWS::StackName}-DbName"
 
   DbMasterUsername:
     Description: Database master username
     Value: !Ref DbMasterUsername
-    Export:
-      Name: !Sub "${AWS::StackName}-DbMasterUsername"
 
   DbSecretArn:
     Description: Secrets Manager secret ARN holding the auto-generated master password
     Value: !GetAtt PostgresInstance.MasterUserSecret.SecretArn
-    Export:
-      Name: !Sub "${AWS::StackName}-DbSecretArn"

@@ -6,20 +6,28 @@ Description: >
   zip object in S3 (uploaded by the GitHub Actions workflow) - no CodeBuild
   repackage stage and no GitHub source action.
   Trainee: Emmanuel SHYIRAMBERE
-  Depends on: emmanuel-todo-app-ecr (ecr.yaml) and emmanuel-todo-app-alb-ecs
-  (alb-ecs.yaml) — their outputs are imported below.
 
 # ─────────────────────────────────────────────
 # PARAMETERS
 # ─────────────────────────────────────────────
 Parameters:
-  EcrStackName:
+  EcrRepositoryName:
     Type: String
-    Default: emmanuel-todo-app-ecr
 
-  AlbEcsStackName:
+  AlbEcsTaskExecutionRoleArn:
     Type: String
-    Default: emmanuel-todo-app-alb-ecs
+
+  AlbEcsTaskRoleArn:
+    Type: String
+
+  AlbEcsCodeDeployServiceRoleArn:
+    Type: String
+
+  AlbEcsCodeDeployApplicationName:
+    Type: String
+
+  AlbEcsCodeDeployDeploymentGroupName:
+    Type: String
 
   DeploySpecS3Key:
     Type: String
@@ -132,9 +140,9 @@ Resources:
               - Effect: Allow
                 Action: iam:PassRole
                 Resource:
-                  - Fn::ImportValue: !Sub "${AlbEcsStackName}-TaskExecutionRoleArn"
-                  - Fn::ImportValue: !Sub "${AlbEcsStackName}-TaskRoleArn"
-                  - Fn::ImportValue: !Sub "${AlbEcsStackName}-CodeDeployServiceRoleArn"
+                  - !Ref AlbEcsTaskExecutionRoleArn
+                  - !Ref AlbEcsTaskRoleArn
+                  - !Ref AlbEcsCodeDeployServiceRoleArn
       Tags:
         - Key: Name
           Value: emmanuel-todo-app-pipeline-role
@@ -163,8 +171,7 @@ Resources:
                 Provider: ECR
                 Version: "1"
               Configuration:
-                RepositoryName:
-                  Fn::ImportValue: !Sub "${EcrStackName}-RepositoryName"
+                RepositoryName: !Ref EcrRepositoryName
                 ImageTag: latest
               OutputArtifacts:
                 - Name: ImageSourceOutput
@@ -191,10 +198,8 @@ Resources:
                 Provider: CodeDeployToECS
                 Version: "1"
               Configuration:
-                ApplicationName:
-                  Fn::ImportValue: !Sub "${AlbEcsStackName}-CodeDeployApplicationName"
-                DeploymentGroupName:
-                  Fn::ImportValue: !Sub "${AlbEcsStackName}-CodeDeployDeploymentGroupName"
+                ApplicationName: !Ref AlbEcsCodeDeployApplicationName
+                DeploymentGroupName: !Ref AlbEcsCodeDeployDeploymentGroupName
                 TaskDefinitionTemplateArtifact: DeploySpecOutput
                 TaskDefinitionTemplatePath: taskdef.json
                 AppSpecTemplateArtifact: DeploySpecOutput
@@ -221,7 +226,7 @@ Resources:
           action-type:
             - PUSH
           repository-name:
-            - Fn::ImportValue: !Sub "${EcrStackName}-RepositoryName"
+            - !Ref EcrRepositoryName
           image-tag:
             - latest
           result:

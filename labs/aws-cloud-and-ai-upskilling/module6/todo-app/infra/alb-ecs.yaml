@@ -4,29 +4,55 @@ Description: >
   blue/green deployments via CodeDeploy, and target-tracking autoscaling
   (1-4 tasks on CPU).
   Trainee: Emmanuel SHYIRAMBERE
-  Depends on: emmanuel-todo-app-network (network.yaml), emmanuel-todo-app-ecr
-  (ecr.yaml), emmanuel-todo-app-database (database.yaml), and
-  emmanuel-todo-app-cache (cache.yaml) — their outputs are imported below.
 
 # ─────────────────────────────────────────────
 # PARAMETERS
 # ─────────────────────────────────────────────
 Parameters:
-  NetworkStackName:
-    Type: String
-    Default: emmanuel-todo-app-network
+  VpcId:
+    Type: AWS::EC2::VPC::Id
 
-  EcrStackName:
-    Type: String
-    Default: emmanuel-todo-app-ecr
+  PublicSubnet1Id:
+    Type: AWS::EC2::Subnet::Id
 
-  DatabaseStackName:
-    Type: String
-    Default: emmanuel-todo-app-database
+  PublicSubnet2Id:
+    Type: AWS::EC2::Subnet::Id
 
-  CacheStackName:
+  PrivateSubnetEcs1Id:
+    Type: AWS::EC2::Subnet::Id
+
+  PrivateSubnetEcs2Id:
+    Type: AWS::EC2::Subnet::Id
+
+  AlbSecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+
+  EcsTaskSecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+
+  EcrRepositoryUri:
     Type: String
-    Default: emmanuel-todo-app-cache
+
+  DbProxyEndpoint:
+    Type: String
+
+  DbEndpointPort:
+    Type: String
+
+  DbName:
+    Type: String
+
+  DbMasterUsername:
+    Type: String
+
+  DbSecretArn:
+    Type: String
+
+  RedisEndpointAddress:
+    Type: String
+
+  RedisEndpointPort:
+    Type: String
 
   ContainerPort:
     Type: Number
@@ -53,10 +79,10 @@ Resources:
       Scheme: internet-facing
       Type: application
       Subnets:
-        - Fn::ImportValue: !Sub "${NetworkStackName}-PublicSubnet1Id"
-        - Fn::ImportValue: !Sub "${NetworkStackName}-PublicSubnet2Id"
+        - !Ref PublicSubnet1Id
+        - !Ref PublicSubnet2Id
       SecurityGroups:
-        - Fn::ImportValue: !Sub "${NetworkStackName}-AlbSecurityGroupId"
+        - !Ref AlbSecurityGroupId
       Tags:
         - Key: Name
           Value: emmanuel-todo-app-alb
@@ -65,8 +91,7 @@ Resources:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
       Name: emmanuel-todo-app-tg-blue
-      VpcId:
-        Fn::ImportValue: !Sub "${NetworkStackName}-VpcId"
+      VpcId: !Ref VpcId
       Protocol: HTTP
       Port: !Ref ContainerPort
       TargetType: ip
@@ -83,8 +108,7 @@ Resources:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
       Name: emmanuel-todo-app-tg-green
-      VpcId:
-        Fn::ImportValue: !Sub "${NetworkStackName}-VpcId"
+      VpcId: !Ref VpcId
       Protocol: HTTP
       Port: !Ref ContainerPort
       TargetType: ip
@@ -153,7 +177,7 @@ Resources:
                 Action:
                   - secretsmanager:GetSecretValue
                 Resource:
-                  - Fn::ImportValue: !Sub "${DatabaseStackName}-DbSecretArn"
+                  - !Ref DbSecretArn
       Tags:
         - Key: Name
           Value: emmanuel-todo-app-task-execution-role
@@ -211,11 +235,7 @@ Resources:
       TaskRoleArn: !GetAtt TaskRole.Arn
       ContainerDefinitions:
         - Name: todo-app
-          Image:
-            Fn::Sub:
-              - "${RepositoryUri}:latest"
-              - RepositoryUri:
-                  Fn::ImportValue: !Sub "${EcrStackName}-RepositoryUri"
+          Image: !Sub "${EcrRepositoryUri}:latest"
           PortMappings:
             - ContainerPort: !Ref ContainerPort
               Protocol: tcp
@@ -225,30 +245,20 @@ Resources:
             - Name: AWS_REGION
               Value: !Ref AWS::Region
             - Name: DB_HOST
-              Value:
-                Fn::ImportValue: !Sub "${DatabaseStackName}-DbProxyEndpoint"
+              Value: !Ref DbProxyEndpoint
             - Name: DB_PORT
-              Value:
-                Fn::ImportValue: !Sub "${DatabaseStackName}-DbEndpointPort"
+              Value: !Ref DbEndpointPort
             - Name: DB_NAME
-              Value:
-                Fn::ImportValue: !Sub "${DatabaseStackName}-DbName"
+              Value: !Ref DbName
             - Name: DB_USER
-              Value:
-                Fn::ImportValue: !Sub "${DatabaseStackName}-DbMasterUsername"
+              Value: !Ref DbMasterUsername
             - Name: REDIS_HOST
-              Value:
-                Fn::ImportValue: !Sub "${CacheStackName}-RedisEndpointAddress"
+              Value: !Ref RedisEndpointAddress
             - Name: REDIS_PORT
-              Value:
-                Fn::ImportValue: !Sub "${CacheStackName}-RedisEndpointPort"
+              Value: !Ref RedisEndpointPort
           Secrets:
             - Name: DB_PASSWORD
-              ValueFrom:
-                Fn::Sub:
-                  - "${SecretArn}:password::"
-                  - SecretArn:
-                      Fn::ImportValue: !Sub "${DatabaseStackName}-DbSecretArn"
+              ValueFrom: !Sub "${DbSecretArn}:password::"
           LogConfiguration:
             LogDriver: awslogs
             Options:
@@ -272,10 +282,10 @@ Resources:
         AwsvpcConfiguration:
           AssignPublicIp: DISABLED
           Subnets:
-            - Fn::ImportValue: !Sub "${NetworkStackName}-PrivateSubnetEcs1Id"
-            - Fn::ImportValue: !Sub "${NetworkStackName}-PrivateSubnetEcs2Id"
+            - !Ref PrivateSubnetEcs1Id
+            - !Ref PrivateSubnetEcs2Id
           SecurityGroups:
-            - Fn::ImportValue: !Sub "${NetworkStackName}-EcsTaskSecurityGroupId"
+            - !Ref EcsTaskSecurityGroupId
       LoadBalancers:
         - ContainerName: todo-app
           ContainerPort: !Ref ContainerPort
@@ -369,40 +379,24 @@ Outputs:
 
   AlbListenerArn:
     Value: !Ref AlbListener
-    Export:
-      Name: !Sub "${AWS::StackName}-AlbListenerArn"
 
   EcsClusterName:
     Value: !Ref EcsCluster
-    Export:
-      Name: !Sub "${AWS::StackName}-EcsClusterName"
 
   EcsServiceName:
     Value: !GetAtt EcsService.Name
-    Export:
-      Name: !Sub "${AWS::StackName}-EcsServiceName"
 
   CodeDeployApplicationName:
     Value: !Ref CodeDeployApplication
-    Export:
-      Name: !Sub "${AWS::StackName}-CodeDeployApplicationName"
 
   CodeDeployDeploymentGroupName:
     Value: !Ref CodeDeployDeploymentGroup
-    Export:
-      Name: !Sub "${AWS::StackName}-CodeDeployDeploymentGroupName"
 
   TaskExecutionRoleArn:
     Value: !GetAtt TaskExecutionRole.Arn
-    Export:
-      Name: !Sub "${AWS::StackName}-TaskExecutionRoleArn"
 
   TaskRoleArn:
     Value: !GetAtt TaskRole.Arn
-    Export:
-      Name: !Sub "${AWS::StackName}-TaskRoleArn"
 
   CodeDeployServiceRoleArn:
     Value: !GetAtt CodeDeployServiceRole.Arn
-    Export:
-      Name: !Sub "${AWS::StackName}-CodeDeployServiceRoleArn"

@@ -4,16 +4,19 @@ Description: >
   own dedicated private subnets, used to accelerate reads via the Spring
   Cache abstraction (cache-aside on the To-Do list endpoints).
   Trainee: Emmanuel SHYIRAMBERE
-  Depends on: emmanuel-todo-app-network (network.yaml) — its outputs are
-  imported below via Fn::ImportValue.
 
 # ─────────────────────────────────────────────
 # PARAMETERS
 # ─────────────────────────────────────────────
 Parameters:
-  NetworkStackName:
-    Type: String
-    Default: emmanuel-todo-app-network
+  PrivateSubnetCache1Id:
+    Type: AWS::EC2::Subnet::Id
+
+  PrivateSubnetCache2Id:
+    Type: AWS::EC2::Subnet::Id
+
+  ElastiCacheSecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
 
   CacheNodeType:
     Type: String
@@ -32,8 +35,8 @@ Resources:
     Properties:
       Description: Dedicated private subnets for ElastiCache Redis
       SubnetIds:
-        - Fn::ImportValue: !Sub "${NetworkStackName}-PrivateSubnetCache1Id"
-        - Fn::ImportValue: !Sub "${NetworkStackName}-PrivateSubnetCache2Id"
+        - !Ref PrivateSubnetCache1Id
+        - !Ref PrivateSubnetCache2Id
 
   # ── ElastiCache Redis Cluster ────────────────────
   # Single-node — the lab requires caching for read acceleration, not cache
@@ -50,7 +53,7 @@ Resources:
       Port: 6379
       CacheSubnetGroupName: !Ref CacheSubnetGroup
       VpcSecurityGroupIds:
-        - Fn::ImportValue: !Sub "${NetworkStackName}-ElastiCacheSecurityGroupId"
+        - !Ref ElastiCacheSecurityGroupId
       Tags:
         - Key: Name
           Value: emmanuel-todo-app-redis
@@ -62,11 +65,7 @@ Outputs:
   RedisEndpointAddress:
     Description: ElastiCache Redis endpoint hostname
     Value: !GetAtt RedisCluster.RedisEndpoint.Address
-    Export:
-      Name: !Sub "${AWS::StackName}-RedisEndpointAddress"
 
   RedisEndpointPort:
     Description: ElastiCache Redis endpoint port
     Value: !GetAtt RedisCluster.RedisEndpoint.Port
-    Export:
-      Name: !Sub "${AWS::StackName}-RedisEndpointPort"

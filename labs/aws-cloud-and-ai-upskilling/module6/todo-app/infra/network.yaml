@@ -487,83 +487,55 @@ Outputs:
   VpcId:
     Description: VPC ID
     Value: !Ref VPC
-    Export:
-      Name: !Sub "${AWS::StackName}-VpcId"
 
   PublicSubnet1Id:
     Description: Public subnet (AZ1) ID — for ALB
     Value: !Ref PublicSubnet1
-    Export:
-      Name: !Sub "${AWS::StackName}-PublicSubnet1Id"
 
   PublicSubnet2Id:
     Description: Public subnet (AZ2) ID — for ALB
     Value: !Ref PublicSubnet2
-    Export:
-      Name: !Sub "${AWS::StackName}-PublicSubnet2Id"
 
   PrivateSubnetEcs1Id:
     Description: Private subnet (AZ1) ID — for ECS Fargate tasks
     Value: !Ref PrivateSubnetEcs1
-    Export:
-      Name: !Sub "${AWS::StackName}-PrivateSubnetEcs1Id"
 
   PrivateSubnetEcs2Id:
     Description: Private subnet (AZ2) ID — for ECS Fargate tasks
     Value: !Ref PrivateSubnetEcs2
-    Export:
-      Name: !Sub "${AWS::StackName}-PrivateSubnetEcs2Id"
 
   PrivateSubnetDb1Id:
     Description: Private subnet (AZ1) ID — for RDS PostgreSQL + RDS Proxy
     Value: !Ref PrivateSubnetDb1
-    Export:
-      Name: !Sub "${AWS::StackName}-PrivateSubnetDb1Id"
 
   PrivateSubnetDb2Id:
     Description: Private subnet (AZ2) ID — for RDS PostgreSQL + RDS Proxy
     Value: !Ref PrivateSubnetDb2
-    Export:
-      Name: !Sub "${AWS::StackName}-PrivateSubnetDb2Id"
 
   PrivateSubnetCache1Id:
     Description: Private subnet (AZ1) ID — for ElastiCache Redis
     Value: !Ref PrivateSubnetCache1
-    Export:
-      Name: !Sub "${AWS::StackName}-PrivateSubnetCache1Id"
 
   PrivateSubnetCache2Id:
     Description: Private subnet (AZ2) ID — for ElastiCache Redis
     Value: !Ref PrivateSubnetCache2
-    Export:
-      Name: !Sub "${AWS::StackName}-PrivateSubnetCache2Id"
 
   AlbSecurityGroupId:
     Description: Security group ID for the ALB
     Value: !Ref AlbSecurityGroup
-    Export:
-      Name: !Sub "${AWS::StackName}-AlbSecurityGroupId"
 
   EcsTaskSecurityGroupId:
     Description: Security group ID for ECS Fargate tasks
     Value: !Ref EcsTaskSecurityGroup
-    Export:
-      Name: !Sub "${AWS::StackName}-EcsTaskSecurityGroupId"
 
   RdsProxySecurityGroupId:
     Description: Security group ID for RDS Proxy
     Value: !Ref RdsProxySecurityGroup
-    Export:
-      Name: !Sub "${AWS::StackName}-RdsProxySecurityGroupId"
 
   DbSecurityGroupId:
     Description: Security group ID for RDS PostgreSQL
     Value: !Ref DbSecurityGroup
-    Export:
-      Name: !Sub "${AWS::StackName}-DbSecurityGroupId"
 
   ElastiCacheSecurityGroupId:
     Description: Security group ID for ElastiCache Redis
     Value: !Ref ElastiCacheSecurityGroup
-    Export:
-      Name: !Sub "${AWS::StackName}-ElastiCacheSecurityGroupId"
