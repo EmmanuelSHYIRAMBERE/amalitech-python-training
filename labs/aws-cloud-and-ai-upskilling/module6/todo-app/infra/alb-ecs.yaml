@@ -275,7 +275,12 @@ Resources:
       Cluster: !Ref EcsCluster
       TaskDefinition: !Ref TaskDefinition
       LaunchType: FARGATE
-      DesiredCount: 1
+      # Starts at 0 since no real image exists in ECR yet (fresh deploy,
+      # old image cleared during migration teardown) - the bootstrap
+      # placeholder can't pass health checks and DesiredCount: 1 would
+      # hang until the stack times out. Scale to 1 once a real image has
+      # been pushed via .github/workflows/todo-app.yml.
+      DesiredCount: 0
       DeploymentController:
         Type: CODE_DEPLOY
       NetworkConfiguration:
