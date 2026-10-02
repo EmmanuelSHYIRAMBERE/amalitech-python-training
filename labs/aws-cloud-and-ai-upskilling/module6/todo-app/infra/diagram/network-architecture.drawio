@@ -223,7 +223,7 @@
         <mxCell id="deploy" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#527fff;fontColor=#ffffff;strokeColor=none;fontSize=11;" value="CodeDeploy Blue/Green" vertex="1">
           <mxGeometry height="50" width="130" x="1180" y="1020" as="geometry" />
         </mxCell>
-        <mxCell id="cfn" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#b85450;fontColor=#ffffff;strokeColor=none;fontSize=11;" value="CloudFormation Git Sync (network / database / cache / ecr / alb-ecs / pipeline)" vertex="1">
+        <mxCell id="cfn" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#b85450;fontColor=#ffffff;strokeColor=none;fontSize=11;" value="CloudFormation nested stacks (root.yaml via GitHub Actions)" vertex="1">
           <mxGeometry height="60" width="180" x="60" y="990" as="geometry" />
         </mxCell>
 
@@ -257,7 +257,7 @@
         <mxCell id="e_deploy_alb" edge="1" parent="1" source="deploy" target="alb_a" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=9;dashed=1;strokeColor=#999999;" value="registers task def, shifts ALB traffic">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_repo_cfn" edge="1" parent="1" source="repo" target="cfn" style="edgeStyle=orthogonalEdgeStyle;dashed=1;strokeColor=#999999;html=1;fontSize=9;" value="Git Sync watches infra/*.yaml">
+        <mxCell id="e_repo_cfn" edge="1" parent="1" source="repo" target="cfn" style="edgeStyle=orthogonalEdgeStyle;dashed=1;strokeColor=#999999;html=1;fontSize=9;" value="push to infra/**">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="e_cfn_vpc" edge="1" parent="1" source="cfn" target="cl_vpc" style="edgeStyle=orthogonalEdgeStyle;dashed=1;strokeColor=#999999;html=1;fontSize=9;" value="provisions">

@@ -48,7 +48,7 @@ with Diagram(
         eb = Eventbridge("EventBridge\n(ECR 'latest' push rule)")
         pipeline = Codepipeline("CodePipeline")
         deploy = Codedeploy("CodeDeploy\nBlue/Green")
-        cfn = Cloudformation("CloudFormation Git Sync\n(network / database / cache /\necr / alb-ecs / pipeline)")
+        cfn = Cloudformation("CloudFormation nested stacks\n(root.yaml via GitHub Actions)")
 
         code >> Edge(label="git push app/**") >> repo
         repo >> Edge(label="triggers") >> actions
@@ -59,7 +59,7 @@ with Diagram(
         eb >> Edge(label="starts") >> pipeline
         s3_artifacts >> Edge(label="deploy-spec source", style="dashed", color="gray") >> pipeline
         pipeline >> deploy
-        repo >> Edge(label="Git Sync watches infra/*.yaml", style="dashed", color="gray") >> cfn
+        repo >> Edge(label="push to infra/**", style="dashed", color="gray") >> cfn
 
     user = Users("Internet\nVisitor")
     igw = InternetGateway("Internet\nGateway")
