@@ -65,8 +65,14 @@ already-shared `AWS_REGION` secret).
 - **dev**: `.github/workflows/orders-dynamodb-deploy-dev.yml` — fires
   automatically on every push to `infra/**` on this branch.
 - **prod**: `.github/workflows/orders-dynamodb-deploy-prod.yml` —
-  manual only, via `workflow_dispatch` with a required `confirm: deploy`
-  input, so a production deploy can never happen by accident.
+  fires only on a push that touches `infra/.promote-to-prod`. To
+  promote, edit that file (bump its timestamp comment) and
+  commit/push — routine infra changes never touch prod. (A
+  `workflow_dispatch` gate was considered but doesn't work here: GitHub
+  only exposes manual dispatch for a workflow that also exists on the
+  repo's default branch, and this branch is intentionally never merged
+  to `main` — so dispatch would be permanently unusable. The marker-file
+  push trigger is the deliberate-but-actually-triggerable equivalent.)
 
 ### Manual local deploy (if needed)
 

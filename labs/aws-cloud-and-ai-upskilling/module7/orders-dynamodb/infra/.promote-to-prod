@@ -1,0 +1,10 @@
+# Promote-to-prod marker
+
+# Editing and pushing this file (on feat/module7-dynamodb-sam) is the
+# deliberate trigger for orders-dynamodb-deploy-prod.yml — it's the
+# only thing that workflow's push trigger watches, so prod never
+# deploys as a side effect of any other infra change.
+#
+# To promote: bump the line below, commit, push.
+
+last-promoted: 2026-10-05T00:00:00Z

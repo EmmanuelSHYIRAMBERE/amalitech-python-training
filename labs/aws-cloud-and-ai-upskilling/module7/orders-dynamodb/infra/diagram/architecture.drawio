@@ -43,7 +43,7 @@
         </mxCell>
 
         <!-- ═══════════════ PROD PIPELINE (right) ═══════════════ -->
-        <mxCell id="cl_prod" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=16;fontSize=12;fontColor=#232f3e;fontStyle=1;dashed=1;dashPattern=8 4;strokeColor=#B85450;fillColor=#FAE8E8;" value="prod pipeline — manual workflow_dispatch only (confirm='deploy')" vertex="1">
+        <mxCell id="cl_prod" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=16;fontSize=12;fontColor=#232f3e;fontStyle=1;dashed=1;dashPattern=8 4;strokeColor=#B85450;fillColor=#FAE8E8;" value="prod pipeline — push to infra/.promote-to-prod only" vertex="1">
           <mxGeometry height="620" width="420" x="820" y="170" as="geometry" />
         </mxCell>
 
@@ -71,7 +71,7 @@
         <mxCell id="e_repo_dev" edge="1" parent="1" source="repo" target="actions_dev" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;strokeColor=#545B64;" value="push to infra/**">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_repo_prod" edge="1" parent="1" source="repo" target="actions_prod" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;dashed=1;strokeColor=#999999;" value="workflow_dispatch (confirm='deploy')">
+        <mxCell id="e_repo_prod" edge="1" parent="1" source="repo" target="actions_prod" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;dashed=1;strokeColor=#999999;" value="push to infra/.promote-to-prod">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="e_dev_role" edge="1" parent="1" source="actions_dev" target="push_role" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;strokeColor=#545B64;" value="assumes via OIDC">

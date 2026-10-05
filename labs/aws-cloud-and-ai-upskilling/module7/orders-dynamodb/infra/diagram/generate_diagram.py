@@ -43,7 +43,7 @@ with Diagram(
         s3_dev >> Edge(label="template source") >> cfn_dev
         cfn_dev >> Edge(label="provisions") >> table_dev
 
-    with Cluster("prod pipeline (manual workflow_dispatch only)"):
+    with Cluster("prod pipeline (push to infra/.promote-to-prod only)"):
         actions_prod = GithubActions("orders-dynamodb-\ndeploy-prod.yml")
         s3_prod = S3("SAM Artifact Bucket\n(prod)")
         cfn_prod = Cloudformation("emmanuel-orders-\ndynamodb-prod")
@@ -56,6 +56,6 @@ with Diagram(
         cfn_prod >> Edge(label="provisions") >> table_prod
 
     repo >> Edge(label="push to infra/**") >> actions_dev
-    repo >> Edge(label="workflow_dispatch\n(confirm='deploy')", style="dashed", color="gray") >> actions_prod
+    repo >> Edge(label="push to\ninfra/.promote-to-prod", style="dashed", color="gray") >> actions_prod
     actions_dev >> Edge(label="assumes via OIDC") >> push_role
     actions_prod >> Edge(label="assumes via OIDC") >> push_role
