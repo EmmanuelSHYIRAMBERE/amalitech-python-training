@@ -1,0 +1,65 @@
+name: Deploy Orders DynamoDB (prod)
+
+# Manual-only: prod never deploys from a push, only from an explicit
+# workflow_dispatch where the caller types "deploy" to confirm — a
+# deliberate extra gate since this writes to the live prod table.
+# Separate from deploy-dev.yml by design (rubric extra-marks
+# requirement): each environment gets its own dedicated pipeline and
+# its own S3 artifact bucket.
+#
+# One-time manual prerequisite: create the prod artifact bucket named
+# in infra/samconfig.toml's [prod.deploy.parameters] before the first
+# run — `sam deploy` uploads to it but won't create it.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "deploy" to confirm a production deploy'
+        required: true
+        type: string
+
+env:
+  INFRA_DIR: labs/aws-cloud-and-ai-upskilling/module7/orders-dynamodb/infra
+
+jobs:
+  deploy-prod:
+    name: SAM Build and Deploy (prod)
+    runs-on: ubuntu-latest
+    if: github.event.inputs.confirm == 'deploy'
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Configure AWS credentials via OIDC
+        uses: ./.github/actions/aws-oidc-auth
+        with:
+          aws-region: ${{ secrets.AWS_REGION }}
+          aws-role-arn: ${{ secrets.ORDERS_DYNAMODB_AWS_ROLE_ARN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install AWS SAM CLI
+        run: pip install aws-sam-cli
+
+      - name: SAM build
+        working-directory: ${{ env.INFRA_DIR }}
+        run: sam build
+
+      - name: SAM deploy (prod)
+        working-directory: ${{ env.INFRA_DIR }}
+        run: sam deploy --config-env prod --no-confirm-changeset
+
+      - name: Show table outputs
+        run: |
+          aws cloudformation describe-stacks \
+            --stack-name emmanuel-orders-dynamodb-prod \
+            --query "Stacks[0].Outputs" \
+            --output table

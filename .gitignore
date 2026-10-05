@@ -13,6 +13,9 @@ htmlcov/
 node_modules/
 dist/
 
+# AWS SAM
+.aws-sam/
+
 # Env files
 .env
 

@@ -393,6 +393,64 @@ Resources:
         - Key: Name
           Value: github-actions-todo-app-push
 
+  # ── orders-dynamodb: Module 7 DynamoDB + SAM Lab ─
+  # Used by BOTH .github/workflows/orders-dynamodb-deploy-dev.yml (push
+  # trigger) and orders-dynamodb-deploy-prod.yml (workflow_dispatch only)
+  # on feat/module7-dynamodb-sam. One role covers both environments
+  # since both workflows run from the same branch; the two deploys stay
+  # isolated from each other via distinct stack names and distinct S3
+  # artifact buckets (dev/prod), not via distinct IAM identities.
+  OrdersDynamoDbPushRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: github-actions-orders-dynamodb-push
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !Ref GitHubOidcProvider
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+              StringLike:
+                token.actions.githubusercontent.com:sub: !Sub "repo:${GitHubOrg}/${GitHubRepo}:ref:refs/heads/feat/module7-dynamodb-sam"
+      Policies:
+        - PolicyName: orders-dynamodb-sam-deploy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: CloudFormationStackManagement
+                Effect: Allow
+                Action: cloudformation:*
+                Resource:
+                  - !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/emmanuel-orders-dynamodb-dev/*"
+                  - !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/emmanuel-orders-dynamodb-prod/*"
+              - Sid: SamArtifactBucketsAccess
+                Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:ListBucket
+                  - s3:GetBucketLocation
+                Resource:
+                  - !Sub "arn:aws:s3:::emmanuel-orders-sam-artifacts-dev-${AWS::AccountId}"
+                  - !Sub "arn:aws:s3:::emmanuel-orders-sam-artifacts-dev-${AWS::AccountId}/*"
+                  - !Sub "arn:aws:s3:::emmanuel-orders-sam-artifacts-prod-${AWS::AccountId}"
+                  - !Sub "arn:aws:s3:::emmanuel-orders-sam-artifacts-prod-${AWS::AccountId}/*"
+              - Sid: DynamoDbTableManagement
+                Effect: Allow
+                Action: dynamodb:*
+                Resource:
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/emmanuel-orders-dev"
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/emmanuel-orders-dev/index/*"
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/emmanuel-orders-prod"
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/emmanuel-orders-prod/index/*"
+      Tags:
+        - Key: Name
+          Value: github-actions-orders-dynamodb-push
+
 # ─────────────────────────────────────────────
 # OUTPUTS
 # ─────────────────────────────────────────────
@@ -416,3 +474,7 @@ Outputs:
   TodoAppPushRoleArn:
     Description: Role ARN for todo-app.yml (feat/module6-todo-app only) — paste into the TODO_APP_AWS_ROLE_ARN GitHub secret.
     Value: !GetAtt TodoAppPushRole.Arn
+
+  OrdersDynamoDbPushRoleArn:
+    Description: Role ARN for orders-dynamodb-deploy-dev.yml and orders-dynamodb-deploy-prod.yml (feat/module7-dynamodb-sam only) — paste into the ORDERS_DYNAMODB_AWS_ROLE_ARN GitHub secret.
+    Value: !GetAtt OrdersDynamoDbPushRole.Arn

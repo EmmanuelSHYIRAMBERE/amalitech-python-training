@@ -1,0 +1,102 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  DynamoDB Table Lab — Orders table deployed via AWS SAM. On-demand billing,
+  non-default (infrequent-access) storage class, a composite primary key,
+  2 non-key attributes beyond what's indexed, and 2 Global Secondary
+  Indexes for the customer-order-history and status-lookup access
+  patterns. Deployed independently per environment (dev/prod) via SAM
+  Pipelines + GitHub Actions — see infra/pipeline/.
+  Trainee: Emmanuel SHYIRAMBERE
+
+# ─────────────────────────────────────────────
+# PARAMETERS
+# ─────────────────────────────────────────────
+Parameters:
+  Environment:
+    Type: String
+    AllowedValues: [dev, prod]
+    Description: Deployment environment — suffixes every resource name so dev and prod never collide.
+
+# ─────────────────────────────────────────────
+# RESOURCES
+# ─────────────────────────────────────────────
+Resources:
+  # ── Orders Table ───────────────────────────────
+  # Primary key: orderId (partition) + createdAt (sort) — an order is
+  # unique per orderId, and the sort key lets a single customer's or
+  # status's orders (via the GSIs below) come back time-ordered without
+  # an application-side sort.
+  #
+  # Non-key attributes NOT part of any key or index (satisfies "2
+  # additional attributes" beyond the indexed set): totalAmount, region.
+  # customerId and status ARE attributes too, but they're also each a
+  # GSI partition key — DynamoDB doesn't distinguish "index key" from
+  # "regular attribute" at the schema level, so totalAmount/region are
+  # the two that are unambiguously plain data.
+  OrdersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "emmanuel-orders-${Environment}"
+      BillingMode: PAY_PER_REQUEST
+      TableClass: STANDARD_INFREQUENT_ACCESS
+      AttributeDefinitions:
+        - AttributeName: orderId
+          AttributeType: S
+        - AttributeName: createdAt
+          AttributeType: S
+        - AttributeName: customerId
+          AttributeType: S
+        - AttributeName: status
+          AttributeType: S
+      KeySchema:
+        - AttributeName: orderId
+          KeyType: HASH
+        - AttributeName: createdAt
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        # GSI1 — "all orders for customer X, newest first"
+        - IndexName: CustomerOrdersIndex
+          KeySchema:
+            - AttributeName: customerId
+              KeyType: HASH
+            - AttributeName: createdAt
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        # GSI2 — "all orders currently in status Y, newest first"
+        - IndexName: StatusOrdersIndex
+          KeySchema:
+            - AttributeName: status
+              KeyType: HASH
+            - AttributeName: createdAt
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      Tags:
+        - Key: Name
+          Value: !Sub "emmanuel-orders-${Environment}"
+        - Key: Environment
+          Value: !Ref Environment
+
+# ─────────────────────────────────────────────
+# OUTPUTS
+# ─────────────────────────────────────────────
+Outputs:
+  OrdersTableName:
+    Description: DynamoDB table name
+    Value: !Ref OrdersTable
+
+  OrdersTableArn:
+    Description: DynamoDB table ARN
+    Value: !GetAtt OrdersTable.Arn
+
+  CustomerOrdersIndexName:
+    Description: GSI1 name — query by customerId
+    Value: CustomerOrdersIndex
+
+  StatusOrdersIndexName:
+    Description: GSI2 name — query by status
+    Value: StatusOrdersIndex
