@@ -1,0 +1,117 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Photo Uploader Lab — Database stack. RDS PostgreSQL instance (db.t3
+  family) in the private subnets, with an AWS-managed master password
+  stored in Secrets Manager — no password ever appears in this template,
+  a parameter, or a GitHub secret. The ECS task role is granted read-only
+  access to the generated secret at runtime.
+  Trainee: Emmanuel SHYIRAMBERE
+  Deployed as a nested stack under the root template (root.yaml) — the
+  network stack's subnet/security-group IDs below are passed in as plain
+  parameters by the root stack via Fn::GetAtt on the sibling network
+  nested stack, not looked up via Fn::ImportValue.
+
+# ─────────────────────────────────────────────
+# PARAMETERS
+# ─────────────────────────────────────────────
+Parameters:
+  PrivateSubnetDb1Id:
+    Type: AWS::EC2::Subnet::Id
+    Description: Private subnet (AZ1) ID for RDS — from the network nested stack.
+
+  PrivateSubnetDb2Id:
+    Type: AWS::EC2::Subnet::Id
+    Description: Private subnet (AZ2) ID for RDS — from the network nested stack.
+
+  DbSecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+    Description: Security group ID for RDS — from the network nested stack.
+
+  DbInstanceClass:
+    Type: String
+    Default: db.t3.micro
+
+  DbName:
+    Type: String
+    Default: photouploader
+
+  DbMasterUsername:
+    Type: String
+    Default: photoapp
+
+  DbAllocatedStorage:
+    Type: Number
+    Default: 20
+    Description: Allocated storage in GiB.
+
+# ─────────────────────────────────────────────
+# RESOURCES
+# ─────────────────────────────────────────────
+Resources:
+
+  # ── DB Subnet Group ────────────────────────────
+  DbSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Dedicated subnets for the Photo Uploader RDS instance (DB-only, separate from the ECS task subnets)
+      SubnetIds:
+        - !Ref PrivateSubnetDb1Id
+        - !Ref PrivateSubnetDb2Id
+      Tags:
+        - Key: Name
+          Value: emmanuel-photo-uploader-db-subnet-group
+
+  # ── RDS PostgreSQL Instance ─────────────────────
+  # ManageMasterUserPassword lets RDS itself generate and rotate the
+  # master password, stored as a new Secrets Manager secret - the
+  # password is never visible in this template, the console, or a
+  # parameter value.
+  PostgresInstance:
+    Type: AWS::RDS::DBInstance
+    DeletionPolicy: Snapshot
+    Properties:
+      DBInstanceIdentifier: emmanuel-photo-uploader-db
+      Engine: postgres
+      EngineVersion: "16.13"
+      AutoMinorVersionUpgrade: true
+      DBInstanceClass: !Ref DbInstanceClass
+      AllocatedStorage: !Ref DbAllocatedStorage
+      StorageType: gp3
+      DBName: !Ref DbName
+      MasterUsername: !Ref DbMasterUsername
+      ManageMasterUserPassword: true
+      DBSubnetGroupName: !Ref DbSubnetGroup
+      VPCSecurityGroups:
+        - !Ref DbSecurityGroupId
+      MultiAZ: false
+      PubliclyAccessible: false
+      BackupRetentionPeriod: 7
+      StorageEncrypted: true
+      KmsKeyId: alias/aws/rds
+      Tags:
+        - Key: Name
+          Value: emmanuel-photo-uploader-db
+
+# ─────────────────────────────────────────────
+# OUTPUTS
+# ─────────────────────────────────────────────
+Outputs:
+  DbEndpointAddress:
+    Description: RDS PostgreSQL endpoint hostname
+    Value: !GetAtt PostgresInstance.Endpoint.Address
+
+  DbEndpointPort:
+    Description: RDS PostgreSQL endpoint port
+    Value: !GetAtt PostgresInstance.Endpoint.Port
+
+  DbName:
+    Description: Database name
+    Value: !Ref DbName
+
+  DbMasterUsername:
+    Description: Database master username
+    Value: !Ref DbMasterUsername
+
+  DbSecretArn:
+    Description: Secrets Manager secret ARN holding the auto-generated master password
+    Value: !GetAtt PostgresInstance.MasterUserSecret.SecretArn

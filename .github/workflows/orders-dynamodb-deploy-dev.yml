@@ -1,0 +1,62 @@
+name: Deploy Orders DynamoDB (dev)
+
+# Auto-deploys the dev environment on every push to infra/**. Separate
+# from deploy-prod.yml by design (rubric extra-marks requirement): each
+# environment gets its own dedicated pipeline and its own S3 artifact
+# bucket, instead of one SAM-generated multi-stage pipeline covering
+# both.
+#
+# One-time manual prerequisite: create the dev artifact bucket named in
+# infra/samconfig.toml's [dev.deploy.parameters] before the first run —
+# `sam deploy` uploads to it but won't create it.
+
+on:
+  push:
+    branches: [feat/module7-dynamodb-sam]
+    paths:
+      - "labs/aws-cloud-and-ai-upskilling/module7/orders-dynamodb/infra/**"
+  workflow_dispatch: {}
+
+env:
+  INFRA_DIR: labs/aws-cloud-and-ai-upskilling/module7/orders-dynamodb/infra
+
+jobs:
+  deploy-dev:
+    name: SAM Build and Deploy (dev)
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Configure AWS credentials via OIDC
+        uses: ./.github/actions/aws-oidc-auth
+        with:
+          aws-region: ${{ secrets.AWS_REGION }}
+          aws-role-arn: ${{ secrets.ORDERS_DYNAMODB_AWS_ROLE_ARN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install AWS SAM CLI
+        run: pip install aws-sam-cli
+
+      - name: SAM build
+        working-directory: ${{ env.INFRA_DIR }}
+        run: sam build
+
+      - name: SAM deploy (dev)
+        working-directory: ${{ env.INFRA_DIR }}
+        run: sam deploy --config-env dev --no-confirm-changeset
+
+      - name: Show table outputs
+        run: |
+          aws cloudformation describe-stacks \
+            --stack-name emmanuel-orders-dynamodb-dev \
+            --query "Stacks[0].Outputs" \
+            --output table

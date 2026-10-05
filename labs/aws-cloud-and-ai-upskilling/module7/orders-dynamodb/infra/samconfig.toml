@@ -1,0 +1,30 @@
+version = 0.1
+
+# Environment-scoped deploy configs — dev and prod each use their own
+# dedicated S3 artifact bucket (bootstrapped out-of-band, same chicken-
+# and-egg constraint as the nested-stack templates buckets in the other
+# labs: a bucket must exist before anything can upload to it, so it
+# can't be created by this same SAM deploy). No [default.*] section —
+# every deploy must explicitly name --config-env dev or --config-env
+# prod, so a plain `sam deploy` can never silently target the wrong
+# environment.
+
+[dev.deploy.parameters]
+stack_name = "emmanuel-orders-dynamodb-dev"
+resolve_s3 = false
+s3_bucket = "emmanuel-orders-sam-artifacts-dev-195275667627"
+s3_prefix = "emmanuel-orders-dynamodb-dev"
+region = "eu-north-1"
+parameter_overrides = "Environment=dev"
+confirm_changeset = false
+fail_on_empty_changeset = false
+
+[prod.deploy.parameters]
+stack_name = "emmanuel-orders-dynamodb-prod"
+resolve_s3 = false
+s3_bucket = "emmanuel-orders-sam-artifacts-prod-195275667627"
+s3_prefix = "emmanuel-orders-dynamodb-prod"
+region = "eu-north-1"
+parameter_overrides = "Environment=prod"
+confirm_changeset = false
+fail_on_empty_changeset = false

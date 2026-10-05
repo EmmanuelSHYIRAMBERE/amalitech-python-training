@@ -1,0 +1,70 @@
+name: Deploy Orders DynamoDB (prod)
+
+# Deliberate-promotion trigger: this workflow fires only when a push
+# touches infra/.promote-to-prod — a dedicated, otherwise-inert marker
+# file. To promote to prod, edit that file (e.g. bump its timestamp
+# comment) and commit/push it; routine infra/** changes never touch
+# prod. (workflow_dispatch was considered instead, but GitHub only
+# exposes manual dispatch for a workflow that also exists on the
+# repo's default branch — this branch is never merged to main, so
+# workflow_dispatch here would be permanently undispatchable. A push
+# trigger fires regardless of default-branch status, so it's the only
+# mechanism that actually works for a never-merged branch.)
+#
+# Separate from deploy-dev.yml by design (rubric extra-marks
+# requirement): each environment gets its own dedicated pipeline and
+# its own S3 artifact bucket.
+#
+# One-time manual prerequisite: create the prod artifact bucket named
+# in infra/samconfig.toml's [prod.deploy.parameters] before the first
+# run — `sam deploy` uploads to it but won't create it.
+
+on:
+  push:
+    branches: [feat/module7-dynamodb-sam]
+    paths:
+      - "labs/aws-cloud-and-ai-upskilling/module7/orders-dynamodb/infra/.promote-to-prod"
+
+env:
+  INFRA_DIR: labs/aws-cloud-and-ai-upskilling/module7/orders-dynamodb/infra
+
+jobs:
+  deploy-prod:
+    name: SAM Build and Deploy (prod)
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Configure AWS credentials via OIDC
+        uses: ./.github/actions/aws-oidc-auth
+        with:
+          aws-region: ${{ secrets.AWS_REGION }}
+          aws-role-arn: ${{ secrets.ORDERS_DYNAMODB_AWS_ROLE_ARN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install AWS SAM CLI
+        run: pip install aws-sam-cli
+
+      - name: SAM build
+        working-directory: ${{ env.INFRA_DIR }}
+        run: sam build
+
+      - name: SAM deploy (prod)
+        working-directory: ${{ env.INFRA_DIR }}
+        run: sam deploy --config-env prod --no-confirm-changeset
+
+      - name: Show table outputs
+        run: |
+          aws cloudformation describe-stacks \
+            --stack-name emmanuel-orders-dynamodb-prod \
+            --query "Stacks[0].Outputs" \
+            --output table

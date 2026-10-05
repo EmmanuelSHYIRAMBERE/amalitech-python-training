@@ -1,0 +1,114 @@
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: #0f172a;
+  color: #f8fafc;
+  margin: 0;
+  padding: 2rem;
+}
+
+h1 {
+  text-align: center;
+  margin-bottom: 0.25rem;
+}
+
+h2 {
+  text-align: center;
+  font-weight: 400;
+  color: #94a3b8;
+  margin-top: 0;
+}
+
+form {
+  max-width: 480px;
+  margin: 2rem auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  background: #1e293b;
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+}
+
+input,
+textarea,
+button {
+  font: inherit;
+  padding: 0.5rem;
+  border-radius: 0.25rem;
+  border: 1px solid #334155;
+  background: #0f172a;
+  color: #f8fafc;
+}
+
+button {
+  background: #2563eb;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+#status {
+  text-align: center;
+  min-height: 1.5rem;
+  color: #94a3b8;
+}
+
+.task-list {
+  list-style: none;
+  max-width: 640px;
+  margin: 2rem auto;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.task-item {
+  background: #1e293b;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.task-item.completed .task-title {
+  text-decoration: line-through;
+  color: #64748b;
+}
+
+.task-item input[type="checkbox"] {
+  margin-top: 0.3rem;
+}
+
+.task-body {
+  flex: 1;
+}
+
+.task-title {
+  font-weight: 600;
+}
+
+.task-description {
+  font-size: 0.875rem;
+  color: #94a3b8;
+  margin-top: 0.25rem;
+}
+
+.task-actions button {
+  background: #ef4444;
+  padding: 0.35rem 0.6rem;
+  font-size: 0.8rem;
+}
+
+footer {
+  text-align: center;
+  margin-top: 3rem;
+  font-size: 0.75rem;
+  color: #475569;
+}
