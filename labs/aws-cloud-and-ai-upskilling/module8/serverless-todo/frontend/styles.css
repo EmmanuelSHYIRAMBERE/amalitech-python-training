@@ -1,0 +1,157 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: #f5f6fa;
+  margin: 0;
+  padding: 0;
+  color: #232f3e;
+}
+
+.hidden {
+  display: none;
+}
+
+.view {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.card {
+  max-width: 400px;
+  margin: 4rem auto;
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+h1 {
+  margin-top: 0;
+}
+
+.form {
+  margin-bottom: 2rem;
+}
+
+.form input {
+  display: block;
+  width: 100%;
+  padding: 0.6rem;
+  margin-bottom: 0.6rem;
+  border: 1px solid #d6d6d6;
+  border-radius: 4px;
+}
+
+.form button,
+.task-form button,
+.task-item button {
+  background: #ff9900;
+  color: white;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.form button:hover,
+.task-form button:hover,
+.task-item button:hover {
+  background: #e68a00;
+}
+
+.error {
+  color: #c0392b;
+  min-height: 1.2em;
+  font-size: 0.9rem;
+}
+
+.hint {
+  color: #888;
+  font-size: 0.85rem;
+}
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+#signout-btn {
+  background: #545b64;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.task-form {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+}
+
+.task-form input[type="text"] {
+  flex: 1;
+  padding: 0.6rem;
+  border: 1px solid #d6d6d6;
+  border-radius: 4px;
+}
+
+.task-form input[type="date"] {
+  padding: 0.6rem;
+  border: 1px solid #d6d6d6;
+  border-radius: 4px;
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.columns section {
+  background: white;
+  border-radius: 8px;
+  padding: 1rem;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.task-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.task-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #eee;
+}
+
+.task-item:last-child {
+  border-bottom: none;
+}
+
+.task-desc {
+  font-weight: 600;
+}
+
+.task-date {
+  color: #888;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 700px) {
+  .columns {
+    grid-template-columns: 1fr;
+  }
+}

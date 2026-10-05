@@ -1,0 +1,133 @@
+<mxfile host="app.diagrams.net" agent="Claude">
+  <diagram name="Serverless To-Do Lab — Architecture" id="serverless-todo-arch">
+    <mxGraphModel dx="1800" dy="1300" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1500" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="title" parent="1" style="text;html=1;fontSize=22;fontStyle=1;align=center;" value="Serverless To-Do Lab — Architecture" vertex="1">
+          <mxGeometry height="40" width="500" x="500" y="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="user" parent="1" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#232F3E;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=11;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.users;" value="End User" vertex="1">
+          <mxGeometry height="50" width="50" x="60" y="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="amplify" parent="1" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#DD344C;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=10;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.amplify;" value="Amplify Hosting (static site)" vertex="1">
+          <mxGeometry height="45" width="45" x="55" y="200" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cognito" parent="1" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#DD344C;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=10;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.cognito;" value="Cognito User Pool" vertex="1">
+          <mxGeometry height="45" width="45" x="260" y="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cl_auth" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=16;fontSize=11;fontColor=#232f3e;fontStyle=1;dashed=1;dashPattern=8 4;strokeColor=#B85450;fillColor=#FAE8E8;" value="Cognito triggers" vertex="1">
+          <mxGeometry height="130" width="340" x="200" y="200" as="geometry" />
+        </mxCell>
+        <mxCell id="presignup" parent="1" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#ED7100;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=9;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.lambda;" value="PreSignUp (auto-confirm)" vertex="1">
+          <mxGeometry height="40" width="40" x="230" y="250" as="geometry" />
+        </mxCell>
+        <mxCell id="postauth" parent="1" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#ED7100;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=9;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.lambda;" value="PostAuthentication (subscribe to SNS)" vertex="1">
+          <mxGeometry height="40" width="40" x="430" y="250" as="geometry" />
+        </mxCell>
+
+        <mxCell id="sns" parent="1" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#E7157B;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=10;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.simple_notification_service;" value="Notifications Topic (email)" vertex="1">
+          <mxGeometry height="45" width="45" x="430" y="400" as="geometry" />
+        </mxCell>
+
+        <mxCell id="apigw" parent="1" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#8C4FFF;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=10;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.api_gateway;" value="Tasks REST API (Cognito authorizer)" vertex="1">
+          <mxGeometry height="45" width="45" x="650" y="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="tasks_fn" parent="1" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#ED7100;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=10;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.lambda;" value="Tasks CRUD Lambda" vertex="1">
+          <mxGeometry height="45" width="45" x="650" y="200" as="geometry" />
+        </mxCell>
+
+        <mxCell id="table" parent="1" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#3334B9;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=10;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.dynamodb;" value="Tasks Table (PK: UserId, SK: TaskId) Streams enabled" vertex="1">
+          <mxGeometry height="45" width="45" x="650" y="330" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cl_expiry" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=16;fontSize=11;fontColor=#232f3e;fontStyle=1;dashed=1;dashPattern=8 4;strokeColor=#248814;fillColor=#E8F4E8;" value="Expiry workflow" vertex="1">
+          <mxGeometry height="200" width="220" x="850" y="330" as="geometry" />
+        </mxCell>
+        <mxCell id="scheduler" parent="1" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#8C4FFF;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=9;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.eventbridge;" value="EventBridge Scheduler (one-time, per TaskId)" vertex="1">
+          <mxGeometry height="42" width="42" x="880" y="370" as="geometry" />
+        </mxCell>
+        <mxCell id="expiry_fn" parent="1" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#ED7100;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=9;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.lambda;" value="Expiry Lambda" vertex="1">
+          <mxGeometry height="42" width="42" x="980" y="470" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cl_cancel" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=16;fontSize=11;fontColor=#232f3e;fontStyle=1;dashed=1;dashPattern=8 4;strokeColor=#5A6BA8;fillColor=#E8ECF7;" value="Cancellation workflow (decoupled, idempotent)" vertex="1">
+          <mxGeometry height="260" width="260" x="1130" y="200" as="geometry" />
+        </mxCell>
+        <mxCell id="stream_fn" parent="1" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#ED7100;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=9;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.lambda;" value="Stream-to-Queue Lambda" vertex="1">
+          <mxGeometry height="42" width="42" x="1160" y="250" as="geometry" />
+        </mxCell>
+        <mxCell id="queue" parent="1" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#E7157B;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=9;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.simple_queue_service;" value="Cancellation SQS FIFO" vertex="1">
+          <mxGeometry height="42" width="42" x="1160" y="350" as="geometry" />
+        </mxCell>
+        <mxCell id="cancel_fn" parent="1" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#ED7100;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=9;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.lambda;" value="Cancellation Lambda" vertex="1">
+          <mxGeometry height="42" width="42" x="1160" y="420" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cloudwatch" parent="1" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#E7157B;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=10;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.cloudwatch;" value="CloudWatch Logs and Metrics (all functions)" vertex="1">
+          <mxGeometry height="45" width="45" x="650" y="600" as="geometry" />
+        </mxCell>
+
+        <!-- Edges -->
+        <mxCell id="e_user_amplify" edge="1" parent="1" source="user" target="amplify" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;strokeColor=#545B64;" value="HTTPS">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_user_cognito" edge="1" parent="1" source="user" target="cognito" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;strokeColor=#545B64;" value="sign up / sign in">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_amplify_api" edge="1" parent="1" source="amplify" target="apigw" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;strokeColor=#545B64;" value="Bearer: ID token">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_cognito_presignup" edge="1" parent="1" source="cognito" target="presignup" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;strokeColor=#999999;fontSize=9;" value="triggers">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_cognito_postauth" edge="1" parent="1" source="cognito" target="postauth" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;strokeColor=#999999;fontSize=9;" value="triggers">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_postauth_sns" edge="1" parent="1" source="postauth" target="sns" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;strokeColor=#545B64;" value="sns:Subscribe">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_api_tasks" edge="1" parent="1" source="apigw" target="tasks_fn" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#545B64;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_tasks_table" edge="1" parent="1" source="tasks_fn" target="table" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;strokeColor=#545B64;" value="CRUD">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_tasks_scheduler" edge="1" parent="1" source="tasks_fn" target="scheduler" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;strokeColor=#545B64;" value="create one-time schedule per task">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_scheduler_expiry" edge="1" parent="1" source="scheduler" target="expiry_fn" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#545B64;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_expiry_table" edge="1" parent="1" source="expiry_fn" target="table" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;strokeColor=#248814;" value="Status=Expired (if Pending)">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_expiry_sns" edge="1" parent="1" source="expiry_fn" target="sns" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;strokeColor=#545B64;" value="sns:Publish">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_table_stream" edge="1" parent="1" source="table" target="stream_fn" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;strokeColor=#5A6BA8;" value="DynamoDB Streams (REMOVE / Status=Completed)">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_stream_queue" edge="1" parent="1" source="stream_fn" target="queue" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;strokeColor=#545B64;" value="enqueue">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_queue_cancel" edge="1" parent="1" source="queue" target="cancel_fn" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;strokeColor=#545B64;" value="consume">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_cancel_scheduler" edge="1" parent="1" source="cancel_fn" target="scheduler" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;strokeColor=#B85450;" value="scheduler:DeleteSchedule">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_tasks_cw" edge="1" parent="1" source="tasks_fn" target="cloudwatch" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;strokeColor=#999999;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

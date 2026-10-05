@@ -459,6 +459,104 @@ Resources:
         - Key: Name
           Value: github-actions-orders-dynamodb-push
 
+  # ── serverless-todo: Module 8 Serverless To-Do Lab ─
+  # Used by BOTH serverless-todo-deploy-dev.yml (push trigger) and
+  # serverless-todo-deploy-prod.yml (push to a dedicated marker file
+  # only) on feat/module8-serverless-todo. One role covers both
+  # environments since both workflows run from the same branch; the
+  # two deploys stay isolated via distinct stack names and distinct S3
+  # artifact buckets (dev/prod), not via distinct IAM identities.
+  ServerlessTodoPushRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: github-actions-serverless-todo-push
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !Ref GitHubOidcProvider
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+              StringLike:
+                token.actions.githubusercontent.com:sub: !Sub "repo:${GitHubOrg}/${GitHubRepo}:ref:refs/heads/feat/module8-serverless-todo"
+      Policies:
+        - PolicyName: serverless-todo-sam-deploy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: CloudFormationStackManagement
+                Effect: Allow
+                Action: cloudformation:*
+                Resource:
+                  - !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/emmanuel-serverless-todo-dev/*"
+                  - !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/emmanuel-serverless-todo-prod/*"
+              # SAM's Transform: AWS::Serverless-2016-10-31 macro
+              # expansion requires CreateChangeSet on this AWS-owned
+              # transform resource — the same gap discovered the hard
+              # way on the module7 lab's first deploy attempt.
+              - Sid: SamTransformMacroAccess
+                Effect: Allow
+                Action: cloudformation:CreateChangeSet
+                Resource: !Sub "arn:aws:cloudformation:${AWS::Region}:aws:transform/Serverless-2016-10-31"
+              - Sid: SamArtifactBucketsAccess
+                Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:ListBucket
+                  - s3:GetBucketLocation
+                Resource:
+                  - !Sub "arn:aws:s3:::emmanuel-serverless-todo-sam-artifacts-dev-${AWS::AccountId}"
+                  - !Sub "arn:aws:s3:::emmanuel-serverless-todo-sam-artifacts-dev-${AWS::AccountId}/*"
+                  - !Sub "arn:aws:s3:::emmanuel-serverless-todo-sam-artifacts-prod-${AWS::AccountId}"
+                  - !Sub "arn:aws:s3:::emmanuel-serverless-todo-sam-artifacts-prod-${AWS::AccountId}/*"
+              - Sid: IamRoleManagement
+                Effect: Allow
+                Action:
+                  - iam:CreateRole
+                  - iam:DeleteRole
+                  - iam:GetRole
+                  - iam:PutRolePolicy
+                  - iam:DeleteRolePolicy
+                  - iam:GetRolePolicy
+                  - iam:AttachRolePolicy
+                  - iam:DetachRolePolicy
+                  - iam:ListRolePolicies
+                  - iam:ListAttachedRolePolicies
+                  - iam:TagRole
+                  - iam:UntagRole
+                  - iam:PassRole
+                Resource:
+                  - !Sub "arn:aws:iam::${AWS::AccountId}:role/emmanuel-serverless-todo-*"
+                  # SAM auto-names each function's execution role unless
+                  # given an explicit RoleName — those auto-generated
+                  # names don't match the emmanuel-serverless-todo-*
+                  # pattern above, so this second ARN pattern (matching
+                  # CloudFormation's default <stack-name>-<logical-id>-*
+                  # naming) is also needed.
+                  - !Sub "arn:aws:iam::${AWS::AccountId}:role/emmanuel-serverless-todo-dev-*"
+                  - !Sub "arn:aws:iam::${AWS::AccountId}:role/emmanuel-serverless-todo-prod-*"
+              - Sid: UnderlyingResourceManagement
+                Effect: Allow
+                Action:
+                  - lambda:*
+                  - apigateway:*
+                  - cognito-idp:*
+                  - dynamodb:*
+                  - sns:*
+                  - sqs:*
+                  - scheduler:*
+                  - logs:*
+                  - events:*
+                  - xray:*
+                Resource: "*"
+      Tags:
+        - Key: Name
+          Value: github-actions-serverless-todo-push
+
 # ─────────────────────────────────────────────
 # OUTPUTS
 # ─────────────────────────────────────────────
@@ -482,6 +580,10 @@ Outputs:
   TodoAppPushRoleArn:
     Description: Role ARN for todo-app.yml (feat/module6-todo-app only) — paste into the TODO_APP_AWS_ROLE_ARN GitHub secret.
     Value: !GetAtt TodoAppPushRole.Arn
+
+  ServerlessTodoPushRoleArn:
+    Description: Role ARN for serverless-todo-deploy-dev.yml and serverless-todo-deploy-prod.yml (feat/module8-serverless-todo only) — paste into the SERVERLESS_TODO_AWS_ROLE_ARN GitHub secret.
+    Value: !GetAtt ServerlessTodoPushRole.Arn
 
   OrdersDynamoDbPushRoleArn:
     Description: Role ARN for orders-dynamodb-deploy-dev.yml and orders-dynamodb-deploy-prod.yml (feat/module7-dynamodb-sam only) — paste into the ORDERS_DYNAMODB_AWS_ROLE_ARN GitHub secret.

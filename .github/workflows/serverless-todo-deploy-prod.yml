@@ -1,0 +1,61 @@
+name: Deploy Serverless To-Do (prod)
+
+# Deliberate-promotion trigger: fires only on a push that touches
+# backend/infra/.promote-to-prod — a dedicated, otherwise-inert marker
+# file. To promote, edit that file and commit/push; routine backend
+# changes never touch prod. (Same marker-file pattern as the module7
+# DynamoDB lab's prod pipeline: workflow_dispatch doesn't work on a
+# branch that's never merged to the repo's default branch, since
+# GitHub only exposes manual dispatch for workflows that also exist on
+# the default branch.)
+
+on:
+  push:
+    branches: [feat/module8-serverless-todo]
+    paths:
+      - "labs/aws-cloud-and-ai-upskilling/module8/serverless-todo/backend/infra/.promote-to-prod"
+
+env:
+  BACKEND_DIR: labs/aws-cloud-and-ai-upskilling/module8/serverless-todo/backend
+  STACK_NAME: emmanuel-serverless-todo-prod
+
+jobs:
+  deploy-prod:
+    name: SAM Build and Deploy (prod)
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Configure AWS credentials via OIDC
+        uses: ./.github/actions/aws-oidc-auth
+        with:
+          aws-region: ${{ secrets.AWS_REGION }}
+          aws-role-arn: ${{ secrets.SERVERLESS_TODO_AWS_ROLE_ARN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install AWS SAM CLI
+        run: pip install aws-sam-cli
+
+      - name: SAM build
+        working-directory: ${{ env.BACKEND_DIR }}/infra
+        run: sam build
+
+      - name: SAM deploy (prod)
+        working-directory: ${{ env.BACKEND_DIR }}/infra
+        run: sam deploy --config-env prod --no-confirm-changeset
+
+      - name: Show stack outputs
+        run: |
+          aws cloudformation describe-stacks \
+            --stack-name "${STACK_NAME}" \
+            --query "Stacks[0].Outputs" \
+            --output table

@@ -1,0 +1,61 @@
+name: Deploy Serverless To-Do (dev)
+
+# Auto-deploys the dev environment on every push to backend/infra/** or
+# backend/src/**. Separate from deploy-prod.yml by design, same
+# dev/prod pipeline split used by the module7 DynamoDB lab.
+#
+# One-time manual prerequisite: create the dev artifact bucket named in
+# backend/infra/samconfig.toml's [dev.deploy.parameters] before the
+# first run — `sam deploy` uploads to it but won't create it.
+
+on:
+  push:
+    branches: [feat/module8-serverless-todo]
+    paths:
+      - "labs/aws-cloud-and-ai-upskilling/module8/serverless-todo/backend/**"
+  workflow_dispatch: {}
+
+env:
+  BACKEND_DIR: labs/aws-cloud-and-ai-upskilling/module8/serverless-todo/backend
+  STACK_NAME: emmanuel-serverless-todo-dev
+
+jobs:
+  deploy-dev:
+    name: SAM Build and Deploy (dev)
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Configure AWS credentials via OIDC
+        uses: ./.github/actions/aws-oidc-auth
+        with:
+          aws-region: ${{ secrets.AWS_REGION }}
+          aws-role-arn: ${{ secrets.SERVERLESS_TODO_AWS_ROLE_ARN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install AWS SAM CLI
+        run: pip install aws-sam-cli
+
+      - name: SAM build
+        working-directory: ${{ env.BACKEND_DIR }}/infra
+        run: sam build
+
+      - name: SAM deploy (dev)
+        working-directory: ${{ env.BACKEND_DIR }}/infra
+        run: sam deploy --config-env dev --no-confirm-changeset
+
+      - name: Show stack outputs
+        run: |
+          aws cloudformation describe-stacks \
+            --stack-name "${STACK_NAME}" \
+            --query "Stacks[0].Outputs" \
+            --output table
