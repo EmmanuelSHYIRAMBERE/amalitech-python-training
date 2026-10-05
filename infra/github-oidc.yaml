@@ -427,6 +427,14 @@ Resources:
                 Resource:
                   - !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/emmanuel-orders-dynamodb-dev/*"
                   - !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/emmanuel-orders-dynamodb-prod/*"
+              # SAM's Transform: AWS::Serverless-2016-10-31 macro expansion
+              # requires CreateChangeSet permission on this AWS-owned
+              # transform resource (not one of our own stacks) — every SAM
+              # template needs this, regardless of what it deploys.
+              - Sid: SamTransformMacroAccess
+                Effect: Allow
+                Action: cloudformation:CreateChangeSet
+                Resource: !Sub "arn:aws:cloudformation:${AWS::Region}:aws:transform/Serverless-2016-10-31"
               - Sid: SamArtifactBucketsAccess
                 Effect: Allow
                 Action:
