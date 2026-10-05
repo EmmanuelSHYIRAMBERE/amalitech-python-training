@@ -1,13 +1,13 @@
 <mxfile host="app.diagrams.net" agent="Claude">
   <diagram name="Photo Uploader Lab — Network &amp; Deployment Pipeline" id="photo-uploader-arch">
-    <mxGraphModel dx="2131" dy="1116" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1850" pageHeight="1400" math="0" shadow="0">
+    <mxGraphModel grid="1" page="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" pageScale="1" pageWidth="1850" pageHeight="1400" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
         <mxCell id="cl_region" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=28;fontSize=13;fontColor=#232f3e;fontStyle=1;dashed=1;dashPattern=8 4;strokeColor=#248814;fillColor=none;" value="Region" vertex="1">
           <mxGeometry height="620" width="1180" x="40" y="40" as="geometry" />
         </mxCell>
-        <mxCell id="region_icon" parent="1" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#232F3E;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=10;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.region;" value="" vertex="1">
+        <mxCell id="region_icon" parent="1" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#4472FF;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=10;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.region;" value="" vertex="1">
           <mxGeometry height="35" width="35" x="70" y="65" as="geometry" />
         </mxCell>
         <mxCell id="cl_vpc" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=28;fontSize=13;fontColor=#232f3e;fontStyle=1;dashed=1;dashPattern=8 4;strokeColor=#248814;fillColor=none;" value="VPC — 10.3.0.0/16" vertex="1">
@@ -95,7 +95,7 @@
           <mxGeometry height="42" width="42" x="1280" y="55" as="geometry" />
         </mxCell>
         <mxCell id="photos_bucket" parent="1" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#7AA116;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=10;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.s3;" value="Photos Bucket (private, OAC only)" vertex="1">
-          <mxGeometry height="42" width="42" x="1380" y="55" as="geometry" />
+          <mxGeometry height="42" width="42" x="1430" y="55" as="geometry" />
         </mxCell>
         <mxCell id="e_igw_alb_a" edge="1" parent="1" source="igw" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#545B64;" target="alb_a">
           <mxGeometry relative="1" as="geometry" />
@@ -143,28 +143,28 @@
           <mxGeometry height="50" width="130" x="60" y="750" as="geometry" />
         </mxCell>
         <mxCell id="repo" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#24292e;fontColor=#ffffff;strokeColor=none;fontSize=11;" value="Repository (feat/module5-photo-uploader)" vertex="1">
-          <mxGeometry height="50" width="150" x="230" y="750" as="geometry" />
+          <mxGeometry height="50" width="150" x="273" y="750" as="geometry" />
         </mxCell>
         <mxCell id="actions" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#2088ff;fontColor=#ffffff;strokeColor=none;fontSize=11;" value="GitHub Actions (photo-uploader.yml)" vertex="1">
-          <mxGeometry height="50" width="140" x="420" y="750" as="geometry" />
+          <mxGeometry height="50" width="140" x="474" y="750" as="geometry" />
         </mxCell>
         <mxCell id="push_role" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#b85450;fontColor=#ffffff;strokeColor=none;fontSize=11;" value="OIDC role: github-actions-photo-uploader-push" vertex="1">
-          <mxGeometry height="50" width="170" x="600" y="750" as="geometry" />
+          <mxGeometry height="50" width="170" x="717" y="750" as="geometry" />
         </mxCell>
         <mxCell id="ecr" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ff9900;fontColor=#ffffff;strokeColor=none;fontSize=11;" value="Amazon ECR (emmanuel-photo-uploader-app, latest only)" vertex="1">
-          <mxGeometry height="50" width="170" x="810" y="750" as="geometry" />
+          <mxGeometry height="50" width="170" x="988" y="716" as="geometry" />
         </mxCell>
         <mxCell id="s3_artifacts" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#569a31;fontColor=#ffffff;strokeColor=none;fontSize=11;" value="Pipeline Artifact Bucket (versioned)" vertex="1">
-          <mxGeometry height="50" width="150" x="810" y="830" as="geometry" />
+          <mxGeometry height="50" width="150" x="847" y="870" as="geometry" />
         </mxCell>
         <mxCell id="eb" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ff4f8b;fontColor=#ffffff;strokeColor=none;fontSize=11;" value="EventBridge (ECR &#39;latest&#39; push rule)" vertex="1">
-          <mxGeometry height="50" width="150" x="1010" y="750" as="geometry" />
+          <mxGeometry height="50" width="150" x="1243" y="750" as="geometry" />
         </mxCell>
         <mxCell id="pipeline" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#527fff;fontColor=#ffffff;strokeColor=none;fontSize=11;" value="CodePipeline" vertex="1">
-          <mxGeometry height="50" width="130" x="1200" y="790" as="geometry" />
+          <mxGeometry height="50" width="130" x="1433" y="871" as="geometry" />
         </mxCell>
         <mxCell id="deploy" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#527fff;fontColor=#ffffff;strokeColor=none;fontSize=11;" value="CodeDeploy Blue/Green" vertex="1">
-          <mxGeometry height="50" width="130" x="1370" y="790" as="geometry" />
+          <mxGeometry height="50" width="130" x="1603" y="871" as="geometry" />
         </mxCell>
         <mxCell id="cfn" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#b85450;fontColor=#ffffff;strokeColor=none;fontSize=11;" value="CloudFormation nested stacks (root.yaml via GitHub Actions)" vertex="1">
           <mxGeometry height="50" width="170" x="1560" y="750" as="geometry" />
@@ -199,11 +199,28 @@
         <mxCell id="e_deploy_alb" edge="1" parent="1" source="deploy" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=9;dashed=1;strokeColor=#999999;" target="alb_a" value="registers task def, shifts ALB traffic">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_repo_cfn" edge="1" parent="1" source="repo" style="edgeStyle=orthogonalEdgeStyle;dashed=1;strokeColor=#999999;html=1;fontSize=9;" target="cfn" value="push to infra/**">
-          <mxGeometry relative="1" as="geometry" />
+        <mxCell id="e_repo_cfn" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;dashed=1;strokeColor=#999999;html=1;fontSize=9;" value="push to infra/**">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="423" y="776" as="sourcePoint" />
+            <mxPoint x="1560" y="776" as="targetPoint" />
+          </mxGeometry>
         </mxCell>
         <mxCell id="e_cfn_vpc" edge="1" parent="1" source="cfn" style="edgeStyle=orthogonalEdgeStyle;dashed=1;strokeColor=#999999;html=1;fontSize=9;" target="cl_vpc" value="provisions">
-          <mxGeometry relative="1" as="geometry" />
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1645" y="850" />
+              <mxPoint x="630" y="850" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="yS-_HYwd_D8ZZodj1l6M-2" parent="1" style="html=1;verticalLabelPosition=bottom;align=center;labelBackgroundColor=#ffffff;verticalAlign=top;strokeWidth=2;strokeColor=#FFFFFF;shadow=0;dashed=0;shape=mxgraph.ios7.icons.flag;fillColor=#4472FF;" value="" vertex="1">
+          <mxGeometry height="30" width="22" x="78" y="68" as="geometry" />
+        </mxCell>
+        <mxCell id="yS-_HYwd_D8ZZodj1l6M-10" parent="1" style="html=1;verticalLabelPosition=bottom;align=center;labelBackgroundColor=#ffffff;verticalAlign=top;strokeWidth=2;strokeColor=#FFFFFF;shadow=0;dashed=0;shape=mxgraph.ios7.icons.cloud;fillColor=#248814;" value="" vertex="1">
+          <mxGeometry height="15" width="22" x="104" y="127" as="geometry" />
+        </mxCell>
+        <mxCell id="XtFEGaZmK8DXkyFprrZC-2" parent="1" style="text;html=1;fontSize=22;fontStyle=1;align=center;" value="Photo Uploader Lab — Network &amp; Deployment Pipeline" vertex="1">
+          <mxGeometry height="40" width="600" x="440" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
