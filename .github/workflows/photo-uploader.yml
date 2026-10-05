@@ -1,15 +1,15 @@
-name: Build and Push ECS Lab Image
+name: Build and Push Photo Uploader Image
 
 on:
   push:
-    branches: [feat/ecs-lab-ecs-cicd]
+    branches: [feat/module5-photo-uploader]
     paths:
-      - "labs/aws-cloud-and-ai-upskilling/module4/ecs-lab/app/**"
+      - "labs/aws-cloud-and-ai-upskilling/module5/photo-uploader/app/**"
   workflow_dispatch: {}
 
 env:
-  ECR_REPOSITORY: ${{ secrets.ECS_LAB_ECR_REPOSITORY }}
-  PIPELINE_ARTIFACT_BUCKET: ${{ secrets.ECS_LAB_PIPELINE_BUCKET }}
+  ECR_REPOSITORY: ${{ secrets.PHOTO_UPLOADER_ECR_REPOSITORY }}
+  PIPELINE_ARTIFACT_BUCKET: ${{ secrets.PHOTO_UPLOADER_PIPELINE_BUCKET }}
   DEPLOY_SPEC_S3_KEY: deploy-spec/deploy-spec.zip
 
 jobs:
@@ -29,13 +29,13 @@ jobs:
         uses: ./.github/actions/aws-ecr-auth
         with:
           aws-region: ${{ secrets.AWS_REGION }}
-          aws-role-arn: ${{ secrets.ECS_LAB_AWS_ROLE_ARN }}
+          aws-role-arn: ${{ secrets.PHOTO_UPLOADER_AWS_ROLE_ARN }}
 
       - name: Build image
         run: |
           docker build \
-            -t local/ecs-lab-app:build \
-            labs/aws-cloud-and-ai-upskilling/module4/ecs-lab/app
+            -t local/photo-uploader-app:build \
+            labs/aws-cloud-and-ai-upskilling/module5/photo-uploader/app
 
       # Uploaded BEFORE the image push below, since EventBridge triggers
       # the pipeline off the ECR push - the deploy-spec zip must already
@@ -43,7 +43,7 @@ jobs:
       # action would read a stale (or missing) object.
       - name: Zip and upload deploy spec to S3
         run: |
-          cd labs/aws-cloud-and-ai-upskilling/module4/ecs-lab/app/deploy
+          cd labs/aws-cloud-and-ai-upskilling/module5/photo-uploader/app/deploy
           zip deploy-spec.zip appspec.yaml taskdef.json
           aws s3 cp deploy-spec.zip \
             "s3://${PIPELINE_ARTIFACT_BUCKET}/${DEPLOY_SPEC_S3_KEY}"
@@ -52,5 +52,5 @@ jobs:
         env:
           REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
-          docker tag local/ecs-lab-app:build $REGISTRY/$ECR_REPOSITORY:latest
+          docker tag local/photo-uploader-app:build $REGISTRY/$ECR_REPOSITORY:latest
           docker push $REGISTRY/$ECR_REPOSITORY:latest

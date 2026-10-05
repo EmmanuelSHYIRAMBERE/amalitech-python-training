@@ -1,0 +1,459 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Photo Uploader Lab — ALB + ECS stack. Public ALB, ECS Fargate service with
+  blue/green deployments via CodeDeploy, and target-tracking autoscaling
+  (1-4 tasks on CPU).
+  Trainee: Emmanuel SHYIRAMBERE
+  Deployed as a nested stack under the root template (root.yaml) — every
+  value below that used to come from another stack's Fn::ImportValue
+  (network/ecr/storage/database outputs) is now a plain parameter that
+  the root stack supplies via Fn::GetAtt on the relevant sibling nested
+  stack.
+
+# ─────────────────────────────────────────────
+# PARAMETERS
+# ─────────────────────────────────────────────
+Parameters:
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC ID — from the network nested stack.
+
+  PublicSubnet1Id:
+    Type: AWS::EC2::Subnet::Id
+    Description: Public subnet (AZ1) ID for the ALB — from the network nested stack.
+
+  PublicSubnet2Id:
+    Type: AWS::EC2::Subnet::Id
+    Description: Public subnet (AZ2) ID for the ALB — from the network nested stack.
+
+  PrivateSubnetEcs1Id:
+    Type: AWS::EC2::Subnet::Id
+    Description: Private subnet (AZ1) ID for ECS tasks — from the network nested stack.
+
+  PrivateSubnetEcs2Id:
+    Type: AWS::EC2::Subnet::Id
+    Description: Private subnet (AZ2) ID for ECS tasks — from the network nested stack.
+
+  AlbSecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+    Description: Security group ID for the ALB — from the network nested stack.
+
+  EcsTaskSecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+    Description: Security group ID for ECS tasks — from the network nested stack.
+
+  EcrRepositoryUri:
+    Type: String
+    Description: Full ECR repository URI — from the ECR nested stack.
+
+  PhotosBucketName:
+    Type: String
+    Description: S3 bucket name for uploaded photos — from the storage nested stack.
+
+  PhotosBucketArn:
+    Type: String
+    Description: S3 bucket ARN for uploaded photos — from the storage nested stack.
+
+  CloudFrontDomainName:
+    Type: String
+    Description: CloudFront domain name — from the storage nested stack.
+
+  DbEndpointAddress:
+    Type: String
+    Description: RDS PostgreSQL endpoint hostname — from the database nested stack.
+
+  DbEndpointPort:
+    Type: String
+    Description: RDS PostgreSQL endpoint port — from the database nested stack.
+
+  DbName:
+    Type: String
+    Description: Database name — from the database nested stack.
+
+  DbMasterUsername:
+    Type: String
+    Description: Database master username — from the database nested stack.
+
+  DbSecretArn:
+    Type: String
+    Description: Secrets Manager secret ARN holding the RDS master password — from the database nested stack.
+
+  ContainerPort:
+    Type: Number
+    Default: 3000
+
+  TaskCpu:
+    Type: String
+    Default: "256"
+
+  TaskMemory:
+    Type: String
+    Default: "512"
+
+  DjangoSecretKeyArn:
+    Type: String
+    Description: Secrets Manager ARN holding the Django SECRET_KEY (created out-of-band, not managed by this template).
+    Default: arn:aws:secretsmanager:eu-north-1:195275667627:secret:emmanuel-photo-uploader-django-secret-key-mcNg8V
+
+# ─────────────────────────────────────────────
+# RESOURCES
+# ─────────────────────────────────────────────
+Resources:
+
+  # ── Application Load Balancer ─────────────────
+  Alb:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: emmanuel-photo-uploader-alb
+      Scheme: internet-facing
+      Type: application
+      Subnets:
+        - !Ref PublicSubnet1Id
+        - !Ref PublicSubnet2Id
+      SecurityGroups:
+        - !Ref AlbSecurityGroupId
+      Tags:
+        - Key: Name
+          Value: emmanuel-photo-uploader-alb
+
+  BlueTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: emmanuel-photo-uploader-tg-blue
+      VpcId: !Ref VpcId
+      Protocol: HTTP
+      Port: !Ref ContainerPort
+      TargetType: ip
+      HealthCheckProtocol: HTTP
+      HealthCheckPath: /health
+      HealthCheckIntervalSeconds: 15
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 3
+      Tags:
+        - Key: Name
+          Value: emmanuel-photo-uploader-tg-blue
+
+  GreenTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: emmanuel-photo-uploader-tg-green
+      VpcId: !Ref VpcId
+      Protocol: HTTP
+      Port: !Ref ContainerPort
+      TargetType: ip
+      HealthCheckProtocol: HTTP
+      HealthCheckPath: /health
+      HealthCheckIntervalSeconds: 15
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 3
+      Tags:
+        - Key: Name
+          Value: emmanuel-photo-uploader-tg-green
+
+  AlbListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref Alb
+      Protocol: HTTP
+      Port: 80
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref BlueTargetGroup
+
+  # ── ECS Cluster ────────────────────────────────
+  EcsCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: emmanuel-photo-uploader-cluster
+      ClusterSettings:
+        - Name: containerInsights
+          Value: enabled
+      Tags:
+        - Key: Name
+          Value: emmanuel-photo-uploader-cluster
+
+  # ── CloudWatch Logs ────────────────────────────
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /ecs/emmanuel-photo-uploader
+      RetentionInDays: 14
+
+  # ── IAM: ECS task roles ────────────────────────
+  TaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: emmanuel-photo-uploader-task-execution-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      Policies:
+        # ECS resolves the task definition's "secrets" field using this
+        # role (not TaskRole) before the container starts.
+        - PolicyName: emmanuel-photo-uploader-task-execution-secrets-policy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource:
+                  - !Ref DjangoSecretKeyArn
+      Tags:
+        - Key: Name
+          Value: emmanuel-photo-uploader-task-execution-role
+
+  # TaskRole is what the running application code itself uses - scoped to
+  # exactly what this app needs at runtime: write photos to the S3 bucket,
+  # and read the auto-generated RDS master password from Secrets Manager.
+  TaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: emmanuel-photo-uploader-task-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: emmanuel-photo-uploader-task-policy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                Resource:
+                  - !Sub "${PhotosBucketArn}/*"
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource:
+                  - !Ref DbSecretArn
+              # Required for ECS Exec (aws ecs execute-command) -- without
+              # this, the SSM agent inside the container can never open its
+              # control/data channel, even if the VPC path to SSM exists.
+              - Effect: Allow
+                Action:
+                  - ssmmessages:CreateControlChannel
+                  - ssmmessages:CreateDataChannel
+                  - ssmmessages:OpenControlChannel
+                  - ssmmessages:OpenDataChannel
+                Resource: "*"
+      Tags:
+        - Key: Name
+          Value: emmanuel-photo-uploader-task-role
+
+  # ── ECS Task Definition ────────────────────────
+  # Image reference here is a bootstrap placeholder only. Once the ECS
+  # service uses DeploymentController: CODE_DEPLOY, CloudFormation can
+  # never again update the task definition/service directly (AWS rejects
+  # it) - every real deployment after the first must go through
+  # CodeDeploy via taskdef.json. If a future stack update ever needs to
+  # change this resource's properties after the service is live, that
+  # update will hit this same restriction and will need a frozen-
+  # parameter workaround (see git history for an earlier example of this
+  # pattern) - don't add one preemptively; only add it if/when needed.
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: emmanuel-photo-uploader-task
+      RequiresCompatibilities:
+        - FARGATE
+      NetworkMode: awsvpc
+      Cpu: !Ref TaskCpu
+      Memory: !Ref TaskMemory
+      ExecutionRoleArn: !GetAtt TaskExecutionRole.Arn
+      TaskRoleArn: !GetAtt TaskRole.Arn
+      ContainerDefinitions:
+        - Name: photo-uploader-app
+          Image: !Sub "${EcrRepositoryUri}:latest"
+          PortMappings:
+            - ContainerPort: !Ref ContainerPort
+              Protocol: tcp
+          Environment:
+            - Name: PORT
+              Value: !Ref ContainerPort
+            - Name: NODE_ENV
+              Value: production
+            - Name: AWS_REGION
+              Value: !Ref AWS::Region
+            - Name: PHOTOS_BUCKET
+              Value: !Ref PhotosBucketName
+            - Name: CLOUDFRONT_DOMAIN
+              Value: !Ref CloudFrontDomainName
+            - Name: DB_HOST
+              Value: !Ref DbEndpointAddress
+            - Name: DB_PORT
+              Value: !Ref DbEndpointPort
+            - Name: DB_NAME
+              Value: !Ref DbName
+            - Name: DB_USER
+              Value: !Ref DbMasterUsername
+            - Name: DB_SECRET_ARN
+              Value: !Ref DbSecretArn
+            - Name: ALLOWED_HOSTS
+              Value: "*"
+            - Name: DEBUG
+              Value: "false"
+          Secrets:
+            - Name: SECRET_KEY
+              ValueFrom: !Sub "${DjangoSecretKeyArn}:SECRET_KEY::"
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref LogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: ecs
+
+  # ── ECS Service (blue/green via CodeDeploy) ───
+  # DesiredCount starts at 0 deliberately: on first creation there is no
+  # real app image/task definition yet (TaskDefinition above is a
+  # bootstrap placeholder - see its comment), so a task at DesiredCount 1
+  # would never pass the ALB health check and the service would never
+  # reach steady state, timing out this whole nested stack's creation.
+  # After this stack first succeeds, scale to 1 manually and push a real
+  # CodeDeploy deployment (see app/deploy/{appspec.yaml,taskdef.json}) to
+  # bring up the actual app - the same bootstrap sequence already used
+  # for this project's ECS services before.
+  EcsServiceV2:
+    Type: AWS::ECS::Service
+    DependsOn: AlbListener
+    Properties:
+      ServiceName: emmanuel-photo-uploader-service
+      Cluster: !Ref EcsCluster
+      TaskDefinition: !Ref TaskDefinition
+      LaunchType: FARGATE
+      DesiredCount: 0
+      DeploymentController:
+        Type: CODE_DEPLOY
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: DISABLED
+          Subnets:
+            - !Ref PrivateSubnetEcs1Id
+            - !Ref PrivateSubnetEcs2Id
+          SecurityGroups:
+            - !Ref EcsTaskSecurityGroupId
+      LoadBalancers:
+        - ContainerName: photo-uploader-app
+          ContainerPort: !Ref ContainerPort
+          TargetGroupArn: !Ref BlueTargetGroup
+      Tags:
+        - Key: Name
+          Value: emmanuel-photo-uploader-service
+
+  # ── Auto Scaling (target tracking on CPU, 1-4 tasks) ──
+  ScalableTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      MinCapacity: 1
+      MaxCapacity: 4
+      ResourceId: !Sub "service/${EcsCluster}/${EcsServiceV2.Name}"
+      ScalableDimension: ecs:service:DesiredCount
+      ServiceNamespace: ecs
+      RoleARN: !Sub "arn:aws:iam::${AWS::AccountId}:role/aws-service-role/ecs.application-autoscaling.amazonaws.com/AWSServiceRoleForApplicationAutoScaling_ECSService"
+
+  CpuScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: emmanuel-photo-uploader-cpu-scaling
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref ScalableTarget
+      TargetTrackingScalingPolicyConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ECSServiceAverageCPUUtilization
+        TargetValue: 50.0
+
+  # ── IAM: CodeDeploy service role ──────────────
+  CodeDeployServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: emmanuel-photo-uploader-codedeploy-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codedeploy.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AWSCodeDeployRoleForECS
+      Tags:
+        - Key: Name
+          Value: emmanuel-photo-uploader-codedeploy-role
+
+  # ── CodeDeploy Application + Deployment Group ─
+  CodeDeployApplication:
+    Type: AWS::CodeDeploy::Application
+    Properties:
+      ApplicationName: emmanuel-photo-uploader-app
+      ComputePlatform: ECS
+
+  CodeDeployDeploymentGroup:
+    Type: AWS::CodeDeploy::DeploymentGroup
+    Properties:
+      ApplicationName: !Ref CodeDeployApplication
+      DeploymentGroupName: emmanuel-photo-uploader-deployment-group
+      ServiceRoleArn: !GetAtt CodeDeployServiceRole.Arn
+      DeploymentConfigName: CodeDeployDefault.ECSAllAtOnce
+      DeploymentStyle:
+        DeploymentType: BLUE_GREEN
+        DeploymentOption: WITH_TRAFFIC_CONTROL
+      BlueGreenDeploymentConfiguration:
+        DeploymentReadyOption:
+          ActionOnTimeout: CONTINUE_DEPLOYMENT
+        TerminateBlueInstancesOnDeploymentSuccess:
+          Action: TERMINATE
+          TerminationWaitTimeInMinutes: 5
+      ECSServices:
+        - ClusterName: !Ref EcsCluster
+          ServiceName: !GetAtt EcsServiceV2.Name
+      LoadBalancerInfo:
+        TargetGroupPairInfoList:
+          - ProdTrafficRoute:
+              ListenerArns:
+                - !Ref AlbListener
+            TargetGroups:
+              - Name: !GetAtt BlueTargetGroup.TargetGroupName
+              - Name: !GetAtt GreenTargetGroup.TargetGroupName
+
+# ─────────────────────────────────────────────
+# OUTPUTS
+# ─────────────────────────────────────────────
+Outputs:
+  AlbDnsName:
+    Description: ALB DNS name — use this to access the running application
+    Value: !Sub "http://${Alb.DNSName}"
+
+  AlbListenerArn:
+    Value: !Ref AlbListener
+
+  EcsClusterName:
+    Value: !Ref EcsCluster
+
+  EcsServiceName:
+    Value: !GetAtt EcsServiceV2.Name
+
+  CodeDeployApplicationName:
+    Value: !Ref CodeDeployApplication
+
+  CodeDeployDeploymentGroupName:
+    Value: !Ref CodeDeployDeploymentGroup
+
+  TaskExecutionRoleArn:
+    Value: !GetAtt TaskExecutionRole.Arn
+
+  TaskRoleArn:
+    Value: !GetAtt TaskRole.Arn
+
+  CodeDeployServiceRoleArn:
+    Value: !GetAtt CodeDeployServiceRole.Arn

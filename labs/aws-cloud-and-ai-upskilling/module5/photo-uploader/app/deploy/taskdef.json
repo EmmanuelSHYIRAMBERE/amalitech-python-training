@@ -1,0 +1,59 @@
+{
+  "family": "emmanuel-photo-uploader-task",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "256",
+  "memory": "512",
+  "executionRoleArn": "arn:aws:iam::195275667627:role/emmanuel-photo-uploader-task-execution-role",
+  "taskRoleArn": "arn:aws:iam::195275667627:role/emmanuel-photo-uploader-task-role",
+  "containerDefinitions": [
+    {
+      "name": "photo-uploader-app",
+      "image": "<IMAGE1_NAME>",
+      "portMappings": [
+        {
+          "containerPort": 3000,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        { "name": "PORT", "value": "3000" },
+        { "name": "NODE_ENV", "value": "production" },
+        { "name": "AWS_REGION", "value": "eu-north-1" },
+        { "name": "PHOTOS_BUCKET", "value": "emmanuel-photo-uploader-photos-195275667627" },
+        { "name": "CLOUDFRONT_DOMAIN", "value": "d2z12710bvrr19.cloudfront.net" },
+        { "name": "DB_HOST", "value": "emmanuel-photo-uploader-db.cx8e66g2o0sx.eu-north-1.rds.amazonaws.com" },
+        { "name": "DB_PORT", "value": "5432" },
+        { "name": "DB_NAME", "value": "photouploader" },
+        { "name": "DB_USER", "value": "photoapp" },
+        { "name": "DB_SECRET_ARN", "value": "arn:aws:secretsmanager:eu-north-1:195275667627:secret:rds!db-86c16131-3d87-4da2-8b5c-62afd2355152-cu8wvA" },
+        { "name": "ALLOWED_HOSTS", "value": "*" },
+        { "name": "DEBUG", "value": "false" }
+      ],
+      "secrets": [
+        {
+          "name": "SECRET_KEY",
+          "valueFrom": "arn:aws:secretsmanager:eu-north-1:195275667627:secret:emmanuel-photo-uploader-django-secret-key-mcNg8V:SECRET_KEY::"
+        }
+      ],
+      "healthCheck": {
+        "command": [
+          "CMD-SHELL",
+          "curl -f http://127.0.0.1:3000/health || exit 1"
+        ],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 15
+      },
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/emmanuel-photo-uploader",
+          "awslogs-region": "eu-north-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }
+    }
+  ]
+}
