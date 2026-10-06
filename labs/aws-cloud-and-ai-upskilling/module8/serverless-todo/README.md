@@ -36,9 +36,11 @@ See `backend/infra/diagram/architecture.png` / `architecture.drawio`.
   under SQS's at-least-once delivery.
 - **Frontend**: plain HTML/CSS/vanilla JS (no build step) using
   `amazon-cognito-identity-js` (via CDN) for real Cognito SRP auth,
-  hosted on Amplify. `amplify.yml`'s build step writes `config.js` from
-  Amplify Console environment variables (`APP_AWS_REGION`, `USER_POOL_ID`,
-  `USER_POOL_CLIENT_ID`, `API_URL`) at build time.
+  hosted on Amplify. The repo-root `amplify.yml` (Amplify's monorepo
+  build spec — it must live at the repo root, not inside the app's own
+  folder) writes `config.js` from Amplify Console environment variables
+  (`APP_AWS_REGION`, `USER_POOL_ID`, `USER_POOL_CLIENT_ID`, `API_URL`)
+  at build time.
 
 ## Deployment
 
@@ -74,8 +76,10 @@ as the `SERVERLESS_TODO_AWS_ROLE_ARN` GitHub secret.
 ### Frontend (Amplify)
 
 1. In the Amplify Console, connect this repo, branch
-   `feat/module8-serverless-todo`, base directory
-   `labs/aws-cloud-and-ai-upskilling/module8/serverless-todo/frontend`.
+   `feat/module8-serverless-todo`. Check "My app is a monorepo" and
+   enter `labs/aws-cloud-and-ai-upskilling/module8/serverless-todo/frontend`
+   as the app root (this sets `AMPLIFY_MONOREPO_APP_ROOT`, which must
+   match the repo-root `amplify.yml`'s `appRoot`).
 2. Set environment variables (per branch/environment): `APP_AWS_REGION`,
    `USER_POOL_ID`, `USER_POOL_CLIENT_ID`, `API_URL` — read these from
    the backend stack's outputs (`UserPoolId`, `UserPoolClientId`,

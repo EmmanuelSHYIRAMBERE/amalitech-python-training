@@ -1,0 +1,28 @@
+version: 1
+# Monorepo build spec — required at the repo root for Amplify Hosting
+# to find it (it reads this file before it knows which subdirectory to
+# descend into, so it can't live inside the app's own folder). appRoot
+# must exactly match the AMPLIFY_MONOREPO_APP_ROOT environment
+# variable set in the Amplify Console for this app.
+applications:
+  - appRoot: labs/aws-cloud-and-ai-upskilling/module8/serverless-todo/frontend
+    frontend:
+      buildPath: /labs/aws-cloud-and-ai-upskilling/module8/serverless-todo/frontend
+      phases:
+        build:
+          commands:
+            - |
+              cat > config.js <<EOF
+              window.APP_CONFIG = {
+                region: "${APP_AWS_REGION}",
+                userPoolId: "${USER_POOL_ID}",
+                userPoolClientId: "${USER_POOL_CLIENT_ID}",
+                apiUrl: "${API_URL}",
+              };
+              EOF
+      artifacts:
+        baseDirectory: labs/aws-cloud-and-ai-upskilling/module8/serverless-todo/frontend
+        files:
+          - "**/*"
+      cache:
+        paths: []
