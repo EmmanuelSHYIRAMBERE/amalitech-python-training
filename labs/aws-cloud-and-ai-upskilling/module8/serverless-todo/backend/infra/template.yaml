@@ -114,6 +114,13 @@ Resources:
       UserPoolId: !Ref UserPool
       GenerateSecret: false
       ExplicitAuthFlows:
+        # SRP is what amazon-cognito-identity-js's authenticateUser()
+        # uses by default (password never leaves the browser, even
+        # over TLS) — the frontend needs this enabled or sign-in fails
+        # with "USER_SRP_AUTH is not enabled for the client." Plain
+        # USER_PASSWORD_AUTH is kept too, for the CLI-based
+        # verification flow used during this lab's testing.
+        - ALLOW_USER_SRP_AUTH
         - ALLOW_USER_PASSWORD_AUTH
         - ALLOW_REFRESH_TOKEN_AUTH
 
