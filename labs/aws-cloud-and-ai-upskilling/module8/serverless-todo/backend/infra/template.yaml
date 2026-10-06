@@ -104,6 +104,7 @@ Resources:
           Required: true
           Mutable: true
       LambdaConfig:
+        PreSignUp: !GetAtt PreSignUpFunction.Arn
         PostAuthentication: !GetAtt PostAuthenticationFunction.Arn
 
   UserPoolClient:
