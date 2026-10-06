@@ -21,7 +21,11 @@ applications:
               };
               EOF
       artifacts:
-        baseDirectory: labs/aws-cloud-and-ai-upskilling/module8/serverless-todo/frontend
+        # Relative to frontend.buildPath (which already is the frontend
+        # directory) — not a repeat of the full repo-relative path, or
+        # Amplify looks for <buildPath>/<baseDirectory> and fails with
+        # "Artifact directory doesn't exist".
+        baseDirectory: .
         files:
           - "**/*"
       cache:
