@@ -1,10 +1,11 @@
 version: 1
 # No framework/build step (plain HTML/CSS/JS) — the only "build" work
 # is generating config.js from Amplify Console environment variables
-# (set per-branch: AWS_REGION, USER_POOL_ID, USER_POOL_CLIENT_ID,
+# (set per-branch: APP_AWS_REGION, USER_POOL_ID, USER_POOL_CLIENT_ID,
 # API_URL), satisfying the lab's "configured via environment variables"
 # requirement without baking real resource IDs into the committed
-# config.js placeholder.
+# config.js placeholder. Named APP_AWS_REGION (not AWS_REGION) because
+# Amplify rejects any env var starting with the reserved "AWS" prefix.
 frontend:
   phases:
     build:
@@ -12,7 +13,7 @@ frontend:
         - |
           cat > config.js <<EOF
           window.APP_CONFIG = {
-            region: "${AWS_REGION}",
+            region: "${APP_AWS_REGION}",
             userPoolId: "${USER_POOL_ID}",
             userPoolClientId: "${USER_POOL_CLIENT_ID}",
             apiUrl: "${API_URL}",

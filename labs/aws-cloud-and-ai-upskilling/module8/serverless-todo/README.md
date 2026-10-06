@@ -37,7 +37,7 @@ See `backend/infra/diagram/architecture.png` / `architecture.drawio`.
 - **Frontend**: plain HTML/CSS/vanilla JS (no build step) using
   `amazon-cognito-identity-js` (via CDN) for real Cognito SRP auth,
   hosted on Amplify. `amplify.yml`'s build step writes `config.js` from
-  Amplify Console environment variables (`AWS_REGION`, `USER_POOL_ID`,
+  Amplify Console environment variables (`APP_AWS_REGION`, `USER_POOL_ID`,
   `USER_POOL_CLIENT_ID`, `API_URL`) at build time.
 
 ## Deployment
@@ -76,7 +76,7 @@ as the `SERVERLESS_TODO_AWS_ROLE_ARN` GitHub secret.
 1. In the Amplify Console, connect this repo, branch
    `feat/module8-serverless-todo`, base directory
    `labs/aws-cloud-and-ai-upskilling/module8/serverless-todo/frontend`.
-2. Set environment variables (per branch/environment): `AWS_REGION`,
+2. Set environment variables (per branch/environment): `APP_AWS_REGION`,
    `USER_POOL_ID`, `USER_POOL_CLIENT_ID`, `API_URL` — read these from
    the backend stack's outputs (`UserPoolId`, `UserPoolClientId`,
    `ApiUrl`) after a dev or prod deploy.
