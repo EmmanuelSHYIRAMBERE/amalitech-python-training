@@ -1,0 +1,189 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Photo Uploader Lab — Root stack. Orchestrates all 6 nested stacks
+  (network, storage, database, ecr, alb-ecs, pipeline) as
+  AWS::CloudFormation::Stack resources. Cross-stack values that used to
+  be wired via Fn::ImportValue/Export between 6 independent stacks are
+  now direct Fn::GetAtt references between sibling nested stacks in this
+  one root stack.
+  Trainee: Emmanuel SHYIRAMBERE
+  Deployed by .github/workflows/photo-uploader-infra.yml: child templates
+  are synced to the TemplatesBucket/TemplatesPrefix S3 location below,
+  then this root template is deployed via `aws cloudformation deploy`.
+  The TemplatesBucket itself is bootstrapped once, out-of-band (see the
+  workflow file's header comment) — a nested stack's TemplateURL must
+  already exist in S3 before the root stack can reference it, so the
+  bucket can't be created by this same template.
+
+# ─────────────────────────────────────────────
+# PARAMETERS
+# ─────────────────────────────────────────────
+Parameters:
+  TemplatesBucketName:
+    Type: String
+    Description: >
+      S3 bucket holding the 6 child CloudFormation templates (uploaded by
+      the GitHub Actions workflow before this stack deploys/updates).
+
+  TemplatesPrefix:
+    Type: String
+    Default: templates/
+    Description: S3 key prefix under TemplatesBucketName where the child templates live.
+
+  DbInstanceClass:
+    Type: String
+    Default: db.t3.micro
+
+  TaskCpu:
+    Type: String
+    Default: "256"
+
+  TaskMemory:
+    Type: String
+    Default: "512"
+
+  RepositoryName:
+    Type: String
+    Default: emmanuel-photo-uploader-app
+
+  DjangoSecretKeyArn:
+    Type: String
+    Description: Secrets Manager ARN holding the Django SECRET_KEY (created out-of-band, not managed by this template).
+    Default: arn:aws:secretsmanager:eu-north-1:195275667627:secret:emmanuel-photo-uploader-django-secret-key-mcNg8V
+
+# ─────────────────────────────────────────────
+# RESOURCES
+# ─────────────────────────────────────────────
+Resources:
+
+  # ── Network (leaf — no dependencies) ──────────
+  NetworkStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "https://${TemplatesBucketName}.s3.${AWS::Region}.amazonaws.com/${TemplatesPrefix}network.yaml"
+      TimeoutInMinutes: 15
+      Tags:
+        - Key: Name
+          Value: emmanuel-photo-uploader-network
+
+  # ── Storage (leaf — no dependencies) ──────────
+  StorageStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "https://${TemplatesBucketName}.s3.${AWS::Region}.amazonaws.com/${TemplatesPrefix}storage.yaml"
+      TimeoutInMinutes: 15
+      Tags:
+        - Key: Name
+          Value: emmanuel-photo-uploader-storage
+
+  # ── ECR (leaf — no dependencies) ──────────────
+  EcrStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "https://${TemplatesBucketName}.s3.${AWS::Region}.amazonaws.com/${TemplatesPrefix}ecr.yaml"
+      TimeoutInMinutes: 10
+      Parameters:
+        RepositoryName: !Ref RepositoryName
+      Tags:
+        - Key: Name
+          Value: emmanuel-photo-uploader-ecr
+
+  # ── Database (depends on: network) ────────────
+  DatabaseStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: NetworkStack
+    Properties:
+      TemplateURL: !Sub "https://${TemplatesBucketName}.s3.${AWS::Region}.amazonaws.com/${TemplatesPrefix}database.yaml"
+      TimeoutInMinutes: 20
+      Parameters:
+        PrivateSubnetDb1Id: !GetAtt NetworkStack.Outputs.PrivateSubnetDb1Id
+        PrivateSubnetDb2Id: !GetAtt NetworkStack.Outputs.PrivateSubnetDb2Id
+        DbSecurityGroupId: !GetAtt NetworkStack.Outputs.DbSecurityGroupId
+        DbInstanceClass: !Ref DbInstanceClass
+      Tags:
+        - Key: Name
+          Value: emmanuel-photo-uploader-database
+
+  # ── ALB + ECS (depends on: network, ecr, storage, database) ──
+  AlbEcsStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn:
+      - NetworkStack
+      - EcrStack
+      - StorageStack
+      - DatabaseStack
+    Properties:
+      TemplateURL: !Sub "https://${TemplatesBucketName}.s3.${AWS::Region}.amazonaws.com/${TemplatesPrefix}alb-ecs.yaml"
+      TimeoutInMinutes: 20
+      Parameters:
+        VpcId: !GetAtt NetworkStack.Outputs.VpcId
+        PublicSubnet1Id: !GetAtt NetworkStack.Outputs.PublicSubnet1Id
+        PublicSubnet2Id: !GetAtt NetworkStack.Outputs.PublicSubnet2Id
+        PrivateSubnetEcs1Id: !GetAtt NetworkStack.Outputs.PrivateSubnetEcs1Id
+        PrivateSubnetEcs2Id: !GetAtt NetworkStack.Outputs.PrivateSubnetEcs2Id
+        AlbSecurityGroupId: !GetAtt NetworkStack.Outputs.AlbSecurityGroupId
+        EcsTaskSecurityGroupId: !GetAtt NetworkStack.Outputs.EcsTaskSecurityGroupId
+        EcrRepositoryUri: !GetAtt EcrStack.Outputs.RepositoryUri
+        PhotosBucketName: !GetAtt StorageStack.Outputs.PhotosBucketName
+        PhotosBucketArn: !GetAtt StorageStack.Outputs.PhotosBucketArn
+        CloudFrontDomainName: !GetAtt StorageStack.Outputs.CloudFrontDomainName
+        DbEndpointAddress: !GetAtt DatabaseStack.Outputs.DbEndpointAddress
+        DbEndpointPort: !GetAtt DatabaseStack.Outputs.DbEndpointPort
+        DbName: !GetAtt DatabaseStack.Outputs.DbName
+        DbMasterUsername: !GetAtt DatabaseStack.Outputs.DbMasterUsername
+        DbSecretArn: !GetAtt DatabaseStack.Outputs.DbSecretArn
+        TaskCpu: !Ref TaskCpu
+        TaskMemory: !Ref TaskMemory
+        DjangoSecretKeyArn: !Ref DjangoSecretKeyArn
+      Tags:
+        - Key: Name
+          Value: emmanuel-photo-uploader-alb-ecs
+
+  # ── Pipeline (depends on: ecr, alb-ecs) ───────
+  PipelineStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn:
+      - EcrStack
+      - AlbEcsStack
+    Properties:
+      TemplateURL: !Sub "https://${TemplatesBucketName}.s3.${AWS::Region}.amazonaws.com/${TemplatesPrefix}pipeline.yaml"
+      TimeoutInMinutes: 15
+      Parameters:
+        EcrRepositoryName: !GetAtt EcrStack.Outputs.RepositoryName
+        AlbEcsTaskExecutionRoleArn: !GetAtt AlbEcsStack.Outputs.TaskExecutionRoleArn
+        AlbEcsTaskRoleArn: !GetAtt AlbEcsStack.Outputs.TaskRoleArn
+        AlbEcsCodeDeployServiceRoleArn: !GetAtt AlbEcsStack.Outputs.CodeDeployServiceRoleArn
+        AlbEcsCodeDeployApplicationName: !GetAtt AlbEcsStack.Outputs.CodeDeployApplicationName
+        AlbEcsCodeDeployDeploymentGroupName: !GetAtt AlbEcsStack.Outputs.CodeDeployDeploymentGroupName
+      Tags:
+        - Key: Name
+          Value: emmanuel-photo-uploader-pipeline
+
+# ─────────────────────────────────────────────
+# OUTPUTS
+# ─────────────────────────────────────────────
+Outputs:
+  AlbDnsName:
+    Description: ALB DNS name — use this to access the running application
+    Value: !GetAtt AlbEcsStack.Outputs.AlbDnsName
+
+  PhotosBucketName:
+    Value: !GetAtt StorageStack.Outputs.PhotosBucketName
+
+  CloudFrontDomainName:
+    Value: !GetAtt StorageStack.Outputs.CloudFrontDomainName
+
+  DbEndpointAddress:
+    Value: !GetAtt DatabaseStack.Outputs.DbEndpointAddress
+
+  EcrRepositoryUri:
+    Value: !GetAtt EcrStack.Outputs.RepositoryUri
+
+  PipelineArtifactBucketName:
+    Description: >
+      S3 bucket the GitHub Actions app-build workflow must upload
+      deploy-spec.zip to, before pushing the "latest" image tag.
+    Value: !GetAtt PipelineStack.Outputs.PipelineArtifactBucketName
+
+  CodePipelineName:
+    Value: !GetAtt PipelineStack.Outputs.CodePipelineName

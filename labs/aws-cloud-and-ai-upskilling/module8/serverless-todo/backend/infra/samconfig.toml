@@ -1,0 +1,30 @@
+version = 0.1
+
+# Environment-scoped deploy configs, same pattern as the module7
+# DynamoDB lab — dev and prod each use their own dedicated S3 artifact
+# bucket (bootstrapped out-of-band; a bucket must exist before anything
+# can upload to it, so it can't be created by this same SAM deploy).
+# No [default.*] section — every deploy must explicitly name
+# --config-env dev or --config-env prod.
+
+[dev.deploy.parameters]
+stack_name = "emmanuel-serverless-todo-dev"
+resolve_s3 = false
+s3_bucket = "emmanuel-serverless-todo-sam-artifacts-dev-195275667627"
+s3_prefix = "emmanuel-serverless-todo-dev"
+region = "eu-north-1"
+capabilities = "CAPABILITY_NAMED_IAM"
+parameter_overrides = "Environment=dev"
+confirm_changeset = false
+fail_on_empty_changeset = false
+
+[prod.deploy.parameters]
+stack_name = "emmanuel-serverless-todo-prod"
+resolve_s3 = false
+s3_bucket = "emmanuel-serverless-todo-sam-artifacts-prod-195275667627"
+s3_prefix = "emmanuel-serverless-todo-prod"
+region = "eu-north-1"
+capabilities = "CAPABILITY_NAMED_IAM"
+parameter_overrides = "Environment=prod"
+confirm_changeset = false
+fail_on_empty_changeset = false

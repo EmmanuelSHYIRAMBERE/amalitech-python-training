@@ -1,0 +1,52 @@
+{
+  "family": "emmanuel-todo-app-task",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "256",
+  "memory": "512",
+  "executionRoleArn": "arn:aws:iam::195275667627:role/emmanuel-todo-app-task-execution-role",
+  "taskRoleArn": "arn:aws:iam::195275667627:role/emmanuel-todo-app-task-role",
+  "containerDefinitions": [
+    {
+      "name": "todo-app",
+      "image": "<IMAGE1_NAME>",
+      "portMappings": [
+        {
+          "containerPort": 8080,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        { "name": "SERVER_PORT", "value": "8080" },
+        { "name": "AWS_REGION", "value": "eu-north-1" },
+        { "name": "DB_HOST", "value": "emmanuel-todo-app-db-proxy.proxy-cx8e66g2o0sx.eu-north-1.rds.amazonaws.com" },
+        { "name": "DB_PORT", "value": "5432" },
+        { "name": "DB_NAME", "value": "todoapp" },
+        { "name": "DB_USER", "value": "todoapp" },
+        { "name": "REDIS_HOST", "value": "emmanuel-todo-app-redis.psslv9.0001.eun1.cache.amazonaws.com" },
+        { "name": "REDIS_PORT", "value": "6379" }
+      ],
+      "secrets": [
+        { "name": "DB_PASSWORD", "valueFrom": "arn:aws:secretsmanager:eu-north-1:195275667627:secret:rds!db-22575948-3b04-40d5-9071-f9732eae38be-SDjoBN:password::" }
+      ],
+      "healthCheck": {
+        "command": [
+          "CMD-SHELL",
+          "wget -qO- http://127.0.0.1:8080/actuator/health | grep -q '\"status\":\"UP\"' || exit 1"
+        ],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 30
+      },
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/emmanuel-todo-app",
+          "awslogs-region": "eu-north-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }
+    }
+  ]
+}

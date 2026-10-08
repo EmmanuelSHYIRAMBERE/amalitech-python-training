@@ -1,0 +1,408 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Serverless To-Do App Lab — Cognito-authenticated task management with
+  event-driven expiry processing. API Gateway (REST) + Lambda + DynamoDB
+  for CRUD; a PostAuthentication Lambda subscribes each user's email to
+  an SNS topic; EventBridge Scheduler fires a one-time per-task expiry
+  event at Deadline; a DynamoDB Streams -> SQS FIFO -> Lambda pipeline
+  cancels that scheduled event if the task is completed or deleted first.
+  Trainee: Emmanuel SHYIRAMBERE
+
+# ─────────────────────────────────────────────
+# PARAMETERS
+# ─────────────────────────────────────────────
+Parameters:
+  Environment:
+    Type: String
+    AllowedValues: [dev, prod]
+    Description: Deployment environment — suffixes every resource name so dev and prod never collide.
+
+  TaskDeadlineMinutes:
+    Type: Number
+    Default: 5
+    Description: Minutes after task creation that a task's Deadline defaults to, per the lab spec.
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Timeout: 10
+    MemorySize: 128
+    Tracing: Active
+    Environment:
+      Variables:
+        TASKS_TABLE: !Ref TasksTable
+        ENVIRONMENT: !Ref Environment
+
+# ─────────────────────────────────────────────
+# RESOURCES
+# ─────────────────────────────────────────────
+Resources:
+
+  # ═══════════════════════════════════════════
+  # DATA LAYER
+  # ═══════════════════════════════════════════
+
+  # Single-table design: PK = UserId, SK = TaskId. "List my tasks" is a
+  # single Query (no GSI needed); per-task CRUD always has both UserId
+  # (from the Cognito JWT claims) and TaskId (from the request) by the
+  # time it needs to reach DynamoDB. Streams enabled (NEW_AND_OLD_IMAGES)
+  # to drive the cancellation workflow below.
+  TasksTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "emmanuel-serverless-todo-tasks-${Environment}"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: UserId
+          AttributeType: S
+        - AttributeName: TaskId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: UserId
+          KeyType: HASH
+        - AttributeName: TaskId
+          KeyType: RANGE
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      Tags:
+        - Key: Name
+          Value: !Sub "emmanuel-serverless-todo-tasks-${Environment}"
+        - Key: Environment
+          Value: !Ref Environment
+
+  # ═══════════════════════════════════════════
+  # AUTH LAYER — Cognito + PostAuthentication -> SNS subscribe
+  # ═══════════════════════════════════════════
+
+  NotificationsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub "emmanuel-serverless-todo-notifications-${Environment}"
+
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub "emmanuel-serverless-todo-users-${Environment}"
+      # Email + password sign-up, auto-confirmed per the lab spec (no
+      # manual verification step, no email-verification code required).
+      UsernameAttributes:
+        - email
+      AutoVerifiedAttributes: []
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireUppercase: true
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: false
+      Schema:
+        - Name: email
+          AttributeDataType: String
+          Required: true
+          Mutable: true
+      LambdaConfig:
+        PreSignUp: !GetAtt PreSignUpFunction.Arn
+        PostAuthentication: !GetAtt PostAuthenticationFunction.Arn
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: !Sub "emmanuel-serverless-todo-client-${Environment}"
+      UserPoolId: !Ref UserPool
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        # SRP is what amazon-cognito-identity-js's authenticateUser()
+        # uses by default (password never leaves the browser, even
+        # over TLS) — the frontend needs this enabled or sign-in fails
+        # with "USER_SRP_AUTH is not enabled for the client." Plain
+        # USER_PASSWORD_AUTH is kept too, for the CLI-based
+        # verification flow used during this lab's testing.
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+
+  # Auto-confirms every new user (no email-verification code flow) —
+  # the lab spec requires sign-up to be auto-confirmed.
+  PreSignUpFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "emmanuel-serverless-todo-presignup-${Environment}"
+      CodeUri: ../src/handlers/
+      Handler: pre_signup.handler
+      Policies:
+        - CloudWatchLogsFullAccess
+
+  PreSignUpInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref PreSignUpFunction
+      Action: lambda:InvokeFunction
+      Principal: cognito-idp.amazonaws.com
+      SourceArn: !GetAtt UserPool.Arn
+
+  # Subscribes the just-authenticated user's email to the shared SNS
+  # topic, so expiry notifications reach them. Idempotent: SNS dedupes
+  # identical (protocol, endpoint) subscriptions automatically, so
+  # re-login doesn't create duplicate subscriptions.
+  PostAuthenticationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "emmanuel-serverless-todo-postauth-${Environment}"
+      CodeUri: ../src/handlers/
+      Handler: post_authentication.handler
+      Environment:
+        Variables:
+          NOTIFICATIONS_TOPIC_ARN: !Ref NotificationsTopic
+      Policies:
+        - CloudWatchLogsFullAccess
+        - Statement:
+            - Effect: Allow
+              Action: sns:Subscribe
+              Resource: !Ref NotificationsTopic
+
+  PostAuthenticationInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref PostAuthenticationFunction
+      Action: lambda:InvokeFunction
+      Principal: cognito-idp.amazonaws.com
+      SourceArn: !GetAtt UserPool.Arn
+
+  # ═══════════════════════════════════════════
+  # API LAYER — REST API + CRUD Lambda, Cognito-authorized
+  # ═══════════════════════════════════════════
+
+  TasksApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: !Sub "emmanuel-serverless-todo-api-${Environment}"
+      StageName: !Ref Environment
+      Cors:
+        AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
+        AllowHeaders: "'Content-Type,Authorization'"
+        AllowOrigin: "'*'"
+      Auth:
+        DefaultAuthorizer: CognitoAuthorizer
+        Authorizers:
+          CognitoAuthorizer:
+            UserPoolArn: !GetAtt UserPool.Arn
+        # SAM defaults to putting the DefaultAuthorizer on the
+        # auto-generated CORS preflight OPTIONS method too — but a
+        # preflight request carries no Authorization header, so API
+        # Gateway rejects it before the MOCK integration can return the
+        # CORS headers, and the browser sees a blocked preflight with
+        # no Access-Control-Allow-Origin at all. Confirmed live via
+        # `aws apigateway get-method ... OPTIONS` showing
+        # authorizationType: COGNITO_USER_POOLS before this fix.
+        AddDefaultAuthorizerToCorsPreflight: false
+
+  TasksFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "emmanuel-serverless-todo-tasks-${Environment}"
+      CodeUri: ../src/handlers/
+      Handler: tasks.handler
+      Environment:
+        Variables:
+          SCHEDULE_GROUP_NAME: !Ref ExpiryScheduleGroup
+          EXPIRY_FUNCTION_ARN: !GetAtt ExpiryFunction.Arn
+          SCHEDULER_ROLE_ARN: !GetAtt SchedulerInvocationRole.Arn
+          TASK_DEADLINE_MINUTES: !Ref TaskDeadlineMinutes
+      Policies:
+        - CloudWatchLogsFullAccess
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TasksTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - scheduler:CreateSchedule
+                - scheduler:DeleteSchedule
+                - scheduler:GetSchedule
+              Resource: !Sub "arn:aws:scheduler:${AWS::Region}:${AWS::AccountId}:schedule/${ExpiryScheduleGroup}/*"
+            - Effect: Allow
+              Action: iam:PassRole
+              Resource: !GetAtt SchedulerInvocationRole.Arn
+      Events:
+        CreateTask:
+          Type: Api
+          Properties:
+            RestApiId: !Ref TasksApi
+            Path: /tasks
+            Method: POST
+        ListTasks:
+          Type: Api
+          Properties:
+            RestApiId: !Ref TasksApi
+            Path: /tasks
+            Method: GET
+        UpdateTask:
+          Type: Api
+          Properties:
+            RestApiId: !Ref TasksApi
+            Path: /tasks/{taskId}
+            Method: PUT
+        DeleteTask:
+          Type: Api
+          Properties:
+            RestApiId: !Ref TasksApi
+            Path: /tasks/{taskId}
+            Method: DELETE
+
+  # ═══════════════════════════════════════════
+  # EXPIRY WORKFLOW — EventBridge Scheduler (per-task, one-time) -> Lambda -> SNS
+  # ═══════════════════════════════════════════
+
+  # Dedicated schedule group (rather than the default group) so every
+  # per-task schedule this lab creates is cleanly namespaced and
+  # trivially distinguishable/cleanable from anything else in the account.
+  ExpiryScheduleGroup:
+    Type: AWS::Scheduler::ScheduleGroup
+    Properties:
+      Name: !Sub "emmanuel-serverless-todo-expiry-${Environment}"
+
+  # EventBridge Scheduler assumes this role to invoke ExpiryFunction —
+  # scoped to exactly that one function, nothing broader.
+  SchedulerInvocationRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "emmanuel-serverless-todo-scheduler-role-${Environment}"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: scheduler.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: invoke-expiry-function
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource: !GetAtt ExpiryFunction.Arn
+
+  # Fires once, at a single task's Deadline. Re-checks status is still
+  # Pending (guards against a race with the cancellation workflow,
+  # which may be mid-flight) before marking Expired and notifying.
+  ExpiryFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "emmanuel-serverless-todo-expiry-${Environment}"
+      CodeUri: ../src/handlers/
+      Handler: expiry.handler
+      Environment:
+        Variables:
+          NOTIFICATIONS_TOPIC_ARN: !Ref NotificationsTopic
+      Policies:
+        - CloudWatchLogsFullAccess
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TasksTable
+        - Statement:
+            - Effect: Allow
+              Action: sns:Publish
+              Resource: !Ref NotificationsTopic
+
+  # ═══════════════════════════════════════════
+  # CANCELLATION WORKFLOW — DynamoDB Streams -> SQS FIFO -> Lambda
+  # ═══════════════════════════════════════════
+
+  # FIFO so per-task cancellation messages process in order; content-
+  # based deduplication (no explicit MessageDeduplicationId) collapses
+  # duplicate stream records for the same status change within the
+  # 5-minute dedup window, satisfying the spec's idempotency
+  # requirement without tracking an extra field.
+  CancellationQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub "emmanuel-serverless-todo-cancellation-${Environment}.fifo"
+      FifoQueue: true
+      ContentBasedDeduplication: true
+      VisibilityTimeout: 30
+
+  # Reads DynamoDB Streams records directly (no separate Lambda needed
+  # to bridge Streams -> SQS — SAM wires the stream as an event source
+  # straight onto this function), filters for Completed/Deleted
+  # transitions, and enqueues a cancellation message per matching task.
+  StreamToQueueFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "emmanuel-serverless-todo-stream-to-queue-${Environment}"
+      CodeUri: ../src/handlers/
+      Handler: stream_to_queue.handler
+      Environment:
+        Variables:
+          CANCELLATION_QUEUE_URL: !Ref CancellationQueue
+      Policies:
+        - CloudWatchLogsFullAccess
+        - Statement:
+            - Effect: Allow
+              Action: sqs:SendMessage
+              Resource: !GetAtt CancellationQueue.Arn
+      Events:
+        TasksStream:
+          Type: DynamoDB
+          Properties:
+            Stream: !GetAtt TasksTable.StreamArn
+            StartingPosition: LATEST
+            BatchSize: 10
+            MaximumRetryAttempts: 3
+            FilterCriteria:
+              Filters:
+                # REMOVE (hard delete) or a MODIFY where the new image's
+                # Status is Completed — the two cancellation triggers
+                # the spec calls out.
+                - Pattern: '{"eventName": ["REMOVE"]}'
+                - Pattern: '{"eventName": ["MODIFY"], "dynamodb": {"NewImage": {"Status": {"S": ["Completed"]}}}}'
+
+  # Consumes the FIFO queue and deletes the matching per-task
+  # EventBridge Scheduler schedule. Idempotent: deleting an
+  # already-deleted (or never-created, e.g. already-expired) schedule
+  # is treated as success, not an error — safe to process the same
+  # message more than once.
+  CancellationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "emmanuel-serverless-todo-cancellation-${Environment}"
+      CodeUri: ../src/handlers/
+      Handler: cancellation.handler
+      Environment:
+        Variables:
+          SCHEDULE_GROUP_NAME: !Ref ExpiryScheduleGroup
+      Policies:
+        - CloudWatchLogsFullAccess
+        - Statement:
+            - Effect: Allow
+              Action: scheduler:DeleteSchedule
+              Resource: !Sub "arn:aws:scheduler:${AWS::Region}:${AWS::AccountId}:schedule/${ExpiryScheduleGroup}/*"
+      Events:
+        CancellationQueueEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt CancellationQueue.Arn
+            BatchSize: 10
+
+# ─────────────────────────────────────────────
+# OUTPUTS
+# ─────────────────────────────────────────────
+Outputs:
+  ApiUrl:
+    Description: Base URL for the Tasks REST API
+    Value: !Sub "https://${TasksApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}"
+
+  UserPoolId:
+    Description: Cognito User Pool ID — needed by the frontend's Amplify config
+    Value: !Ref UserPool
+
+  UserPoolClientId:
+    Description: Cognito User Pool Client ID — needed by the frontend's Amplify config
+    Value: !Ref UserPoolClient
+
+  TasksTableName:
+    Value: !Ref TasksTable
+
+  NotificationsTopicArn:
+    Value: !Ref NotificationsTopic

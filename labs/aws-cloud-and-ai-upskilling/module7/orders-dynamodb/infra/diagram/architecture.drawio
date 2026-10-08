@@ -1,0 +1,111 @@
+<mxfile host="app.diagrams.net" agent="Claude">
+  <diagram name="Orders DynamoDB Lab — SAM Deployment Pipeline" id="orders-dynamodb-arch">
+    <mxGraphModel dx="1600" dy="1100" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1300" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="title" parent="1" style="text;html=1;fontSize=22;fontStyle=1;align=center;" value="Orders DynamoDB Lab — SAM Deployment Pipeline" vertex="1">
+          <mxGeometry height="40" width="600" x="350" y="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="repo" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#24292e;fontColor=#ffffff;strokeColor=none;fontSize=11;" value="Repository (feat/module7-dynamodb-sam)" vertex="1">
+          <mxGeometry height="50" width="180" x="560" y="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="push_role" parent="1" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#DD344C;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=11;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.role;" value="OIDC role: github-actions-orders-dynamodb-push" vertex="1">
+          <mxGeometry height="45" width="45" x="628" y="420" as="geometry" />
+        </mxCell>
+
+        <!-- ═══════════════ DEV PIPELINE (left) ═══════════════ -->
+        <mxCell id="cl_dev" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=16;fontSize=12;fontColor=#232f3e;fontStyle=1;dashed=1;dashPattern=8 4;strokeColor=#248814;fillColor=#E8F4E8;" value="dev pipeline — auto-triggers on push to infra/**" vertex="1">
+          <mxGeometry height="620" width="420" x="60" y="170" as="geometry" />
+        </mxCell>
+
+        <mxCell id="actions_dev" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#2088ff;fontColor=#ffffff;strokeColor=none;fontSize=11;" value="GitHub Actions: orders-dynamodb-deploy-dev.yml" vertex="1">
+          <mxGeometry height="55" width="170" x="100" y="210" as="geometry" />
+        </mxCell>
+
+        <mxCell id="s3_dev" parent="1" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#7AA116;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=10;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.s3;" value="SAM Artifact Bucket (dev)" vertex="1">
+          <mxGeometry height="42" width="42" x="140" y="340" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cfn_dev" parent="1" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#DD344C;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=10;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.cloudformation;" value="emmanuel-orders-dynamodb-dev" vertex="1">
+          <mxGeometry height="42" width="42" x="140" y="460" as="geometry" />
+        </mxCell>
+
+        <mxCell id="table_dev" parent="1" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#3334B9;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=10;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.dynamodb;" value="emmanuel-orders-dev (PAY_PER_REQUEST, STANDARD_IA)" vertex="1">
+          <mxGeometry height="42" width="42" x="140" y="580" as="geometry" />
+        </mxCell>
+
+        <mxCell id="gsi_dev" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=10;fontSize=9;fontColor=#232f3e;strokeColor=#5A6BA8;fillColor=#E8ECF7;dashed=0;" value="GSIs: CustomerOrdersIndex, StatusOrdersIndex" vertex="1">
+          <mxGeometry height="40" width="190" x="260" y="580" as="geometry" />
+        </mxCell>
+
+        <!-- ═══════════════ PROD PIPELINE (right) ═══════════════ -->
+        <mxCell id="cl_prod" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=16;fontSize=12;fontColor=#232f3e;fontStyle=1;dashed=1;dashPattern=8 4;strokeColor=#B85450;fillColor=#FAE8E8;" value="prod pipeline — push to infra/.promote-to-prod only" vertex="1">
+          <mxGeometry height="620" width="420" x="820" y="170" as="geometry" />
+        </mxCell>
+
+        <mxCell id="actions_prod" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#2088ff;fontColor=#ffffff;strokeColor=none;fontSize=11;" value="GitHub Actions: orders-dynamodb-deploy-prod.yml" vertex="1">
+          <mxGeometry height="55" width="170" x="860" y="210" as="geometry" />
+        </mxCell>
+
+        <mxCell id="s3_prod" parent="1" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#7AA116;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=10;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.s3;" value="SAM Artifact Bucket (prod)" vertex="1">
+          <mxGeometry height="42" width="42" x="900" y="340" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cfn_prod" parent="1" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#DD344C;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=10;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.cloudformation;" value="emmanuel-orders-dynamodb-prod" vertex="1">
+          <mxGeometry height="42" width="42" x="900" y="460" as="geometry" />
+        </mxCell>
+
+        <mxCell id="table_prod" parent="1" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#3334B9;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=10;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.dynamodb;" value="emmanuel-orders-prod (PAY_PER_REQUEST, STANDARD_IA)" vertex="1">
+          <mxGeometry height="42" width="42" x="900" y="580" as="geometry" />
+        </mxCell>
+
+        <mxCell id="gsi_prod" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=10;fontSize=9;fontColor=#232f3e;strokeColor=#5A6BA8;fillColor=#E8ECF7;dashed=0;" value="GSIs: CustomerOrdersIndex, StatusOrdersIndex" vertex="1">
+          <mxGeometry height="40" width="190" x="1020" y="580" as="geometry" />
+        </mxCell>
+
+        <!-- Edges -->
+        <mxCell id="e_repo_dev" edge="1" parent="1" source="repo" target="actions_dev" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;strokeColor=#545B64;" value="push to infra/**">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_repo_prod" edge="1" parent="1" source="repo" target="actions_prod" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;dashed=1;strokeColor=#999999;" value="push to infra/.promote-to-prod">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_dev_role" edge="1" parent="1" source="actions_dev" target="push_role" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;strokeColor=#545B64;" value="assumes via OIDC">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_prod_role" edge="1" parent="1" source="actions_prod" target="push_role" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;strokeColor=#545B64;" value="assumes via OIDC">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_dev_s3" edge="1" parent="1" source="actions_dev" target="s3_dev" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;strokeColor=#545B64;" value="sam build + deploy --config-env dev">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_prod_s3" edge="1" parent="1" source="actions_prod" target="s3_prod" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;strokeColor=#545B64;" value="sam build + deploy --config-env prod">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_s3_cfn_dev" edge="1" parent="1" source="s3_dev" target="cfn_dev" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;strokeColor=#545B64;" value="template source">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_s3_cfn_prod" edge="1" parent="1" source="s3_prod" target="cfn_prod" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;strokeColor=#545B64;" value="template source">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_cfn_table_dev" edge="1" parent="1" source="cfn_dev" target="table_dev" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;strokeColor=#248814;" value="provisions">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_cfn_table_prod" edge="1" parent="1" source="cfn_prod" target="table_prod" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;strokeColor=#248814;" value="provisions">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_table_gsi_dev" edge="1" parent="1" source="table_dev" target="gsi_dev" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;strokeColor=#999999;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_table_gsi_prod" edge="1" parent="1" source="table_prod" target="gsi_prod" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;strokeColor=#999999;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
