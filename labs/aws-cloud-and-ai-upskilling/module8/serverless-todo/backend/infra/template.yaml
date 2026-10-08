@@ -189,6 +189,15 @@ Resources:
         Authorizers:
           CognitoAuthorizer:
             UserPoolArn: !GetAtt UserPool.Arn
+        # SAM defaults to putting the DefaultAuthorizer on the
+        # auto-generated CORS preflight OPTIONS method too — but a
+        # preflight request carries no Authorization header, so API
+        # Gateway rejects it before the MOCK integration can return the
+        # CORS headers, and the browser sees a blocked preflight with
+        # no Access-Control-Allow-Origin at all. Confirmed live via
+        # `aws apigateway get-method ... OPTIONS` showing
+        # authorizationType: COGNITO_USER_POOLS before this fix.
+        AddDefaultAuthorizerToCorsPreflight: false
 
   TasksFunction:
     Type: AWS::Serverless::Function
